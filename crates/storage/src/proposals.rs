@@ -1,40 +1,10 @@
-use std::fs::{File, OpenOptions};
-use std::io::{self, BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
 
 use adhd_ranch_domain::{Proposal, ProposalId};
 
-use crate::atomic::atomic_write;
+use crate::jsonl::{JsonlError, JsonlLog};
 
-#[derive(Debug)]
-pub enum QueueError {
-    Io(io::Error),
-    Serde(serde_json::Error),
-}
-
-impl std::fmt::Display for QueueError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Io(e) => write!(f, "queue io: {e}"),
-            Self::Serde(e) => write!(f, "queue serde: {e}"),
-        }
-    }
-}
-
-impl std::error::Error for QueueError {}
-
-impl From<io::Error> for QueueError {
-    fn from(e: io::Error) -> Self {
-        Self::Io(e)
-    }
-}
-
-impl From<serde_json::Error> for QueueError {
-    fn from(e: serde_json::Error) -> Self {
-        Self::Serde(e)
-    }
-}
+pub type QueueError = JsonlError;
 
 pub trait ProposalQueue: Send + Sync {
     fn append(&self, proposal: &Proposal) -> Result<(), QueueError>;
@@ -44,87 +14,40 @@ pub trait ProposalQueue: Send + Sync {
 }
 
 pub struct JsonlProposalQueue {
-    path: PathBuf,
-    write_lock: Mutex<()>,
+    log: JsonlLog<Proposal>,
 }
 
 impl JsonlProposalQueue {
     pub fn new(path: impl Into<PathBuf>) -> Self {
         Self {
-            path: path.into(),
-            write_lock: Mutex::new(()),
+            log: JsonlLog::new(path),
         }
     }
 
     pub fn path(&self) -> &Path {
-        &self.path
+        self.log.path()
     }
 }
 
 impl ProposalQueue for JsonlProposalQueue {
     fn append(&self, proposal: &Proposal) -> Result<(), QueueError> {
-        let _guard = self.write_lock.lock().unwrap_or_else(|e| e.into_inner());
-        if let Some(parent) = self.path.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        let mut line = serde_json::to_string(proposal)?;
-        line.push('\n');
-        let mut file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&self.path)?;
-        file.write_all(line.as_bytes())?;
-        file.sync_data()?;
-        Ok(())
+        self.log.append(proposal)
     }
 
     fn list(&self) -> Result<Vec<Proposal>, QueueError> {
-        let file = match File::open(&self.path) {
-            Ok(f) => f,
-            Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(Vec::new()),
-            Err(e) => return Err(e.into()),
-        };
-        let reader = BufReader::new(file);
-        let mut out = Vec::new();
-        for line in reader.lines() {
-            let line = line?;
-            let trimmed = line.trim();
-            if trimmed.is_empty() {
-                continue;
-            }
-            let proposal: Proposal = serde_json::from_str(trimmed)?;
-            out.push(proposal);
-        }
-        Ok(out)
+        self.log.read_all()
     }
 
     fn find(&self, id: &ProposalId) -> Result<Option<Proposal>, QueueError> {
-        Ok(self.list()?.into_iter().find(|p| &p.id == id))
+        Ok(self.log.read_all()?.into_iter().find(|p| &p.id == id))
     }
 
     fn remove(&self, id: &ProposalId) -> Result<bool, QueueError> {
-        let _guard = self.write_lock.lock().unwrap_or_else(|e| e.into_inner());
-        let listed = self.list()?;
-        let mut removed = false;
-        let mut buf = String::new();
-        for p in &listed {
-            if &p.id == id {
-                removed = true;
-                continue;
-            }
-            buf.push_str(&serde_json::to_string(p)?);
-            buf.push('\n');
-        }
-        if !removed {
-            return Ok(false);
-        }
-        if buf.is_empty() {
-            // Remove file entirely so empty list = no file.
-            let _ = std::fs::remove_file(&self.path);
-        } else {
-            atomic_write(&self.path, buf.as_bytes())?;
-        }
-        Ok(true)
+        self.log.modify(|items| {
+            let before = items.len();
+            items.retain(|p| &p.id != id);
+            items.len() != before
+        })
     }
 }
 

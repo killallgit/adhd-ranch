@@ -54,6 +54,7 @@ dependencies = [
  "fs2",
  "notify",
  "notify-debouncer-mini",
+ "serde",
  "serde_json",
  "tempfile",
 ]

@@ -1,76 +1,34 @@
-use std::fs::OpenOptions;
-use std::io::{self, Write};
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
 
 use adhd_ranch_domain::Decision;
 
-#[derive(Debug)]
-pub enum DecisionLogError {
-    Io(io::Error),
-    Serde(serde_json::Error),
-}
+use crate::jsonl::{JsonlError, JsonlLog};
 
-impl std::fmt::Display for DecisionLogError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Io(e) => write!(f, "decision log io: {e}"),
-            Self::Serde(e) => write!(f, "decision log serde: {e}"),
-        }
-    }
-}
-
-impl std::error::Error for DecisionLogError {}
-
-impl From<io::Error> for DecisionLogError {
-    fn from(e: io::Error) -> Self {
-        Self::Io(e)
-    }
-}
-
-impl From<serde_json::Error> for DecisionLogError {
-    fn from(e: serde_json::Error) -> Self {
-        Self::Serde(e)
-    }
-}
+pub type DecisionLogError = JsonlError;
 
 pub trait DecisionLog: Send + Sync {
     fn append(&self, decision: &Decision) -> Result<(), DecisionLogError>;
 }
 
 pub struct JsonlDecisionLog {
-    path: PathBuf,
-    lock: Mutex<()>,
+    log: JsonlLog<Decision>,
 }
 
 impl JsonlDecisionLog {
     pub fn new(path: impl Into<PathBuf>) -> Self {
         Self {
-            path: path.into(),
-            lock: Mutex::new(()),
+            log: JsonlLog::new(path),
         }
     }
 
     pub fn path(&self) -> &Path {
-        &self.path
+        self.log.path()
     }
 }
 
 impl DecisionLog for JsonlDecisionLog {
     fn append(&self, decision: &Decision) -> Result<(), DecisionLogError> {
-        let _guard = self.lock.lock().unwrap_or_else(|e| e.into_inner());
-        if let Some(parent) = self.path.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        let mut line = serde_json::to_string(decision)?;
-        line.push('\n');
-        let mut file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&self.path)?;
-        file.write_all(line.as_bytes())?;
-        file.sync_data()?;
-        Ok(())
+        self.log.append(decision)
     }
 }
 

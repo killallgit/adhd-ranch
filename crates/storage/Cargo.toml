@@ -12,6 +12,7 @@ adhd-ranch-domain = { path = "../domain" }
 fs2 = "0.4"
 notify = "6"
 notify-debouncer-mini = "0.4"
+serde = { workspace = true }
 serde_json = { workspace = true }
 
 [dev-dependencies]
