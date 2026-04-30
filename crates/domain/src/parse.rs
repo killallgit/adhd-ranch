@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::focus::{Focus, FocusId, Task};
 
 #[derive(Debug, PartialEq, Eq)]
@@ -21,34 +23,13 @@ impl std::error::Error for ParseError {}
 
 pub fn parse_focus_md(input: &str) -> Result<Focus, ParseError> {
     let (frontmatter, body) = split_frontmatter(input)?;
-    let mut id: Option<String> = None;
-    let mut title: Option<String> = None;
-    let mut description: Option<String> = None;
-    let mut created_at: Option<String> = None;
-
-    for line in frontmatter.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-        let Some((key, value)) = trimmed.split_once(':') else {
-            continue;
-        };
-        let key = key.trim();
-        let value = unquote(value.trim()).to_string();
-        match key {
-            "id" => id = Some(value),
-            "title" => title = Some(value),
-            "description" => description = Some(value),
-            "created_at" => created_at = Some(value),
-            _ => {}
-        }
-    }
-
-    let id = id.ok_or(ParseError::MissingField("id"))?;
-    let title = title.ok_or(ParseError::MissingField("title"))?;
-    let description = description.unwrap_or_default();
-    let created_at = created_at.unwrap_or_default();
+    let mut fields = parse_frontmatter(frontmatter);
+    let id = fields.remove("id").ok_or(ParseError::MissingField("id"))?;
+    let title = fields
+        .remove("title")
+        .ok_or(ParseError::MissingField("title"))?;
+    let description = fields.remove("description").unwrap_or_default();
+    let created_at = fields.remove("created_at").unwrap_or_default();
     let tasks = parse_tasks(body, &id);
 
     Ok(Focus {
@@ -72,6 +53,21 @@ fn split_frontmatter(input: &str) -> Result<(&str, &str), ParseError> {
     let rest = &after_open[close + "\n---".len()..];
     let body = rest.strip_prefix('\n').unwrap_or(rest);
     Ok((frontmatter, body))
+}
+
+fn parse_frontmatter(frontmatter: &str) -> HashMap<String, String> {
+    let mut fields = HashMap::new();
+    for line in frontmatter.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        let Some((key, value)) = trimmed.split_once(':') else {
+            continue;
+        };
+        fields.insert(key.trim().to_string(), unquote(value.trim()).to_string());
+    }
+    fields
 }
 
 fn unquote(value: &str) -> &str {
@@ -203,5 +199,37 @@ mod tests {
             parse_focus_md(src).unwrap_err(),
             ParseError::MissingField("title")
         );
+    }
+
+    #[test]
+    fn parse_frontmatter_collects_keys_and_unquotes() {
+        let map = parse_frontmatter("id: \"a\"\ntitle: 'B C'\ndescription: short\n");
+        assert_eq!(map.get("id"), Some(&"a".to_string()));
+        assert_eq!(map.get("title"), Some(&"B C".to_string()));
+        assert_eq!(map.get("description"), Some(&"short".to_string()));
+    }
+
+    #[test]
+    fn parse_frontmatter_skips_blank_and_unkeyed_lines() {
+        let map = parse_frontmatter("\nid: a\nsome random line without colon\ntitle: T\n");
+        assert_eq!(map.len(), 2);
+        assert_eq!(map.get("id"), Some(&"a".to_string()));
+        assert_eq!(map.get("title"), Some(&"T".to_string()));
+    }
+
+    #[test]
+    fn parse_tasks_assigns_indexed_ids() {
+        let tasks = parse_tasks("- [ ] one\n- [x] two\n- [ ] three\n", "f");
+        assert_eq!(tasks.len(), 3);
+        assert_eq!(tasks[0].id, "f:0");
+        assert_eq!(tasks[1].id, "f:1");
+        assert_eq!(tasks[2].id, "f:2");
+    }
+
+    #[test]
+    fn parse_tasks_skips_blank_text() {
+        let tasks = parse_tasks("- [ ]   \n- [ ] real\n", "f");
+        assert_eq!(tasks.len(), 1);
+        assert_eq!(tasks[0].text, "real");
     }
 }

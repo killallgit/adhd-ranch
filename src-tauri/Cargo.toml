@@ -18,6 +18,7 @@ path = "src/main.rs"
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+adhd-ranch-commands = { path = "../crates/commands" }
 adhd-ranch-domain = { path = "../crates/domain" }
 adhd-ranch-storage = { path = "../crates/storage" }
 adhd-ranch-http-api = { path = "../crates/http-api" }

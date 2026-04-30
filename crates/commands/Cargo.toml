@@ -1,5 +1,5 @@
 [package]
-name = "adhd-ranch-storage"
+name = "adhd-ranch-commands"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -9,11 +9,8 @@ path = "src/lib.rs"
 
 [dependencies]
 adhd-ranch-domain = { path = "../domain" }
-fs2 = "0.4"
-notify = "6"
-notify-debouncer-mini = "0.4"
+adhd-ranch-storage = { path = "../storage" }
 serde = { workspace = true }
-serde_json = { workspace = true }
 
 [dev-dependencies]
 tempfile = "3"

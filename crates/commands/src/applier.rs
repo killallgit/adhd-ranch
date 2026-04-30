@@ -1,28 +1,9 @@
 use std::sync::Arc;
 
 use adhd_ranch_domain::{Proposal, ProposalKind};
-use adhd_ranch_storage::{FocusWriter, WriterError};
+use adhd_ranch_storage::FocusStore;
 
-#[derive(Debug)]
-pub enum ApplyError {
-    Writer(WriterError),
-}
-
-impl std::fmt::Display for ApplyError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Writer(e) => write!(f, "apply: {e}"),
-        }
-    }
-}
-
-impl std::error::Error for ApplyError {}
-
-impl From<WriterError> for ApplyError {
-    fn from(e: WriterError) -> Self {
-        Self::Writer(e)
-    }
-}
+use crate::error::CommandError;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AppliedOutcome {
@@ -30,27 +11,27 @@ pub struct AppliedOutcome {
 }
 
 pub trait ProposalApplier: Send + Sync {
-    fn apply(&self, proposal: &Proposal) -> Result<AppliedOutcome, ApplyError>;
+    fn apply(&self, proposal: &Proposal) -> Result<AppliedOutcome, CommandError>;
 }
 
 pub struct AddTaskApplier {
-    writer: Arc<dyn FocusWriter>,
+    store: Arc<dyn FocusStore>,
 }
 
 impl AddTaskApplier {
-    pub fn new(writer: Arc<dyn FocusWriter>) -> Self {
-        Self { writer }
+    pub fn new(store: Arc<dyn FocusStore>) -> Self {
+        Self { store }
     }
 }
 
 impl ProposalApplier for AddTaskApplier {
-    fn apply(&self, proposal: &Proposal) -> Result<AppliedOutcome, ApplyError> {
+    fn apply(&self, proposal: &Proposal) -> Result<AppliedOutcome, CommandError> {
         match &proposal.kind {
             ProposalKind::AddTask {
                 target_focus_id,
                 task_text,
             } => {
-                self.writer.append_task(target_focus_id, task_text)?;
+                self.store.append_task(target_focus_id, task_text)?;
                 Ok(AppliedOutcome {
                     target: Some(target_focus_id.clone()),
                 })
@@ -61,19 +42,19 @@ impl ProposalApplier for AddTaskApplier {
 }
 
 pub struct NewFocusApplier {
-    writer: Arc<dyn FocusWriter>,
+    store: Arc<dyn FocusStore>,
     clock: Arc<dyn Fn() -> String + Send + Sync>,
     id_gen: Arc<dyn Fn() -> String + Send + Sync>,
 }
 
 impl NewFocusApplier {
     pub fn new(
-        writer: Arc<dyn FocusWriter>,
+        store: Arc<dyn FocusStore>,
         clock: Arc<dyn Fn() -> String + Send + Sync>,
         id_gen: Arc<dyn Fn() -> String + Send + Sync>,
     ) -> Self {
         Self {
-            writer,
+            store,
             clock,
             id_gen,
         }
@@ -81,12 +62,12 @@ impl NewFocusApplier {
 }
 
 impl ProposalApplier for NewFocusApplier {
-    fn apply(&self, proposal: &Proposal) -> Result<AppliedOutcome, ApplyError> {
+    fn apply(&self, proposal: &Proposal) -> Result<AppliedOutcome, CommandError> {
         match &proposal.kind {
             ProposalKind::NewFocus { new_focus } => {
                 let id = (self.id_gen)();
                 let created_at = (self.clock)();
-                let slug = self.writer.create_focus(new_focus, &id, &created_at)?;
+                let slug = self.store.create_focus(new_focus, &id, &created_at)?;
                 Ok(AppliedOutcome { target: Some(slug) })
             }
             _ => unreachable!("NewFocusApplier called with non-new_focus kind"),
@@ -97,7 +78,7 @@ impl ProposalApplier for NewFocusApplier {
 pub struct DiscardApplier;
 
 impl ProposalApplier for DiscardApplier {
-    fn apply(&self, _proposal: &Proposal) -> Result<AppliedOutcome, ApplyError> {
+    fn apply(&self, _proposal: &Proposal) -> Result<AppliedOutcome, CommandError> {
         Ok(AppliedOutcome { target: None })
     }
 }
@@ -121,19 +102,19 @@ impl ProposalDispatcher {
         }
     }
 
-    pub fn from_writer(
-        writer: Arc<dyn FocusWriter>,
+    pub fn from_store(
+        store: Arc<dyn FocusStore>,
         clock: Arc<dyn Fn() -> String + Send + Sync>,
         id_gen: Arc<dyn Fn() -> String + Send + Sync>,
     ) -> Self {
         Self::new(
-            Arc::new(AddTaskApplier::new(writer.clone())),
-            Arc::new(NewFocusApplier::new(writer, clock, id_gen)),
+            Arc::new(AddTaskApplier::new(store.clone())),
+            Arc::new(NewFocusApplier::new(store, clock, id_gen)),
             Arc::new(DiscardApplier),
         )
     }
 
-    pub fn apply(&self, proposal: &Proposal) -> Result<AppliedOutcome, ApplyError> {
+    pub fn apply(&self, proposal: &Proposal) -> Result<AppliedOutcome, CommandError> {
         let strategy = self.strategy_for(&proposal.kind);
         strategy.apply(proposal)
     }
@@ -151,7 +132,7 @@ impl ProposalDispatcher {
 mod tests {
     use super::*;
     use adhd_ranch_domain::{NewFocus, ProposalId, ProposalKind};
-    use adhd_ranch_storage::MarkdownFocusWriter;
+    use adhd_ranch_storage::MarkdownFocusStore;
     use std::fs;
     use tempfile::TempDir;
 
@@ -166,9 +147,9 @@ mod tests {
     }
 
     fn dispatcher(focuses_root: &std::path::Path) -> ProposalDispatcher {
-        let writer: Arc<dyn FocusWriter> = Arc::new(MarkdownFocusWriter::new(focuses_root));
-        ProposalDispatcher::from_writer(
-            writer,
+        let store: Arc<dyn FocusStore> = Arc::new(MarkdownFocusStore::new(focuses_root));
+        ProposalDispatcher::from_store(
+            store,
             Arc::new(|| "2026-04-30T12:00:00Z".to_string()),
             Arc::new(|| "id-fixed".to_string()),
         )

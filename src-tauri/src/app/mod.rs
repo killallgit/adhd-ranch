@@ -4,11 +4,12 @@ pub mod tray;
 use std::sync::Arc;
 use std::time::Duration;
 
+use adhd_ranch_commands::{Commands, ProposalDispatcher};
 use adhd_ranch_domain::{cap_state, CapTransition, Caps, OverCapMonitor, Settings};
-use adhd_ranch_http_api::{serve, ProposalDispatcher, ServerHandle};
+use adhd_ranch_http_api::{serve, ServerHandle};
 use adhd_ranch_storage::{
-    watch_path, DecisionLog, FocusRepository, FocusWatcher, FocusWriter, JsonlDecisionLog,
-    JsonlProposalQueue, MarkdownFocusRepository, MarkdownFocusWriter, ProposalQueue,
+    watch_path, DecisionLog, FocusStore, FocusWatcher, JsonlDecisionLog, JsonlProposalQueue,
+    MarkdownFocusStore, ProposalQueue,
 };
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_notification::NotificationExt;
@@ -30,6 +31,7 @@ pub fn run() {
             ui_bridge::accept_proposal,
             ui_bridge::reject_proposal,
             ui_bridge::create_focus,
+            ui_bridge::create_proposal,
             ui_bridge::delete_focus,
             ui_bridge::append_task,
             ui_bridge::delete_task,
@@ -51,38 +53,41 @@ pub fn run() {
 
         let settings = load_settings(&settings_path);
 
-        let repo: Arc<dyn FocusRepository> =
-            Arc::new(MarkdownFocusRepository::new(focuses_root.clone()));
-        let writer: Arc<dyn FocusWriter> = Arc::new(MarkdownFocusWriter::new(focuses_root.clone()));
+        let store: Arc<dyn FocusStore> = Arc::new(MarkdownFocusStore::new(focuses_root.clone()));
         let queue: Arc<dyn ProposalQueue> =
             Arc::new(JsonlProposalQueue::new(proposals_path.clone()));
         let decision_log: Arc<dyn DecisionLog> =
             Arc::new(JsonlDecisionLog::new(decisions_path.clone()));
 
-        let dispatcher = Arc::new(ProposalDispatcher::from_writer(
-            writer.clone(),
+        let dispatcher = Arc::new(ProposalDispatcher::from_store(
+            store.clone(),
             Arc::new(now_rfc3339),
             Arc::new(|| uuid::Uuid::now_v7().to_string()),
         ));
 
+        let commands = Arc::new(Commands::new(
+            store.clone(),
+            queue.clone(),
+            decision_log.clone(),
+            dispatcher.clone(),
+            Arc::new(now_rfc3339),
+            Arc::new(|| uuid::Uuid::now_v7().to_string()),
+            settings,
+        ));
+
         let monitor = Arc::new(OverCapMonitor::new());
 
-        app.manage(ui_bridge::FocusRepoState(repo.clone()));
-        app.manage(ui_bridge::ProposalQueueState(queue.clone()));
-        app.manage(ui_bridge::DecisionLogState(decision_log.clone()));
-        app.manage(ui_bridge::DispatcherState(dispatcher.clone()));
-        app.manage(ui_bridge::FocusWriterState(writer.clone()));
-        app.manage(ui_bridge::SettingsState(settings));
+        app.manage(ui_bridge::CommandsState(commands));
         app.manage(ui_bridge::MonitorState(monitor.clone()));
 
         let cap_handle = app.handle().clone();
-        let cap_repo = repo.clone();
+        let cap_store = store.clone();
         let cap_monitor = monitor.clone();
         let focuses_watcher = watch_path(&focuses_root, Duration::from_millis(200), move || {
             let _ = cap_handle.emit(FOCUSES_CHANGED_EVENT, ());
             evaluate_caps(
                 &cap_handle,
-                cap_repo.as_ref(),
+                cap_store.as_ref(),
                 cap_monitor.as_ref(),
                 settings,
             );
@@ -97,7 +102,7 @@ pub fn run() {
             _proposals: proposals_watcher,
         });
 
-        let server = install_http_server(repo, writer, queue, decision_log, dispatcher)?;
+        let server = install_http_server(store, queue, decision_log, dispatcher)?;
         app.manage(server);
 
         tray::install(app.handle())?;
@@ -132,11 +137,11 @@ fn load_settings(path: &std::path::Path) -> Settings {
 
 fn evaluate_caps(
     handle: &AppHandle,
-    repo: &dyn FocusRepository,
+    store: &dyn FocusStore,
     monitor: &OverCapMonitor,
     settings: Settings,
 ) {
-    let focuses = match repo.list() {
+    let focuses = match store.list() {
         Ok(f) => f,
         Err(_) => return,
     };
@@ -191,8 +196,7 @@ fn install_watcher(
 }
 
 fn install_http_server(
-    repo: Arc<dyn FocusRepository>,
-    writer: Arc<dyn FocusWriter>,
+    store: Arc<dyn FocusStore>,
     queue: Arc<dyn ProposalQueue>,
     decisions: Arc<dyn DecisionLog>,
     dispatcher: Arc<ProposalDispatcher>,
@@ -200,7 +204,7 @@ fn install_http_server(
     let port_file = paths::port_file()?;
     let runtime = tauri::async_runtime::handle();
     let handle = runtime.block_on(async move {
-        serve(repo, writer, queue, decisions, dispatcher, Some(port_file)).await
+        serve(store, queue, decisions, dispatcher, Some(port_file)).await
     })?;
     Ok(handle)
 }

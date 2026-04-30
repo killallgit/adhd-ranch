@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
-import type { Unsubscribe } from "../api/focuses";
+import { useMemo } from "react";
 import type { ProposalReader } from "../api/proposals";
 import type { Proposal } from "../types/proposal";
+import { type PolledReader, usePolledReader } from "./usePolledReader";
 
 export type ProposalsState =
   | { readonly status: "loading" }
@@ -9,44 +9,14 @@ export type ProposalsState =
   | { readonly status: "error"; readonly error: Error };
 
 export function useProposals(reader: ProposalReader): ProposalsState {
-  const [state, setState] = useState<ProposalsState>({ status: "loading" });
-
-  useEffect(() => {
-    let cancelled = false;
-    let unsubscribe: Unsubscribe | null = null;
-
-    const refresh = () => {
-      reader
-        .list()
-        .then((proposals) => {
-          if (!cancelled) setState({ status: "ready", proposals });
-        })
-        .catch((error: unknown) => {
-          if (!cancelled)
-            setState({
-              status: "error",
-              error: error instanceof Error ? error : new Error(String(error)),
-            });
-        });
-    };
-
-    refresh();
-
-    if (reader.subscribe) {
-      Promise.resolve(reader.subscribe(refresh)).then((un) => {
-        if (cancelled) {
-          un();
-          return;
-        }
-        unsubscribe = un;
-      });
-    }
-
-    return () => {
-      cancelled = true;
-      if (unsubscribe) unsubscribe();
-    };
-  }, [reader]);
-
+  const polled: PolledReader<readonly Proposal[]> = useMemo(
+    () => ({
+      read: () => reader.list(),
+      subscribe: reader.subscribe?.bind(reader),
+    }),
+    [reader],
+  );
+  const state = usePolledReader(polled);
+  if (state.status === "ready") return { status: "ready", proposals: state.value };
   return state;
 }
