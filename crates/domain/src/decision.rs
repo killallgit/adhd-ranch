@@ -14,4 +14,6 @@ pub struct Decision {
     pub decision: DecisionKind,
     pub reasoning: String,
     pub target: Option<String>,
+    #[serde(default)]
+    pub edited: bool,
 }

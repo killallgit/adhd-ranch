@@ -255,11 +255,22 @@ struct DecisionResponse {
     pub target: Option<String>,
 }
 
+#[derive(Debug, Default, Deserialize)]
+pub struct ProposalEdit {
+    pub target_focus_id: Option<String>,
+    pub task_text: Option<String>,
+    pub new_focus: Option<adhd_ranch_domain::NewFocus>,
+}
+
 async fn accept_proposal(
     State(state): State<AppState>,
     Path(id): Path<String>,
+    body: Option<Json<ProposalEdit>>,
 ) -> Result<Json<DecisionResponse>, ApiError> {
-    let proposal = load_proposal(&state, &id)?;
+    let original = load_proposal(&state, &id)?;
+    let edit = body.map(|Json(e)| e).unwrap_or_default();
+    let (proposal, edited) = apply_edit(original, &edit);
+    proposal.validate().map_err(ApiError::validation)?;
     let outcome = state
         .dispatcher
         .apply(&proposal)
@@ -269,6 +280,7 @@ async fn accept_proposal(
         &proposal,
         DecisionKind::Accept,
         outcome.target.clone(),
+        edited,
     )?;
     state
         .queue
@@ -285,12 +297,45 @@ async fn reject_proposal(
     Path(id): Path<String>,
 ) -> Result<Json<DecisionResponse>, ApiError> {
     let proposal = load_proposal(&state, &id)?;
-    record_decision(&state, &proposal, DecisionKind::Reject, None)?;
+    record_decision(&state, &proposal, DecisionKind::Reject, None, false)?;
     state
         .queue
         .remove(&proposal.id)
         .map_err(ApiError::internal)?;
     Ok(Json(DecisionResponse { id, target: None }))
+}
+
+fn apply_edit(mut proposal: Proposal, edit: &ProposalEdit) -> (Proposal, bool) {
+    let mut edited = false;
+    match &mut proposal.kind {
+        ProposalKind::AddTask {
+            target_focus_id,
+            task_text,
+        } => {
+            if let Some(new_id) = edit.target_focus_id.as_ref() {
+                if new_id != target_focus_id {
+                    *target_focus_id = new_id.clone();
+                    edited = true;
+                }
+            }
+            if let Some(new_text) = edit.task_text.as_ref() {
+                if new_text != task_text {
+                    *task_text = new_text.clone();
+                    edited = true;
+                }
+            }
+        }
+        ProposalKind::NewFocus { new_focus } => {
+            if let Some(replacement) = edit.new_focus.as_ref() {
+                if replacement != new_focus {
+                    *new_focus = replacement.clone();
+                    edited = true;
+                }
+            }
+        }
+        ProposalKind::Discard => {}
+    }
+    (proposal, edited)
 }
 
 fn load_proposal(state: &AppState, id: &str) -> Result<Proposal, ApiError> {
@@ -309,6 +354,7 @@ fn record_decision(
     proposal: &Proposal,
     kind: DecisionKind,
     target: Option<String>,
+    edited: bool,
 ) -> Result<(), ApiError> {
     let decision = Decision {
         ts: (state.clock)(),
@@ -316,6 +362,7 @@ fn record_decision(
         decision: kind,
         reasoning: proposal.reasoning.clone(),
         target,
+        edited,
     };
     state
         .decisions
@@ -838,6 +885,83 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn accept_add_task_with_edit_uses_overrides_and_marks_decision() {
+        let dir = TempDir::new().unwrap();
+        let h = make_app(dir.path());
+        write_focus(
+            &h.focuses_root,
+            "f1",
+            &focus_md("f1", "F1", "x", "2026-04-30T12:00:00Z"),
+        );
+        write_focus(
+            &h.focuses_root,
+            "f2",
+            &focus_md("f2", "F2", "x", "2026-04-30T12:00:00Z"),
+        );
+
+        let _ = post_json(
+            &h.app,
+            "/proposals",
+            serde_json::json!({
+                "kind": "add_task",
+                "target_focus_id": "f1",
+                "task_text": "ship it",
+                "summary": "s",
+                "reasoning": "r"
+            }),
+        )
+        .await;
+
+        let resp = post_json(
+            &h.app,
+            "/proposals/p-test/accept",
+            serde_json::json!({
+                "target_focus_id": "f2",
+                "task_text": "ship it (edited)"
+            }),
+        )
+        .await;
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        let f1 = std::fs::read_to_string(h.focuses_root.join("f1/focus.md")).unwrap();
+        assert!(!f1.contains("ship it"));
+        let f2 = std::fs::read_to_string(h.focuses_root.join("f2/focus.md")).unwrap();
+        assert!(f2.contains("- [ ] ship it (edited)"));
+
+        let decisions = read_decisions_for_test(&h.decisions_path);
+        assert_eq!(decisions.len(), 1);
+        assert!(decisions[0].edited);
+        assert_eq!(decisions[0].target.as_deref(), Some("f2"));
+    }
+
+    #[tokio::test]
+    async fn accept_without_body_does_not_mark_edited() {
+        let dir = TempDir::new().unwrap();
+        let h = make_app(dir.path());
+        write_focus(
+            &h.focuses_root,
+            "f1",
+            &focus_md("f1", "F1", "x", "2026-04-30T12:00:00Z"),
+        );
+        let _ = post_json(
+            &h.app,
+            "/proposals",
+            serde_json::json!({
+                "kind": "add_task",
+                "target_focus_id": "f1",
+                "task_text": "ship it",
+                "summary": "s",
+                "reasoning": "r"
+            }),
+        )
+        .await;
+        let resp = post_empty(&h.app, "/proposals/p-test/accept").await;
+        assert_eq!(resp.status(), StatusCode::OK);
+        let decisions = read_decisions_for_test(&h.decisions_path);
+        assert!(!decisions[0].edited);
     }
 
     #[tokio::test]

@@ -2,7 +2,12 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { Proposal } from "../types/proposal";
 import type { Unsubscribe } from "./focuses";
-import type { ProposalDecisionResult, ProposalReader, ProposalWriter } from "./proposals";
+import type {
+  ProposalDecisionResult,
+  ProposalEdit,
+  ProposalReader,
+  ProposalWriter,
+} from "./proposals";
 
 const PROPOSALS_CHANGED = "proposals-changed";
 
@@ -27,8 +32,8 @@ export function createTauriProposalReader(): ProposalReader {
 
 export function createTauriProposalWriter(): ProposalWriter {
   return {
-    async accept(id: string): Promise<ProposalDecisionResult> {
-      const result = await invoke<RustDecisionResponse>("accept_proposal", { id });
+    async accept(id: string, edit?: ProposalEdit): Promise<ProposalDecisionResult> {
+      const result = await invoke<RustDecisionResponse>("accept_proposal", { id, edit });
       return { id: result.id, target: result.target };
     },
     async reject(id: string): Promise<ProposalDecisionResult> {

@@ -12,7 +12,10 @@ export function FocusList({ focuses, onClearTask, onDeleteFocus, busyFocusId }: 
   if (focuses.length === 0) {
     return (
       <div data-testid="focus-list-empty" className="focus-list-empty">
-        No focuses yet — create one below.
+        <p className="focus-list-empty-title">+ New Focus</p>
+        <p className="focus-list-empty-tip">
+          Create a bucket; run <code>/checkpoint</code> in any session.
+        </p>
       </div>
     );
   }

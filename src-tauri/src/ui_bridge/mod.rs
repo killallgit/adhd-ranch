@@ -106,20 +106,31 @@ pub fn get_caps(state: State<'_, SettingsState>) -> Caps {
     state.0.caps
 }
 
+#[derive(Debug, Default, serde::Deserialize)]
+pub struct ProposalEdit {
+    pub target_focus_id: Option<String>,
+    pub task_text: Option<String>,
+    pub new_focus: Option<NewFocus>,
+}
+
 #[tauri::command]
 pub fn accept_proposal(
     id: String,
+    edit: Option<ProposalEdit>,
     queue: State<'_, ProposalQueueState>,
     dispatcher: State<'_, DispatcherState>,
     decisions: State<'_, DecisionLogState>,
 ) -> Result<DecisionResponse, String> {
-    let proposal = load(&queue.0, &id)?;
+    let original = load(&queue.0, &id)?;
+    let (proposal, edited) = apply_edit(original, &edit.unwrap_or_default());
+    proposal.validate().map_err(|e| e.to_string())?;
     let outcome = dispatcher.0.apply(&proposal).map_err(|e| e.to_string())?;
     log_decision(
         &decisions.0,
         &proposal,
         DecisionKind::Accept,
         outcome.target.clone(),
+        edited,
     )?;
     queue.0.remove(&proposal.id).map_err(|e| e.to_string())?;
     Ok(DecisionResponse {
@@ -135,9 +146,43 @@ pub fn reject_proposal(
     decisions: State<'_, DecisionLogState>,
 ) -> Result<DecisionResponse, String> {
     let proposal = load(&queue.0, &id)?;
-    log_decision(&decisions.0, &proposal, DecisionKind::Reject, None)?;
+    log_decision(&decisions.0, &proposal, DecisionKind::Reject, None, false)?;
     queue.0.remove(&proposal.id).map_err(|e| e.to_string())?;
     Ok(DecisionResponse { id, target: None })
+}
+
+fn apply_edit(mut proposal: Proposal, edit: &ProposalEdit) -> (Proposal, bool) {
+    use adhd_ranch_domain::ProposalKind;
+    let mut edited = false;
+    match &mut proposal.kind {
+        ProposalKind::AddTask {
+            target_focus_id,
+            task_text,
+        } => {
+            if let Some(new_id) = edit.target_focus_id.as_ref() {
+                if new_id != target_focus_id {
+                    *target_focus_id = new_id.clone();
+                    edited = true;
+                }
+            }
+            if let Some(new_text) = edit.task_text.as_ref() {
+                if new_text != task_text {
+                    *task_text = new_text.clone();
+                    edited = true;
+                }
+            }
+        }
+        ProposalKind::NewFocus { new_focus } => {
+            if let Some(replacement) = edit.new_focus.as_ref() {
+                if replacement != new_focus {
+                    *new_focus = replacement.clone();
+                    edited = true;
+                }
+            }
+        }
+        ProposalKind::Discard => {}
+    }
+    (proposal, edited)
 }
 
 fn load(queue: &Arc<dyn ProposalQueue>, id: &str) -> Result<Proposal, String> {
@@ -152,6 +197,7 @@ fn log_decision(
     proposal: &Proposal,
     kind: DecisionKind,
     target: Option<String>,
+    edited: bool,
 ) -> Result<(), String> {
     let ts = time::OffsetDateTime::now_utc()
         .format(&Rfc3339)
@@ -162,6 +208,7 @@ fn log_decision(
         decision: kind,
         reasoning: proposal.reasoning.clone(),
         target,
+        edited,
     };
     log.append(&decision).map_err(|e| e.to_string())
 }

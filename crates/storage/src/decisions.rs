@@ -88,6 +88,7 @@ mod tests {
             decision: kind,
             reasoning: "fits".into(),
             target: Some("focus-x".into()),
+            edited: false,
         }
     }
 

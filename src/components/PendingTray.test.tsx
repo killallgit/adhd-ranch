@@ -56,7 +56,7 @@ describe("PendingTray", () => {
     fireEvent.click(screen.getByRole("button", { expanded: false }));
     fireEvent.click(screen.getByLabelText(/accept proposal p1/));
     await waitFor(() => {
-      expect(writer.accept).toHaveBeenCalledWith("p1");
+      expect(writer.accept).toHaveBeenCalledWith("p1", undefined);
     });
   });
 
@@ -70,6 +70,26 @@ describe("PendingTray", () => {
     fireEvent.click(screen.getByLabelText(/reject proposal p1/));
     await waitFor(() => {
       expect(writer.reject).toHaveBeenCalledWith("p1");
+    });
+  });
+
+  it("opens the edit modal and forwards overrides on accept", async () => {
+    const writer: ProposalWriter = {
+      accept: vi.fn().mockResolvedValue({ id: "p1", target: "f1" }),
+      reject: vi.fn().mockResolvedValue({ id: "p1", target: null }),
+    };
+    render(<PendingTray proposals={[addTaskProposal]} focuses={focuses} proposalWriter={writer} />);
+    fireEvent.click(screen.getByRole("button", { expanded: false }));
+    fireEvent.click(screen.getByLabelText(/edit proposal p1/));
+    fireEvent.change(screen.getByLabelText("task text"), {
+      target: { value: "ship it (edited)" },
+    });
+    fireEvent.click(screen.getByText("Accept (edited)"));
+    await waitFor(() => {
+      expect(writer.accept).toHaveBeenCalledWith("p1", {
+        target_focus_id: "f1",
+        task_text: "ship it (edited)",
+      });
     });
   });
 

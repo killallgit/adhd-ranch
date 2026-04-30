@@ -1,7 +1,8 @@
 import { useState } from "react";
-import type { ProposalWriter } from "../api/proposals";
+import type { ProposalEdit, ProposalWriter } from "../api/proposals";
 import type { Focus } from "../types/focus";
 import type { Proposal } from "../types/proposal";
+import { EditProposalModal } from "./EditProposalModal";
 
 export interface PendingTrayProps {
   readonly proposals: readonly Proposal[];
@@ -13,14 +14,15 @@ export function PendingTray({ proposals, focuses, proposalWriter }: PendingTrayP
   const [expanded, setExpanded] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [errorById, setErrorById] = useState<Record<string, string>>({});
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   if (proposals.length === 0) return null;
 
-  const handle = async (id: string, action: "accept" | "reject") => {
+  const handle = async (id: string, action: "accept" | "reject", edit?: ProposalEdit) => {
     setBusyId(id);
     setErrorById((prev) => ({ ...prev, [id]: "" }));
     try {
-      if (action === "accept") await proposalWriter.accept(id);
+      if (action === "accept") await proposalWriter.accept(id, edit);
       else await proposalWriter.reject(id);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -29,6 +31,8 @@ export function PendingTray({ proposals, focuses, proposalWriter }: PendingTrayP
       setBusyId((prev) => (prev === id ? null : prev));
     }
   };
+
+  const editingProposal = proposals.find((p) => p.id === editingId) ?? null;
 
   return (
     <section
@@ -58,9 +62,22 @@ export function PendingTray({ proposals, focuses, proposalWriter }: PendingTrayP
               error={errorById[proposal.id] ?? ""}
               onAccept={() => handle(proposal.id, "accept")}
               onReject={() => handle(proposal.id, "reject")}
+              onEdit={() => setEditingId(proposal.id)}
             />
           ))}
         </ul>
+      )}
+      {editingProposal && (
+        <EditProposalModal
+          proposal={editingProposal}
+          focuses={focuses}
+          onConfirm={(edit) => {
+            const id = editingProposal.id;
+            setEditingId(null);
+            void handle(id, "accept", edit);
+          }}
+          onCancel={() => setEditingId(null)}
+        />
       )}
     </section>
   );
@@ -73,9 +90,18 @@ interface ProposalCardProps {
   readonly error: string;
   readonly onAccept: () => void;
   readonly onReject: () => void;
+  readonly onEdit: () => void;
 }
 
-function ProposalCard({ proposal, focuses, busy, error, onAccept, onReject }: ProposalCardProps) {
+function ProposalCard({
+  proposal,
+  focuses,
+  busy,
+  error,
+  onAccept,
+  onReject,
+  onEdit,
+}: ProposalCardProps) {
   const [reasoningOpen, setReasoningOpen] = useState(false);
   const target = describeTarget(proposal, focuses);
 
@@ -106,6 +132,17 @@ function ProposalCard({ proposal, focuses, busy, error, onAccept, onReject }: Pr
         >
           ✗
         </button>
+        {proposal.kind !== "discard" && (
+          <button
+            type="button"
+            className="proposal-edit"
+            aria-label={`edit proposal ${proposal.id}`}
+            disabled={busy}
+            onClick={onEdit}
+          >
+            Edit
+          </button>
+        )}
         <button
           type="button"
           className="proposal-reasoning-toggle"
