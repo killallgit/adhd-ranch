@@ -1,0 +1,53 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - uses: arduino/setup-task@v2
+        with:
+          version: 3.x
+
+      - name: Install frontend deps
+        run: npm ci --no-audit --no-fund || npm install --no-audit --no-fund
+
+      - name: task build
+        run: task build
+
+      - name: Locate artifacts
+        id: artifacts
+        run: |
+          set -euo pipefail
+          DMG=$(ls src-tauri/target/release/bundle/dmg/*.dmg | head -1)
+          APP=$(ls -d src-tauri/target/release/bundle/macos/*.app | head -1)
+          APP_SIZE_MB=$(du -sm "$APP" | cut -f1)
+          echo "dmg=$DMG" >> "$GITHUB_OUTPUT"
+          echo "app=$APP" >> "$GITHUB_OUTPUT"
+          echo "Built $APP — ${APP_SIZE_MB} MB"
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: false
+          prerelease: false
+          fail_on_unmatched_files: true
+          files: |
+            ${{ steps.artifacts.outputs.dmg }}
