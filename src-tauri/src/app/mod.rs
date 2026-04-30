@@ -26,6 +26,10 @@ pub fn run() {
             ui_bridge::list_proposals,
             ui_bridge::accept_proposal,
             ui_bridge::reject_proposal,
+            ui_bridge::create_focus,
+            ui_bridge::delete_focus,
+            ui_bridge::append_task,
+            ui_bridge::delete_task,
         ]);
 
     builder = builder.setup(|app| {
@@ -71,7 +75,8 @@ pub fn run() {
             _proposals: proposals_watcher,
         });
 
-        let server = install_http_server(repo, queue, decision_log, dispatcher)?;
+        let server = install_http_server(repo, writer.clone(), queue, decision_log, dispatcher)?;
+        app.manage(ui_bridge::FocusWriterState(writer));
         app.manage(server);
 
         tray::install(app.handle())?;
@@ -116,6 +121,7 @@ fn install_watcher(
 
 fn install_http_server(
     repo: Arc<dyn FocusRepository>,
+    writer: Arc<dyn FocusWriter>,
     queue: Arc<dyn ProposalQueue>,
     decisions: Arc<dyn DecisionLog>,
     dispatcher: Arc<ProposalDispatcher>,
@@ -123,7 +129,7 @@ fn install_http_server(
     let port_file = paths::port_file()?;
     let runtime = tauri::async_runtime::handle();
     let handle = runtime.block_on(async move {
-        serve(repo, queue, decisions, dispatcher, Some(port_file)).await
+        serve(repo, writer, queue, decisions, dispatcher, Some(port_file)).await
     })?;
     Ok(handle)
 }

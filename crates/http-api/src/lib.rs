@@ -7,7 +7,7 @@ pub use applier::{
     ProposalDispatcher,
 };
 pub use router::{
-    router, router_with, CreateProposalRequest, CreateProposalResponse, FocusCatalogEntry,
-    ServerDeps,
+    router, router_with, AppendTaskRequest, CreateFocusRequest, CreateFocusResponse,
+    CreateProposalRequest, CreateProposalResponse, FocusCatalogEntry, ServerDeps,
 };
 pub use serve::{serve, ServeError, ServerHandle};

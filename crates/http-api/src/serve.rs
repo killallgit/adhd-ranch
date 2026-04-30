@@ -3,7 +3,7 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use adhd_ranch_storage::{DecisionLog, FocusRepository, ProposalQueue};
+use adhd_ranch_storage::{DecisionLog, FocusRepository, FocusWriter, ProposalQueue};
 use tokio::net::TcpListener;
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
@@ -74,6 +74,7 @@ impl Drop for ServerHandle {
 
 pub async fn serve(
     repo: Arc<dyn FocusRepository>,
+    writer: Arc<dyn FocusWriter>,
     queue: Arc<dyn ProposalQueue>,
     decisions: Arc<dyn DecisionLog>,
     dispatcher: Arc<ProposalDispatcher>,
@@ -89,7 +90,7 @@ pub async fn serve(
         std::fs::write(path, addr.port().to_string())?;
     }
 
-    let app = router(repo, queue, decisions, dispatcher);
+    let app = router(repo, writer, queue, decisions, dispatcher);
     let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
     let join = tokio::spawn(async move {
         let _ = axum::serve(listener, app)
@@ -141,15 +142,22 @@ mod tests {
         let queue = Arc::new(JsonlProposalQueue::new(dir.path().join("proposals.jsonl")));
         let decisions = Arc::new(JsonlDecisionLog::new(dir.path().join("decisions.jsonl")));
         let dispatcher = Arc::new(ProposalDispatcher::from_writer(
-            writer,
+            writer.clone(),
             Arc::new(|| "2026-04-30T12:00:00Z".to_string()),
             Arc::new(|| "id".to_string()),
         ));
         let port_file = dir.path().join("run/port");
 
-        let handle = serve(repo, queue, decisions, dispatcher, Some(port_file.clone()))
-            .await
-            .unwrap();
+        let handle = serve(
+            repo,
+            writer,
+            queue,
+            decisions,
+            dispatcher,
+            Some(port_file.clone()),
+        )
+        .await
+        .unwrap();
         let port = std::fs::read_to_string(&port_file)
             .unwrap()
             .trim()

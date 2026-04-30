@@ -179,3 +179,75 @@ body,
   opacity: 0.65;
   font-size: 11px;
 }
+
+.new-focus-toggle {
+  background: transparent;
+  border: 1px dashed rgba(255, 255, 255, 0.18);
+  color: inherit;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  width: 100%;
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+.new-focus-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 6px;
+  padding: 8px;
+}
+
+.new-focus-form input {
+  background: rgba(0, 0, 0, 0.25);
+  color: inherit;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-size: 12px;
+}
+
+.new-focus-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.new-focus-actions button {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  color: inherit;
+  cursor: pointer;
+  padding: 2px 8px;
+  font-size: 12px;
+}
+
+.new-focus-error,
+.proposal-error {
+  margin: 4px 0 0;
+  color: #ff8a80;
+  font-size: 11px;
+}
+
+.focus-delete-confirm {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin: 4px 0 6px;
+  font-size: 11px;
+  opacity: 0.85;
+}
+
+.focus-delete-confirm button {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  color: inherit;
+  cursor: pointer;
+  padding: 2px 6px;
+  font-size: 11px;
+}

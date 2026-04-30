@@ -3,11 +3,11 @@ use std::sync::Arc;
 use adhd_ranch_domain::{
     Decision, DecisionKind, Proposal, ProposalId, ProposalKind, ProposalValidationError,
 };
-use adhd_ranch_storage::{DecisionLog, FocusRepository, ProposalQueue};
+use adhd_ranch_storage::{DecisionLog, FocusRepository, FocusWriter, ProposalQueue};
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Json};
-use axum::routing::{get, post};
+use axum::routing::{delete, get, post};
 use axum::Router;
 use serde::{Deserialize, Serialize};
 use time::format_description::well_known::Rfc3339;
@@ -27,6 +27,7 @@ type IdGen = Arc<dyn Fn() -> String + Send + Sync>;
 #[derive(Clone)]
 struct AppState {
     repo: Arc<dyn FocusRepository>,
+    writer: Arc<dyn FocusWriter>,
     queue: Arc<dyn ProposalQueue>,
     decisions: Arc<dyn DecisionLog>,
     dispatcher: Arc<ProposalDispatcher>,
@@ -42,15 +43,24 @@ pub struct ServerDeps {
 
 pub fn router(
     repo: Arc<dyn FocusRepository>,
+    writer: Arc<dyn FocusWriter>,
     queue: Arc<dyn ProposalQueue>,
     decisions: Arc<dyn DecisionLog>,
     dispatcher: Arc<ProposalDispatcher>,
 ) -> Router {
-    router_with(repo, queue, decisions, dispatcher, ServerDeps::default())
+    router_with(
+        repo,
+        writer,
+        queue,
+        decisions,
+        dispatcher,
+        ServerDeps::default(),
+    )
 }
 
 pub fn router_with(
     repo: Arc<dyn FocusRepository>,
+    writer: Arc<dyn FocusWriter>,
     queue: Arc<dyn ProposalQueue>,
     decisions: Arc<dyn DecisionLog>,
     dispatcher: Arc<ProposalDispatcher>,
@@ -63,6 +73,7 @@ pub fn router_with(
 
     let state = AppState {
         repo,
+        writer,
         queue,
         decisions,
         dispatcher,
@@ -71,7 +82,10 @@ pub fn router_with(
     };
     Router::new()
         .route("/health", get(health))
-        .route("/focuses", get(list_focuses))
+        .route("/focuses", get(list_focuses).post(create_focus))
+        .route("/focuses/:id", delete(delete_focus))
+        .route("/focuses/:id/tasks", post(append_task))
+        .route("/focuses/:id/tasks/:idx", delete(delete_task))
         .route("/proposals", get(list_proposals).post(create_proposal))
         .route("/proposals/:id/accept", post(accept_proposal))
         .route("/proposals/:id/reject", post(reject_proposal))
@@ -101,6 +115,80 @@ async fn list_focuses(
         })
         .collect();
     Ok(Json(catalog))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateFocusRequest {
+    pub title: String,
+    #[serde(default)]
+    pub description: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CreateFocusResponse {
+    pub id: String,
+}
+
+async fn create_focus(
+    State(state): State<AppState>,
+    Json(req): Json<CreateFocusRequest>,
+) -> Result<(StatusCode, Json<CreateFocusResponse>), ApiError> {
+    if req.title.trim().is_empty() {
+        return Err(ApiError::bad_request("title must not be empty"));
+    }
+    let id = (state.id_gen)();
+    let created_at = (state.clock)();
+    let new_focus = adhd_ranch_domain::NewFocus {
+        title: req.title,
+        description: req.description,
+    };
+    let slug = state
+        .writer
+        .create_focus(&new_focus, &id, &created_at)
+        .map_err(ApiError::from_writer)?;
+    Ok((StatusCode::CREATED, Json(CreateFocusResponse { id: slug })))
+}
+
+async fn delete_focus(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Result<StatusCode, ApiError> {
+    state
+        .writer
+        .delete_focus(&id)
+        .map_err(ApiError::from_writer)?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AppendTaskRequest {
+    pub text: String,
+}
+
+async fn append_task(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Json(req): Json<AppendTaskRequest>,
+) -> Result<StatusCode, ApiError> {
+    if req.text.trim().is_empty() {
+        return Err(ApiError::bad_request("text must not be empty"));
+    }
+    state
+        .writer
+        .append_task(&id, &req.text)
+        .map_err(ApiError::from_writer)?;
+    Ok(StatusCode::CREATED)
+}
+
+async fn delete_task(
+    State(state): State<AppState>,
+    Path((id, idx)): Path<(String, usize)>,
+) -> Result<StatusCode, ApiError> {
+    state
+        .writer
+        .delete_task(&id, idx)
+        .map_err(ApiError::from_writer)?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 #[derive(Debug, Deserialize)]
@@ -259,6 +347,22 @@ impl ApiError {
     fn validation(e: ProposalValidationError) -> Self {
         Self::bad_request(e.to_string())
     }
+
+    fn from_writer(e: adhd_ranch_storage::WriterError) -> Self {
+        use adhd_ranch_storage::WriterError;
+        match e {
+            WriterError::FocusNotFound(_) => Self {
+                status: StatusCode::NOT_FOUND,
+                message: e.to_string(),
+            },
+            WriterError::FocusAlreadyExists(_) => Self {
+                status: StatusCode::CONFLICT,
+                message: e.to_string(),
+            },
+            WriterError::TaskIndexOutOfRange { .. } => Self::bad_request(e.to_string()),
+            WriterError::Io(_) => Self::internal(e),
+        }
+    }
 }
 
 impl IntoResponse for ApiError {
@@ -331,12 +435,13 @@ mod tests {
         let queue = Arc::new(JsonlProposalQueue::new(proposals_path.clone()));
         let decisions = Arc::new(JsonlDecisionLog::new(decisions_path.clone()));
         let dispatcher = Arc::new(ProposalDispatcher::from_writer(
-            writer,
+            writer.clone(),
             fixed_clock("2026-04-30T12:00:00Z"),
             fixed_id("focus-id-1"),
         ));
         let app = router_with(
             repo,
+            writer,
             queue,
             decisions,
             dispatcher,
@@ -566,6 +671,173 @@ mod tests {
         assert_eq!(decisions.len(), 1);
         assert_eq!(decisions[0].decision, DecisionKind::Reject);
         assert_eq!(decisions[0].target, None);
+    }
+
+    #[tokio::test]
+    async fn post_focus_creates_dir_and_returns_slug() {
+        let dir = TempDir::new().unwrap();
+        let h = make_app(dir.path());
+        let resp = post_json(
+            &h.app,
+            "/focuses",
+            serde_json::json!({"title": "API refactor", "description": "ship"}),
+        )
+        .await;
+        assert_eq!(resp.status(), StatusCode::CREATED);
+        let bytes = resp.into_body().collect().await.unwrap().to_bytes();
+        let payload: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(payload["id"], "api-refactor");
+        assert!(h.focuses_root.join("api-refactor/focus.md").exists());
+    }
+
+    #[tokio::test]
+    async fn post_focus_rejects_empty_title_with_400() {
+        let dir = TempDir::new().unwrap();
+        let h = make_app(dir.path());
+        let resp = post_json(
+            &h.app,
+            "/focuses",
+            serde_json::json!({"title": "  ", "description": "x"}),
+        )
+        .await;
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn post_focus_collision_returns_409() {
+        let dir = TempDir::new().unwrap();
+        let h = make_app(dir.path());
+        write_focus(
+            &h.focuses_root,
+            "api-refactor",
+            &focus_md("api-refactor", "API refactor", "x", "2026-04-30T12:00:00Z"),
+        );
+        let resp = post_json(
+            &h.app,
+            "/focuses",
+            serde_json::json!({"title": "API refactor"}),
+        )
+        .await;
+        assert_eq!(resp.status(), StatusCode::CONFLICT);
+    }
+
+    #[tokio::test]
+    async fn delete_focus_removes_dir_and_returns_204() {
+        let dir = TempDir::new().unwrap();
+        let h = make_app(dir.path());
+        write_focus(
+            &h.focuses_root,
+            "api-refactor",
+            &focus_md("api-refactor", "x", "x", "2026-04-30T12:00:00Z"),
+        );
+        let resp = h
+            .app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("DELETE")
+                    .uri("/focuses/api-refactor")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::NO_CONTENT);
+        assert!(!h.focuses_root.join("api-refactor").exists());
+    }
+
+    #[tokio::test]
+    async fn delete_focus_unknown_returns_404() {
+        let dir = TempDir::new().unwrap();
+        let h = make_app(dir.path());
+        let resp = h
+            .app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("DELETE")
+                    .uri("/focuses/nope")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn post_task_appends_bullet_and_returns_201() {
+        let dir = TempDir::new().unwrap();
+        let h = make_app(dir.path());
+        write_focus(
+            &h.focuses_root,
+            "api-refactor",
+            &focus_md("api-refactor", "x", "x", "2026-04-30T12:00:00Z"),
+        );
+        let resp = post_json(
+            &h.app,
+            "/focuses/api-refactor/tasks",
+            serde_json::json!({"text": "extract pipeline"}),
+        )
+        .await;
+        assert_eq!(resp.status(), StatusCode::CREATED);
+        let content =
+            std::fs::read_to_string(h.focuses_root.join("api-refactor/focus.md")).unwrap();
+        assert!(content.contains("- [ ] extract pipeline"));
+    }
+
+    #[tokio::test]
+    async fn delete_task_by_index_removes_bullet() {
+        let dir = TempDir::new().unwrap();
+        let h = make_app(dir.path());
+        std::fs::create_dir_all(h.focuses_root.join("api-refactor")).unwrap();
+        std::fs::write(
+            h.focuses_root.join("api-refactor/focus.md"),
+            "---\nid: api-refactor\ntitle: A\ndescription:\ncreated_at: 2026-04-30T12:00:00Z\n---\n- [ ] one\n- [ ] two\n- [ ] three\n",
+        )
+        .unwrap();
+        let resp = h
+            .app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("DELETE")
+                    .uri("/focuses/api-refactor/tasks/1")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::NO_CONTENT);
+        let content =
+            std::fs::read_to_string(h.focuses_root.join("api-refactor/focus.md")).unwrap();
+        assert!(content.contains("- [ ] one"));
+        assert!(!content.contains("- [ ] two"));
+        assert!(content.contains("- [ ] three"));
+    }
+
+    #[tokio::test]
+    async fn delete_task_out_of_range_returns_400() {
+        let dir = TempDir::new().unwrap();
+        let h = make_app(dir.path());
+        write_focus(
+            &h.focuses_root,
+            "api-refactor",
+            &focus_md("api-refactor", "x", "x", "2026-04-30T12:00:00Z"),
+        );
+        let resp = h
+            .app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("DELETE")
+                    .uri("/focuses/api-refactor/tasks/99")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
     }
 
     #[tokio::test]

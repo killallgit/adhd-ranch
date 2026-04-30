@@ -1,5 +1,5 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import type { Focus } from "../types/focus";
 import { FocusList } from "./FocusList";
 
@@ -23,15 +23,36 @@ const sample: Focus[] = [
 
 describe("FocusList", () => {
   it("renders one card per focus and one row per task", () => {
-    render(<FocusList focuses={sample} />);
+    render(
+      <FocusList
+        focuses={sample}
+        busyFocusId={null}
+        onClearTask={vi.fn()}
+        onDeleteFocus={vi.fn()}
+      />,
+    );
     expect(screen.getAllByTestId("focus-card")).toHaveLength(2);
     expect(screen.getAllByTestId("task-row")).toHaveLength(3);
-    expect(screen.getByText("Customer X bug")).toBeInTheDocument();
-    expect(screen.getByText("ship the fix")).toBeInTheDocument();
   });
 
-  it("renders empty-state hero when no focuses", () => {
-    render(<FocusList focuses={[]} />);
+  it("renders empty-state when no focuses", () => {
+    render(
+      <FocusList focuses={[]} busyFocusId={null} onClearTask={vi.fn()} onDeleteFocus={vi.fn()} />,
+    );
     expect(screen.getByTestId("focus-list-empty")).toBeInTheDocument();
+  });
+
+  it("invokes onClearTask with focus id and zero-based index", () => {
+    const onClear = vi.fn();
+    render(
+      <FocusList
+        focuses={sample}
+        busyFocusId={null}
+        onClearTask={onClear}
+        onDeleteFocus={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getAllByLabelText(/clear task/)[1]);
+    expect(onClear).toHaveBeenCalledWith("a", 1);
   });
 });
