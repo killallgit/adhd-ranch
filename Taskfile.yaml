@@ -1,0 +1,94 @@
+version: "3"
+
+tasks:
+  default:
+    desc: List available tasks
+    cmds:
+      - task --list
+
+  install:
+    desc: Install frontend deps
+    cmds:
+      - npm install --no-audit --no-fund
+
+  dev:
+    desc: Run Tauri dev (opens app window)
+    deps: [install]
+    cmds:
+      - npm run tauri -- dev
+
+  run:
+    desc: Alias for dev
+    cmds:
+      - task: dev
+
+  test:rust:
+    desc: Run Rust unit tests (pure crates only — Tauri app build is slow)
+    cmds:
+      - cargo test -p adhd-ranch-domain -p adhd-ranch-storage --all-targets
+
+  test:web:
+    desc: Run frontend tests
+    deps: [install]
+    cmds:
+      - npm run test
+
+  test:
+    desc: All unit tests
+    cmds:
+      - task: test:rust
+      - task: test:web
+
+  typecheck:
+    desc: TypeScript typecheck
+    deps: [install]
+    cmds:
+      - npm run typecheck
+
+  lint:rust:
+    desc: clippy + rustfmt --check
+    cmds:
+      - cargo fmt --all -- --check
+      - cargo clippy -p adhd-ranch-domain -p adhd-ranch-storage --all-targets -- -D warnings
+
+  lint:web:
+    desc: Biome lint frontend
+    deps: [install]
+    cmds:
+      - npm run lint
+
+  lint:
+    desc: Lint Rust + frontend
+    cmds:
+      - task: lint:rust
+      - task: lint:web
+
+  fmt:
+    desc: Format Rust + frontend
+    cmds:
+      - cargo fmt --all
+      - npm run fmt
+
+  check:
+    desc: PR gate — lint + typecheck + tests
+    cmds:
+      - task: lint
+      - task: typecheck
+      - task: test
+
+  build:web:
+    desc: Build frontend bundle
+    deps: [install]
+    cmds:
+      - npm run build
+
+  build:
+    desc: Tauri release build (macOS .app)
+    deps: [install]
+    cmds:
+      - npm run tauri -- build
+
+  ci:
+    desc: What CI runs
+    cmds:
+      - task: check

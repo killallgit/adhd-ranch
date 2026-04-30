@@ -4,3 +4,17 @@ ___*
 emdash
 .serena
 .devbox
+
+# rust
+target/
+
+# node / vite
+node_modules/
+dist/
+
+# tauri
+src-tauri/gen/
+src-tauri/target/
+
+# typescript incremental build artifact
+tsconfig.tsbuildinfo

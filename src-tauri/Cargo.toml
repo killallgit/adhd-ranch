@@ -1,0 +1,29 @@
+[package]
+name = "adhd-ranch"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Issue tracking for a five-year-old"
+
+[lib]
+name = "adhd_ranch_lib"
+path = "src/lib.rs"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+name = "adhd-ranch"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+adhd-ranch-domain = { path = "../crates/domain" }
+adhd-ranch-storage = { path = "../crates/storage" }
+tauri = { version = "2", features = [] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]

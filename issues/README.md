@@ -57,4 +57,4 @@ If any box can't be ticked, the issue is **not** done. Flag the human; don't sil
 ## User stories addressed
 ```
 
-The **completion promise** is the one-sentence description of the world after the issue is merged. If you can't write it in one sentence, the slice is too thick — split it.
+emit: "RALPH DONE" when all tasks completed
