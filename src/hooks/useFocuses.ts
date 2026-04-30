@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
-import type { FocusReader, Unsubscribe } from "../api/focuses";
+import { useMemo } from "react";
+import type { FocusReader } from "../api/focuses";
 import type { Focus } from "../types/focus";
+import { type PolledReader, usePolledReader } from "./usePolledReader";
 
 export type FocusesState =
   | { readonly status: "loading" }
@@ -8,44 +9,14 @@ export type FocusesState =
   | { readonly status: "error"; readonly error: Error };
 
 export function useFocuses(reader: FocusReader): FocusesState {
-  const [state, setState] = useState<FocusesState>({ status: "loading" });
-
-  useEffect(() => {
-    let cancelled = false;
-    let unsubscribe: Unsubscribe | null = null;
-
-    const refresh = () => {
-      reader
-        .list()
-        .then((focuses) => {
-          if (!cancelled) setState({ status: "ready", focuses });
-        })
-        .catch((error: unknown) => {
-          if (!cancelled)
-            setState({
-              status: "error",
-              error: error instanceof Error ? error : new Error(String(error)),
-            });
-        });
-    };
-
-    refresh();
-
-    if (reader.subscribe) {
-      Promise.resolve(reader.subscribe(refresh)).then((un) => {
-        if (cancelled) {
-          un();
-          return;
-        }
-        unsubscribe = un;
-      });
-    }
-
-    return () => {
-      cancelled = true;
-      if (unsubscribe) unsubscribe();
-    };
-  }, [reader]);
-
+  const polled: PolledReader<readonly Focus[]> = useMemo(
+    () => ({
+      read: () => reader.list(),
+      subscribe: reader.subscribe?.bind(reader),
+    }),
+    [reader],
+  );
+  const state = usePolledReader(polled);
+  if (state.status === "ready") return { status: "ready", focuses: state.value };
   return state;
 }
