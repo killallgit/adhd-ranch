@@ -10,3 +10,7 @@ pub fn data_root() -> io::Result<PathBuf> {
 pub fn focuses_root() -> io::Result<PathBuf> {
     Ok(data_root()?.join("focuses"))
 }
+
+pub fn port_file() -> io::Result<PathBuf> {
+    Ok(data_root()?.join("run/port"))
+}

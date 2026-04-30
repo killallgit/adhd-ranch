@@ -4,7 +4,8 @@ pub mod tray;
 use std::sync::Arc;
 use std::time::Duration;
 
-use adhd_ranch_storage::{watch_focuses, FocusWatcher, MarkdownFocusRepository};
+use adhd_ranch_http_api::{serve, ServerHandle};
+use adhd_ranch_storage::{watch_focuses, FocusRepository, FocusWatcher, MarkdownFocusRepository};
 use tauri::{AppHandle, Emitter, Manager};
 
 use crate::ui_bridge;
@@ -26,11 +27,15 @@ pub fn run() {
         let focuses_root = paths::focuses_root()?;
         std::fs::create_dir_all(&focuses_root)?;
 
-        let repo = Arc::new(MarkdownFocusRepository::new(focuses_root.clone()));
+        let repo: Arc<dyn FocusRepository> =
+            Arc::new(MarkdownFocusRepository::new(focuses_root.clone()));
         app.manage(ui_bridge::FocusRepoState(repo.clone()));
 
         let watcher = install_watcher(app.handle().clone(), &focuses_root)?;
         app.manage(WatcherHandle(watcher));
+
+        let server = install_http_server(repo)?;
+        app.manage(server);
 
         tray::install(app.handle())?;
         Ok(())
@@ -59,4 +64,13 @@ fn install_watcher(
         let _ = handle.emit(FOCUSES_CHANGED_EVENT, ());
     })?;
     Ok(watcher)
+}
+
+fn install_http_server(
+    repo: Arc<dyn FocusRepository>,
+) -> Result<ServerHandle, Box<dyn std::error::Error>> {
+    let port_file = paths::port_file()?;
+    let runtime = tauri::async_runtime::handle();
+    let handle = runtime.block_on(async move { serve(repo, Some(port_file)).await })?;
+    Ok(handle)
 }

@@ -20,6 +20,8 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 adhd-ranch-domain = { path = "../crates/domain" }
 adhd-ranch-storage = { path = "../crates/storage" }
+adhd-ranch-http-api = { path = "../crates/http-api" }
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros"] }
 tauri = { version = "2", features = ["tray-icon"] }
 tauri-plugin-positioner = { version = "2", features = ["tray-icon"] }
 serde = { workspace = true }
