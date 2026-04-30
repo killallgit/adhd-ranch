@@ -12,6 +12,10 @@ See `PRD.md` FR4 (`/proposals` routes), FR5 (slash command), `CONTEXT.md` single
 
 Proposal storage behind a `ProposalQueue` trait. JSONL append is atomic.
 
+## Completion promise
+
+On `main`, running `/checkpoint` in any Claude Code session enqueues a proposal that appears in the widget's pending tray within 1 second.
+
 ## Acceptance criteria
 
 - [ ] `~/.claude/commands/checkpoint.md` installed by `task install-skill` (or equivalent task target); contents documented.

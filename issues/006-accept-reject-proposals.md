@@ -18,6 +18,10 @@ Mutation uses atomic write (tmpfile + rename) and `flock` per file (FR-NFR relia
 
 Widget `✓ / ✗` buttons in the proposals tray now wired to the endpoints.
 
+## Completion promise
+
+On `main`, accepting a proposal in the widget mutates the on-disk Focus atomically and appends a row to `~/.adhd-ranch/decisions.jsonl`; rejecting drops the proposal and logs the decision.
+
 ## Acceptance criteria
 
 - [ ] Accepting `add_task` appends a bullet to the target Focus; widget reflects within 1s via watcher.

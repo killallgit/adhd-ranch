@@ -12,6 +12,10 @@ See `PRD.md` FR1 (Focus storage) and `CONTEXT.md` `focus.md` shape.
 
 Storage code lives behind a trait (`FocusRepository` or similar) so later slices can swap or extend without touching parsers. Pure parser separated from I/O.
 
+## Completion promise
+
+On `main`, the popover renders Focuses read from `~/.adhd-ranch/focuses/` and reflects any hand-edit to a `focus.md` within 1 second.
+
 ## Acceptance criteria
 
 - [ ] Pure parser reads frontmatter + bullets into a typed `Focus` struct; covered by Rust unit tests with table-driven cases.

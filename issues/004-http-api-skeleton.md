@@ -12,6 +12,10 @@ HTTP transport layer is a thin adapter over the storage trait from slice 003 —
 
 See `PRD.md` FR4.
 
+## Completion promise
+
+On `main`, with the app running, `curl http://127.0.0.1:$(cat ~/.adhd-ranch/run/port)/focuses` returns the on-disk Focus catalog as JSON.
+
 ## Acceptance criteria
 
 - [ ] App launch binds an ephemeral port; `~/.adhd-ranch/run/port` exists with the port number.

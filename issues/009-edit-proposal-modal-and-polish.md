@@ -14,6 +14,10 @@ Final UX polish before v1 ship. The build/dmg pipeline already exists from slice
 - Decisions audit log surfaced behind a debug toggle (developer affordance, optional).
 - README v1 install + usage docs.
 
+## Completion promise
+
+On `main`, a fresh-install end-to-end demo passes: empty-state hero → create Focus → run `/checkpoint` → edit proposal in modal → accept → bullet visible in widget.
+
 ## Acceptance criteria
 
 - [ ] Edit modal lets the user change `target_focus_id` and `task_text` (for `add_task`) or `new_focus.{title,description}` (for `new_focus`) before accepting.

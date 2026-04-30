@@ -15,6 +15,10 @@ Direct-manipulation actions in the widget so the user can drive the system witho
 
 Endpoints live behind the same trait architecture as slice 006 — handlers thin, business logic in domain.
 
+## Completion promise
+
+On `main`, the user can create a Focus, clear a Task, and delete a Focus entirely from the widget — without `/checkpoint` and without hand-editing markdown.
+
 ## Acceptance criteria
 
 - [ ] `+ New Focus` creates a Focus from the widget; appears in list within 1s.

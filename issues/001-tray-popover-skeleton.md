@@ -10,6 +10,10 @@ End-to-end shell of the desktop app with no storage or HTTP layer yet. Boots, sh
 
 See `PRD.md` FR2 (Tauri menubar app) and FR3 (widget UI) for layout intent. Inline `✗` and `…` controls render but are no-ops in this slice.
 
+## Completion promise
+
+On `main`, launching the app shows a macOS tray icon that toggles a borderless popover rendering hardcoded Focuses through the React view layer.
+
 ## Acceptance criteria
 
 - [ ] `task run` launches the app; tray icon appears in macOS menubar.

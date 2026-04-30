@@ -15,6 +15,10 @@ Finish the build/release pipeline early so every later slice ships through a rea
 - Codesigning: unsigned for v1 with documented `Gatekeeper` bypass instructions in README, OR ad-hoc signed; choose the simplest viable path and document it.
 - Footprint sanity check: release `.app` < 20 MB on disk (PRD non-functional req).
 
+## Completion promise
+
+On `main`, `task build` produces a working `Adhd Ranch.dmg`, and pushing a `v*` tag triggers CI to publish the dmg as a downloadable GitHub release asset.
+
 ## Acceptance criteria
 
 - [ ] `task build` produces a working `.app` that launches and shows the slice-001 popover.

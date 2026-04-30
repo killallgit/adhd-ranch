@@ -28,6 +28,10 @@ Foundational scaffolding for the Tauri v2 + React app. No product behavior. Esta
   - Comment the WHY only.
 - README stub describing how to run dev + check.
 
+## Completion promise
+
+On `main`, `task check` is green, `task dev` opens an empty Tauri window, and CI runs `task ci` on every PR — with `CLAUDE.md` documenting the programming rules every later slice must follow.
+
 ## Acceptance criteria
 
 - [ ] `task check` passes locally and in CI on a fresh clone.

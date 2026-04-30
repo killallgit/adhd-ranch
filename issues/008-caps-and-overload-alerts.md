@@ -16,6 +16,10 @@ Implement FR6 (caps) and FR7 (configuration) end-to-end.
 
 Cap detection function injected into the widget projection — no globals.
 
+## Completion promise
+
+On `main`, exceeding the configured Focus or Task cap shows a red badge in the widget and fires a one-shot macOS notification; recovering under the cap clears both, with caps configurable via `~/.adhd-ranch/settings.yaml`.
+
 ## Acceptance criteria
 
 - [ ] `settings.yaml` parsed; missing keys fall back to PRD defaults (5 / 7).
