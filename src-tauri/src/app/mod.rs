@@ -1,15 +1,36 @@
+pub mod paths;
 pub mod tray;
 
+use std::sync::Arc;
+use std::time::Duration;
+
+use adhd_ranch_storage::{watch_focuses, FocusWatcher, MarkdownFocusRepository};
+use tauri::{AppHandle, Emitter, Manager};
+
 use crate::ui_bridge;
+
+pub const FOCUSES_CHANGED_EVENT: &str = "focuses-changed";
 
 pub fn run() {
     let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_positioner::init())
-        .invoke_handler(tauri::generate_handler![ui_bridge::health]);
+        .invoke_handler(tauri::generate_handler![
+            ui_bridge::health,
+            ui_bridge::list_focuses
+        ]);
 
     builder = builder.setup(|app| {
         #[cfg(target_os = "macos")]
         app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+
+        let focuses_root = paths::focuses_root()?;
+        std::fs::create_dir_all(&focuses_root)?;
+
+        let repo = Arc::new(MarkdownFocusRepository::new(focuses_root.clone()));
+        app.manage(ui_bridge::FocusRepoState(repo.clone()));
+
+        let watcher = install_watcher(app.handle().clone(), &focuses_root)?;
+        app.manage(WatcherHandle(watcher));
 
         tray::install(app.handle())?;
         Ok(())
@@ -26,4 +47,16 @@ pub fn run() {
     builder
         .run(tauri::generate_context!())
         .expect("tauri runtime error");
+}
+
+struct WatcherHandle(#[allow(dead_code)] FocusWatcher);
+
+fn install_watcher(
+    handle: AppHandle,
+    root: &std::path::Path,
+) -> Result<FocusWatcher, Box<dyn std::error::Error>> {
+    let watcher = watch_focuses(root, Duration::from_millis(200), move || {
+        let _ = handle.emit(FOCUSES_CHANGED_EVENT, ());
+    })?;
+    Ok(watcher)
 }

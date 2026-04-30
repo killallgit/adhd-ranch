@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { FocusReader } from "../api/focuses";
+import type { FocusReader, Unsubscribe } from "../api/focuses";
 import type { Focus } from "../types/focus";
 
 export type FocusesState =
@@ -12,20 +12,38 @@ export function useFocuses(reader: FocusReader): FocusesState {
 
   useEffect(() => {
     let cancelled = false;
-    reader
-      .list()
-      .then((focuses) => {
-        if (!cancelled) setState({ status: "ready", focuses });
-      })
-      .catch((error: unknown) => {
-        if (!cancelled)
-          setState({
-            status: "error",
-            error: error instanceof Error ? error : new Error(String(error)),
-          });
+    let unsubscribe: Unsubscribe | null = null;
+
+    const refresh = () => {
+      reader
+        .list()
+        .then((focuses) => {
+          if (!cancelled) setState({ status: "ready", focuses });
+        })
+        .catch((error: unknown) => {
+          if (!cancelled)
+            setState({
+              status: "error",
+              error: error instanceof Error ? error : new Error(String(error)),
+            });
+        });
+    };
+
+    refresh();
+
+    if (reader.subscribe) {
+      Promise.resolve(reader.subscribe(refresh)).then((un) => {
+        if (cancelled) {
+          un();
+          return;
+        }
+        unsubscribe = un;
       });
+    }
+
     return () => {
       cancelled = true;
+      if (unsubscribe) unsubscribe();
     };
   }, [reader]);
 

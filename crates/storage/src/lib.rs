@@ -1,5 +1,5 @@
-use adhd_ranch_domain::Focus;
+pub mod repository;
+pub mod watcher;
 
-pub trait FocusStore: Send + Sync {
-    fn list(&self) -> Vec<Focus>;
-}
+pub use repository::{FocusRepository, MarkdownFocusRepository, RepositoryError};
+pub use watcher::{watch_focuses, FocusWatcher, WatcherError};
