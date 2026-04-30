@@ -4,12 +4,14 @@ pub mod tray;
 use std::sync::Arc;
 use std::time::Duration;
 
+use adhd_ranch_domain::{cap_state, CapTransition, Caps, OverCapMonitor, Settings};
 use adhd_ranch_http_api::{serve, ProposalDispatcher, ServerHandle};
 use adhd_ranch_storage::{
     watch_path, DecisionLog, FocusRepository, FocusWatcher, FocusWriter, JsonlDecisionLog,
     JsonlProposalQueue, MarkdownFocusRepository, MarkdownFocusWriter, ProposalQueue,
 };
 use tauri::{AppHandle, Emitter, Manager};
+use tauri_plugin_notification::NotificationExt;
 use time::format_description::well_known::Rfc3339;
 
 use crate::ui_bridge;
@@ -20,6 +22,7 @@ pub const PROPOSALS_CHANGED_EVENT: &str = "proposals-changed";
 pub fn run() {
     let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_positioner::init())
+        .plugin(tauri_plugin_notification::init())
         .invoke_handler(tauri::generate_handler![
             ui_bridge::health,
             ui_bridge::list_focuses,
@@ -30,6 +33,7 @@ pub fn run() {
             ui_bridge::delete_focus,
             ui_bridge::append_task,
             ui_bridge::delete_task,
+            ui_bridge::get_caps,
         ]);
 
     builder = builder.setup(|app| {
@@ -40,9 +44,12 @@ pub fn run() {
         std::fs::create_dir_all(&focuses_root)?;
         let proposals_path = paths::proposals_file()?;
         let decisions_path = paths::decisions_file()?;
+        let settings_path = paths::settings_file()?;
         if let Some(parent) = proposals_path.parent() {
             std::fs::create_dir_all(parent)?;
         }
+
+        let settings = load_settings(&settings_path);
 
         let repo: Arc<dyn FocusRepository> =
             Arc::new(MarkdownFocusRepository::new(focuses_root.clone()));
@@ -58,13 +65,28 @@ pub fn run() {
             Arc::new(|| uuid::Uuid::now_v7().to_string()),
         ));
 
+        let monitor = Arc::new(OverCapMonitor::new());
+
         app.manage(ui_bridge::FocusRepoState(repo.clone()));
         app.manage(ui_bridge::ProposalQueueState(queue.clone()));
         app.manage(ui_bridge::DecisionLogState(decision_log.clone()));
         app.manage(ui_bridge::DispatcherState(dispatcher.clone()));
+        app.manage(ui_bridge::FocusWriterState(writer.clone()));
+        app.manage(ui_bridge::SettingsState(settings));
+        app.manage(ui_bridge::MonitorState(monitor.clone()));
 
-        let focuses_watcher =
-            install_watcher(app.handle().clone(), &focuses_root, FOCUSES_CHANGED_EVENT)?;
+        let cap_handle = app.handle().clone();
+        let cap_repo = repo.clone();
+        let cap_monitor = monitor.clone();
+        let focuses_watcher = watch_path(&focuses_root, Duration::from_millis(200), move || {
+            let _ = cap_handle.emit(FOCUSES_CHANGED_EVENT, ());
+            evaluate_caps(
+                &cap_handle,
+                cap_repo.as_ref(),
+                cap_monitor.as_ref(),
+                settings,
+            );
+        })?;
         let proposals_watcher = install_watcher(
             app.handle().clone(),
             proposals_path.parent().expect("proposals path has parent"),
@@ -75,8 +97,7 @@ pub fn run() {
             _proposals: proposals_watcher,
         });
 
-        let server = install_http_server(repo, writer.clone(), queue, decision_log, dispatcher)?;
-        app.manage(ui_bridge::FocusWriterState(writer));
+        let server = install_http_server(repo, writer, queue, decision_log, dispatcher)?;
         app.manage(server);
 
         tray::install(app.handle())?;
@@ -100,6 +121,56 @@ fn now_rfc3339() -> String {
     time::OffsetDateTime::now_utc()
         .format(&Rfc3339)
         .unwrap_or_default()
+}
+
+fn load_settings(path: &std::path::Path) -> Settings {
+    match std::fs::read_to_string(path) {
+        Ok(raw) => Settings::parse_yaml(&raw),
+        Err(_) => Settings::default(),
+    }
+}
+
+fn evaluate_caps(
+    handle: &AppHandle,
+    repo: &dyn FocusRepository,
+    monitor: &OverCapMonitor,
+    settings: Settings,
+) {
+    let focuses = match repo.list() {
+        Ok(f) => f,
+        Err(_) => return,
+    };
+    let state = cap_state(&focuses, settings.caps);
+    let transition = monitor.evaluate(&state);
+    if !settings.alerts.system_notifications {
+        return;
+    }
+    notify_transitions(handle, &transition, settings.caps);
+}
+
+fn notify_transitions(handle: &AppHandle, transition: &CapTransition, caps: Caps) {
+    if transition.focuses_to_over {
+        let _ = handle
+            .notification()
+            .builder()
+            .title("Too many focuses")
+            .body(format!(
+                "You're over the limit of {} focuses — trim one.",
+                caps.max_focuses
+            ))
+            .show();
+    }
+    for id in &transition.task_to_over_focus_ids {
+        let _ = handle
+            .notification()
+            .builder()
+            .title("Focus has too many tasks")
+            .body(format!(
+                "Focus {id} has more than {} tasks.",
+                caps.max_tasks_per_focus
+            ))
+            .show();
+    }
 }
 
 #[allow(dead_code)]

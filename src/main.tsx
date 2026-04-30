@@ -1,5 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { createTauriCapsReader } from "./api/caps";
 import { createTauriFocusWriter } from "./api/focusWriter";
 import { createTauriFocusReader } from "./api/tauriFocusReader";
 import { createTauriProposalReader, createTauriProposalWriter } from "./api/tauriProposalReader";
@@ -13,6 +14,7 @@ const focusReader = createTauriFocusReader();
 const focusWriter = createTauriFocusWriter();
 const proposalReader = createTauriProposalReader();
 const proposalWriter = createTauriProposalWriter();
+const capsReader = createTauriCapsReader();
 
 ReactDOM.createRoot(rootEl).render(
   <React.StrictMode>
@@ -21,6 +23,7 @@ ReactDOM.createRoot(rootEl).render(
       focusWriter={focusWriter}
       proposalReader={proposalReader}
       proposalWriter={proposalWriter}
+      capsReader={capsReader}
     />
   </React.StrictMode>,
 );

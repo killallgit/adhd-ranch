@@ -10,6 +10,8 @@
     "core:window:allow-set-focus",
     "core:window:allow-is-visible",
     "positioner:default",
-    "positioner:allow-set-tray-icon-state"
+    "positioner:allow-set-tray-icon-state",
+    "notification:default",
+    "notification:allow-notify"
   ]
 }

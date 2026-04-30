@@ -1,8 +1,11 @@
 use std::sync::Arc;
 
-use adhd_ranch_domain::{Decision, DecisionKind, Focus, NewFocus, Proposal, ProposalId};
+use adhd_ranch_domain::{
+    Caps, Decision, DecisionKind, Focus, NewFocus, OverCapMonitor, Proposal, ProposalId, Settings,
+};
 use adhd_ranch_http_api::ProposalDispatcher;
 use adhd_ranch_storage::{DecisionLog, FocusRepository, FocusWriter, ProposalQueue};
+
 use tauri::State;
 use time::format_description::well_known::Rfc3339;
 
@@ -13,6 +16,8 @@ pub struct FocusWriterState(pub Arc<dyn FocusWriter>);
 pub struct ProposalQueueState(pub Arc<dyn ProposalQueue>);
 pub struct DecisionLogState(pub Arc<dyn DecisionLog>);
 pub struct DispatcherState(pub Arc<ProposalDispatcher>);
+pub struct SettingsState(pub Settings);
+pub struct MonitorState(pub Arc<OverCapMonitor>);
 
 #[derive(serde::Serialize)]
 pub struct DecisionResponse {
@@ -94,6 +99,11 @@ pub fn delete_task(
         .0
         .delete_task(&focus_id, index)
         .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn get_caps(state: State<'_, SettingsState>) -> Caps {
+    state.0.caps
 }
 
 #[tauri::command]

@@ -22,3 +22,7 @@ pub fn proposals_file() -> io::Result<PathBuf> {
 pub fn decisions_file() -> io::Result<PathBuf> {
     Ok(data_root()?.join("decisions.jsonl"))
 }
+
+pub fn settings_file() -> io::Result<PathBuf> {
+    Ok(data_root()?.join("settings.yaml"))
+}

@@ -1,9 +1,13 @@
 import { useState } from "react";
+import type { CapsReader } from "../api/caps";
 import type { FocusWriter } from "../api/focusWriter";
 import type { FocusReader } from "../api/focuses";
 import type { ProposalReader, ProposalWriter } from "../api/proposals";
+import { useCaps } from "../hooks/useCaps";
 import { useFocuses } from "../hooks/useFocuses";
 import { useProposals } from "../hooks/useProposals";
+import { computeCapState } from "../lib/capState";
+import { CapBadge } from "./CapBadge";
 import { FocusList } from "./FocusList";
 import { NewFocusForm } from "./NewFocusForm";
 import { PendingTray } from "./PendingTray";
@@ -13,16 +17,25 @@ export interface AppProps {
   readonly focusWriter: FocusWriter;
   readonly proposalReader: ProposalReader;
   readonly proposalWriter: ProposalWriter;
+  readonly capsReader: CapsReader;
 }
 
-export function App({ focusReader, focusWriter, proposalReader, proposalWriter }: AppProps) {
+export function App({
+  focusReader,
+  focusWriter,
+  proposalReader,
+  proposalWriter,
+  capsReader,
+}: AppProps) {
   const focuses = useFocuses(focusReader);
   const proposals = useProposals(proposalReader);
+  const caps = useCaps(capsReader);
   const [busyFocusId, setBusyFocusId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const focusList = focuses.status === "ready" ? focuses.focuses : [];
   const proposalList = proposals.status === "ready" ? proposals.proposals : [];
+  const capState = computeCapState(focusList, caps);
 
   const wrap = async (focusId: string, run: () => Promise<unknown>) => {
     setBusyFocusId(focusId);
@@ -47,9 +60,10 @@ export function App({ focusReader, focusWriter, proposalReader, proposalWriter }
   };
 
   return (
-    <div data-testid="app-root" className="app-root">
+    <div data-testid="app-root" className="app-root" data-over-cap={capState.anyOver}>
       <header className="app-header">
         <h1 className="app-title">adhd-ranch</h1>
+        <CapBadge capState={capState} maxFocuses={caps.max_focuses} />
       </header>
       <main className="app-body">
         {focuses.status === "loading" && <p data-testid="app-loading">Loading…</p>}
