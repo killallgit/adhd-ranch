@@ -12,12 +12,15 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "Adhd Ranch",
         "width": 360,
         "height": 480,
         "decorations": false,
         "alwaysOnTop": true,
         "resizable": false,
+        "skipTaskbar": true,
+        "transparent": true,
         "visible": false
       }
     ],

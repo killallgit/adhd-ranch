@@ -47,9 +47,11 @@ tasks:
 
   lint:rust:
     desc: clippy + rustfmt --check
+    deps: [build:web]
     cmds:
       - cargo fmt --all -- --check
       - cargo clippy -p adhd-ranch-domain -p adhd-ranch-storage --all-targets -- -D warnings
+      - cargo clippy -p adhd-ranch --all-targets -- -D warnings
 
   lint:web:
     desc: Biome lint frontend

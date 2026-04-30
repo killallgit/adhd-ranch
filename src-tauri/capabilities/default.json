@@ -3,5 +3,13 @@
   "identifier": "default",
   "description": "Default capabilities for adhd-ranch",
   "windows": ["main"],
-  "permissions": ["core:default"]
+  "permissions": [
+    "core:default",
+    "core:window:allow-show",
+    "core:window:allow-hide",
+    "core:window:allow-set-focus",
+    "core:window:allow-is-visible",
+    "positioner:default",
+    "positioner:allow-set-tray-icon-state"
+  ]
 }
