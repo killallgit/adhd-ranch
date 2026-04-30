@@ -6,6 +6,7 @@ version = 3
 name = "adhd-ranch"
 version = "0.0.0"
 dependencies = [
+ "adhd-ranch-commands",
  "adhd-ranch-domain",
  "adhd-ranch-http-api",
  "adhd-ranch-storage",
@@ -21,6 +22,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "adhd-ranch-commands"
+version = "0.0.0"
+dependencies = [
+ "adhd-ranch-domain",
+ "adhd-ranch-storage",
+ "serde",
+ "tempfile",
+]
+
+[[package]]
 name = "adhd-ranch-domain"
 version = "0.0.0"
 dependencies = [
@@ -33,6 +44,7 @@ dependencies = [
 name = "adhd-ranch-http-api"
 version = "0.0.0"
 dependencies = [
+ "adhd-ranch-commands",
  "adhd-ranch-domain",
  "adhd-ranch-storage",
  "axum",

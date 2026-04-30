@@ -1,28 +1,9 @@
 use std::sync::Arc;
 
 use adhd_ranch_domain::{Proposal, ProposalKind};
-use adhd_ranch_storage::{FocusStore, FocusStoreError};
+use adhd_ranch_storage::FocusStore;
 
-#[derive(Debug)]
-pub enum ApplyError {
-    Store(FocusStoreError),
-}
-
-impl std::fmt::Display for ApplyError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Store(e) => write!(f, "apply: {e}"),
-        }
-    }
-}
-
-impl std::error::Error for ApplyError {}
-
-impl From<FocusStoreError> for ApplyError {
-    fn from(e: FocusStoreError) -> Self {
-        Self::Store(e)
-    }
-}
+use crate::error::CommandError;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AppliedOutcome {
@@ -30,7 +11,7 @@ pub struct AppliedOutcome {
 }
 
 pub trait ProposalApplier: Send + Sync {
-    fn apply(&self, proposal: &Proposal) -> Result<AppliedOutcome, ApplyError>;
+    fn apply(&self, proposal: &Proposal) -> Result<AppliedOutcome, CommandError>;
 }
 
 pub struct AddTaskApplier {
@@ -44,7 +25,7 @@ impl AddTaskApplier {
 }
 
 impl ProposalApplier for AddTaskApplier {
-    fn apply(&self, proposal: &Proposal) -> Result<AppliedOutcome, ApplyError> {
+    fn apply(&self, proposal: &Proposal) -> Result<AppliedOutcome, CommandError> {
         match &proposal.kind {
             ProposalKind::AddTask {
                 target_focus_id,
@@ -81,7 +62,7 @@ impl NewFocusApplier {
 }
 
 impl ProposalApplier for NewFocusApplier {
-    fn apply(&self, proposal: &Proposal) -> Result<AppliedOutcome, ApplyError> {
+    fn apply(&self, proposal: &Proposal) -> Result<AppliedOutcome, CommandError> {
         match &proposal.kind {
             ProposalKind::NewFocus { new_focus } => {
                 let id = (self.id_gen)();
@@ -97,7 +78,7 @@ impl ProposalApplier for NewFocusApplier {
 pub struct DiscardApplier;
 
 impl ProposalApplier for DiscardApplier {
-    fn apply(&self, _proposal: &Proposal) -> Result<AppliedOutcome, ApplyError> {
+    fn apply(&self, _proposal: &Proposal) -> Result<AppliedOutcome, CommandError> {
         Ok(AppliedOutcome { target: None })
     }
 }
@@ -133,7 +114,7 @@ impl ProposalDispatcher {
         )
     }
 
-    pub fn apply(&self, proposal: &Proposal) -> Result<AppliedOutcome, ApplyError> {
+    pub fn apply(&self, proposal: &Proposal) -> Result<AppliedOutcome, CommandError> {
         let strategy = self.strategy_for(&proposal.kind);
         strategy.apply(proposal)
     }

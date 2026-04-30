@@ -3,12 +3,12 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use adhd_ranch_commands::ProposalDispatcher;
 use adhd_ranch_storage::{DecisionLog, FocusStore, ProposalQueue};
 use tokio::net::TcpListener;
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
 
-use crate::applier::ProposalDispatcher;
 use crate::router::router;
 
 #[derive(Debug)]

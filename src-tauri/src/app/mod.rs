@@ -4,8 +4,9 @@ pub mod tray;
 use std::sync::Arc;
 use std::time::Duration;
 
+use adhd_ranch_commands::{Commands, ProposalDispatcher};
 use adhd_ranch_domain::{cap_state, CapTransition, Caps, OverCapMonitor, Settings};
-use adhd_ranch_http_api::{serve, ProposalDispatcher, ServerHandle};
+use adhd_ranch_http_api::{serve, ServerHandle};
 use adhd_ranch_storage::{
     watch_path, DecisionLog, FocusStore, FocusWatcher, JsonlDecisionLog, JsonlProposalQueue,
     MarkdownFocusStore, ProposalQueue,
@@ -30,6 +31,7 @@ pub fn run() {
             ui_bridge::accept_proposal,
             ui_bridge::reject_proposal,
             ui_bridge::create_focus,
+            ui_bridge::create_proposal,
             ui_bridge::delete_focus,
             ui_bridge::append_task,
             ui_bridge::delete_task,
@@ -63,13 +65,19 @@ pub fn run() {
             Arc::new(|| uuid::Uuid::now_v7().to_string()),
         ));
 
+        let commands = Arc::new(Commands::new(
+            store.clone(),
+            queue.clone(),
+            decision_log.clone(),
+            dispatcher.clone(),
+            Arc::new(now_rfc3339),
+            Arc::new(|| uuid::Uuid::now_v7().to_string()),
+            settings,
+        ));
+
         let monitor = Arc::new(OverCapMonitor::new());
 
-        app.manage(ui_bridge::FocusStoreState(store.clone()));
-        app.manage(ui_bridge::ProposalQueueState(queue.clone()));
-        app.manage(ui_bridge::DecisionLogState(decision_log.clone()));
-        app.manage(ui_bridge::DispatcherState(dispatcher.clone()));
-        app.manage(ui_bridge::SettingsState(settings));
+        app.manage(ui_bridge::CommandsState(commands));
         app.manage(ui_bridge::MonitorState(monitor.clone()));
 
         let cap_handle = app.handle().clone();

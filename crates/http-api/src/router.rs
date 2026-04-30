@@ -1,43 +1,36 @@
 use std::sync::Arc;
 
-use adhd_ranch_domain::{
-    Decision, DecisionKind, Proposal, ProposalId, ProposalKind, ProposalValidationError,
+use adhd_ranch_commands::{
+    Clock, CommandError, Commands, CreateFocusInput, CreateProposalInput, IdGen,
+    ProposalDispatcher, ProposalEdit,
 };
+use adhd_ranch_domain::Settings;
 use adhd_ranch_storage::{DecisionLog, FocusStore, ProposalQueue};
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Json};
 use axum::routing::{delete, get, post};
 use axum::Router;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use time::format_description::well_known::Rfc3339;
 
-use crate::applier::ProposalDispatcher;
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct FocusCatalogEntry {
     pub id: String,
     pub title: String,
     pub description: String,
 }
 
-type Clock = Arc<dyn Fn() -> String + Send + Sync>;
-type IdGen = Arc<dyn Fn() -> String + Send + Sync>;
-
-#[derive(Clone)]
-struct AppState {
-    store: Arc<dyn FocusStore>,
-    queue: Arc<dyn ProposalQueue>,
-    decisions: Arc<dyn DecisionLog>,
-    dispatcher: Arc<ProposalDispatcher>,
-    clock: Clock,
-    id_gen: IdGen,
-}
-
 #[derive(Clone, Default)]
 pub struct ServerDeps {
     pub clock: Option<Clock>,
     pub id_gen: Option<IdGen>,
+    pub settings: Option<Settings>,
+}
+
+#[derive(Clone)]
+struct AppState {
+    commands: Arc<Commands>,
 }
 
 pub fn router(
@@ -60,15 +53,13 @@ pub fn router_with(
     let id_gen: IdGen = deps
         .id_gen
         .unwrap_or_else(|| Arc::new(|| uuid::Uuid::now_v7().to_string()));
+    let settings = deps.settings.unwrap_or_default();
 
-    let state = AppState {
-        store,
-        queue,
-        decisions,
-        dispatcher,
-        clock,
-        id_gen,
-    };
+    let commands = Arc::new(Commands::new(
+        store, queue, decisions, dispatcher, clock, id_gen, settings,
+    ));
+    let state = AppState { commands };
+
     Router::new()
         .route("/health", get(health))
         .route("/focuses", get(list_focuses).post(create_focus))
@@ -94,7 +85,7 @@ async fn health() -> impl IntoResponse {
 async fn list_focuses(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<FocusCatalogEntry>>, ApiError> {
-    let focuses = state.store.list().map_err(ApiError::internal)?;
+    let focuses = state.commands.list_focuses().map_err(ApiError::from)?;
     let catalog = focuses
         .into_iter()
         .map(|f| FocusCatalogEntry {
@@ -106,52 +97,25 @@ async fn list_focuses(
     Ok(Json(catalog))
 }
 
-#[derive(Debug, Deserialize)]
-pub struct CreateFocusRequest {
-    pub title: String,
-    #[serde(default)]
-    pub description: String,
-}
-
-#[derive(Debug, Serialize)]
-pub struct CreateFocusResponse {
-    pub id: String,
-}
-
 async fn create_focus(
     State(state): State<AppState>,
-    Json(req): Json<CreateFocusRequest>,
-) -> Result<(StatusCode, Json<CreateFocusResponse>), ApiError> {
-    if req.title.trim().is_empty() {
-        return Err(ApiError::bad_request("title must not be empty"));
-    }
-    let id = (state.id_gen)();
-    let created_at = (state.clock)();
-    let new_focus = adhd_ranch_domain::NewFocus {
-        title: req.title,
-        description: req.description,
-    };
-    let slug = state
-        .store
-        .create_focus(&new_focus, &id, &created_at)
-        .map_err(ApiError::from_store)?;
-    Ok((StatusCode::CREATED, Json(CreateFocusResponse { id: slug })))
+    Json(req): Json<CreateFocusInput>,
+) -> Result<(StatusCode, Json<adhd_ranch_commands::CreatedFocus>), ApiError> {
+    let created = state.commands.create_focus(req).map_err(ApiError::from)?;
+    Ok((StatusCode::CREATED, Json(created)))
 }
 
 async fn delete_focus(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<StatusCode, ApiError> {
-    state
-        .store
-        .delete_focus(&id)
-        .map_err(ApiError::from_store)?;
+    state.commands.delete_focus(&id).map_err(ApiError::from)?;
     Ok(StatusCode::NO_CONTENT)
 }
 
-#[derive(Debug, Deserialize)]
-pub struct AppendTaskRequest {
-    pub text: String,
+#[derive(Debug, serde::Deserialize)]
+struct AppendTaskRequest {
+    text: String,
 }
 
 async fn append_task(
@@ -159,13 +123,10 @@ async fn append_task(
     Path(id): Path<String>,
     Json(req): Json<AppendTaskRequest>,
 ) -> Result<StatusCode, ApiError> {
-    if req.text.trim().is_empty() {
-        return Err(ApiError::bad_request("text must not be empty"));
-    }
     state
-        .store
+        .commands
         .append_task(&id, &req.text)
-        .map_err(ApiError::from_store)?;
+        .map_err(ApiError::from)?;
     Ok(StatusCode::CREATED)
 }
 
@@ -174,189 +135,55 @@ async fn delete_task(
     Path((id, idx)): Path<(String, usize)>,
 ) -> Result<StatusCode, ApiError> {
     state
-        .store
+        .commands
         .delete_task(&id, idx)
-        .map_err(ApiError::from_store)?;
+        .map_err(ApiError::from)?;
     Ok(StatusCode::NO_CONTENT)
 }
 
-#[derive(Debug, Deserialize)]
-pub struct CreateProposalRequest {
-    pub kind: String,
-    pub target_focus_id: Option<String>,
-    pub task_text: Option<String>,
-    pub new_focus: Option<adhd_ranch_domain::NewFocus>,
-    pub summary: String,
-    pub reasoning: String,
-}
-
-#[derive(Debug, Serialize)]
-pub struct CreateProposalResponse {
-    pub id: String,
+async fn list_proposals(
+    State(state): State<AppState>,
+) -> Result<Json<Vec<adhd_ranch_domain::Proposal>>, ApiError> {
+    state
+        .commands
+        .list_proposals()
+        .map(Json)
+        .map_err(ApiError::from)
 }
 
 async fn create_proposal(
     State(state): State<AppState>,
-    Json(req): Json<CreateProposalRequest>,
-) -> Result<(StatusCode, Json<CreateProposalResponse>), ApiError> {
-    let kind = match req.kind.as_str() {
-        "add_task" => ProposalKind::AddTask {
-            target_focus_id: req.target_focus_id.clone().unwrap_or_default(),
-            task_text: req.task_text.clone().unwrap_or_default(),
-        },
-        "new_focus" => ProposalKind::NewFocus {
-            new_focus: req
-                .new_focus
-                .clone()
-                .unwrap_or(adhd_ranch_domain::NewFocus {
-                    title: String::new(),
-                    description: String::new(),
-                }),
-        },
-        "discard" => ProposalKind::Discard,
-        other => {
-            return Err(ApiError::bad_request(format!("unknown kind: {other}")));
-        }
-    };
-
-    let id = (state.id_gen)();
-    let proposal = Proposal {
-        id: ProposalId(id.clone()),
-        kind,
-        summary: req.summary,
-        reasoning: req.reasoning,
-        created_at: (state.clock)(),
-    };
-
-    proposal.validate().map_err(ApiError::validation)?;
-    state.queue.append(&proposal).map_err(ApiError::internal)?;
-
-    Ok((StatusCode::CREATED, Json(CreateProposalResponse { id })))
-}
-
-async fn list_proposals(State(state): State<AppState>) -> Result<Json<Vec<Proposal>>, ApiError> {
-    state.queue.list().map(Json).map_err(ApiError::internal)
-}
-
-#[derive(Debug, Serialize)]
-struct DecisionResponse {
-    pub id: String,
-    pub target: Option<String>,
-}
-
-#[derive(Debug, Default, Deserialize)]
-pub struct ProposalEdit {
-    pub target_focus_id: Option<String>,
-    pub task_text: Option<String>,
-    pub new_focus: Option<adhd_ranch_domain::NewFocus>,
+    Json(req): Json<CreateProposalInput>,
+) -> Result<(StatusCode, Json<adhd_ranch_commands::CreatedProposal>), ApiError> {
+    let created = state
+        .commands
+        .create_proposal(req)
+        .map_err(ApiError::from)?;
+    Ok((StatusCode::CREATED, Json(created)))
 }
 
 async fn accept_proposal(
     State(state): State<AppState>,
     Path(id): Path<String>,
     body: Option<Json<ProposalEdit>>,
-) -> Result<Json<DecisionResponse>, ApiError> {
-    let original = load_proposal(&state, &id)?;
+) -> Result<Json<adhd_ranch_commands::DecisionOutcome>, ApiError> {
     let edit = body.map(|Json(e)| e).unwrap_or_default();
-    let (proposal, edited) = apply_edit(original, &edit);
-    proposal.validate().map_err(ApiError::validation)?;
     let outcome = state
-        .dispatcher
-        .apply(&proposal)
-        .map_err(ApiError::internal)?;
-    record_decision(
-        &state,
-        &proposal,
-        DecisionKind::Accept,
-        outcome.target.clone(),
-        edited,
-    )?;
-    state
-        .queue
-        .remove(&proposal.id)
-        .map_err(ApiError::internal)?;
-    Ok(Json(DecisionResponse {
-        id,
-        target: outcome.target,
-    }))
+        .commands
+        .accept_proposal(&id, edit)
+        .map_err(ApiError::from)?;
+    Ok(Json(outcome))
 }
 
 async fn reject_proposal(
     State(state): State<AppState>,
     Path(id): Path<String>,
-) -> Result<Json<DecisionResponse>, ApiError> {
-    let proposal = load_proposal(&state, &id)?;
-    record_decision(&state, &proposal, DecisionKind::Reject, None, false)?;
-    state
-        .queue
-        .remove(&proposal.id)
-        .map_err(ApiError::internal)?;
-    Ok(Json(DecisionResponse { id, target: None }))
-}
-
-fn apply_edit(mut proposal: Proposal, edit: &ProposalEdit) -> (Proposal, bool) {
-    let mut edited = false;
-    match &mut proposal.kind {
-        ProposalKind::AddTask {
-            target_focus_id,
-            task_text,
-        } => {
-            if let Some(new_id) = edit.target_focus_id.as_ref() {
-                if new_id != target_focus_id {
-                    *target_focus_id = new_id.clone();
-                    edited = true;
-                }
-            }
-            if let Some(new_text) = edit.task_text.as_ref() {
-                if new_text != task_text {
-                    *task_text = new_text.clone();
-                    edited = true;
-                }
-            }
-        }
-        ProposalKind::NewFocus { new_focus } => {
-            if let Some(replacement) = edit.new_focus.as_ref() {
-                if replacement != new_focus {
-                    *new_focus = replacement.clone();
-                    edited = true;
-                }
-            }
-        }
-        ProposalKind::Discard => {}
-    }
-    (proposal, edited)
-}
-
-fn load_proposal(state: &AppState, id: &str) -> Result<Proposal, ApiError> {
-    state
-        .queue
-        .find(&ProposalId(id.to_string()))
-        .map_err(ApiError::internal)?
-        .ok_or_else(|| ApiError {
-            status: StatusCode::NOT_FOUND,
-            message: format!("proposal not found: {id}"),
-        })
-}
-
-fn record_decision(
-    state: &AppState,
-    proposal: &Proposal,
-    kind: DecisionKind,
-    target: Option<String>,
-    edited: bool,
-) -> Result<(), ApiError> {
-    let decision = Decision {
-        ts: (state.clock)(),
-        proposal_id: proposal.id.0.clone(),
-        decision: kind,
-        reasoning: proposal.reasoning.clone(),
-        target,
-        edited,
-    };
-    state
-        .decisions
-        .append(&decision)
-        .map_err(ApiError::internal)
+) -> Result<Json<adhd_ranch_commands::DecisionOutcome>, ApiError> {
+    let outcome = state
+        .commands
+        .reject_proposal(&id)
+        .map_err(ApiError::from)?;
+    Ok(Json(outcome))
 }
 
 #[derive(Debug)]
@@ -365,38 +192,17 @@ struct ApiError {
     message: String,
 }
 
-impl ApiError {
-    fn internal<E: std::fmt::Display>(e: E) -> Self {
+impl From<CommandError> for ApiError {
+    fn from(e: CommandError) -> Self {
+        let status = match e {
+            CommandError::BadRequest(_) | CommandError::Validation(_) => StatusCode::BAD_REQUEST,
+            CommandError::NotFound(_) => StatusCode::NOT_FOUND,
+            CommandError::AlreadyExists(_) => StatusCode::CONFLICT,
+            CommandError::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
+        };
         Self {
-            status: StatusCode::INTERNAL_SERVER_ERROR,
+            status,
             message: e.to_string(),
-        }
-    }
-
-    fn bad_request(message: impl Into<String>) -> Self {
-        Self {
-            status: StatusCode::BAD_REQUEST,
-            message: message.into(),
-        }
-    }
-
-    fn validation(e: ProposalValidationError) -> Self {
-        Self::bad_request(e.to_string())
-    }
-
-    fn from_store(e: adhd_ranch_storage::FocusStoreError) -> Self {
-        use adhd_ranch_storage::FocusStoreError;
-        match e {
-            FocusStoreError::NotFound(_) => Self {
-                status: StatusCode::NOT_FOUND,
-                message: e.to_string(),
-            },
-            FocusStoreError::AlreadyExists(_) => Self {
-                status: StatusCode::CONFLICT,
-                message: e.to_string(),
-            },
-            FocusStoreError::TaskIndexOutOfRange { .. } => Self::bad_request(e.to_string()),
-            FocusStoreError::Io(_) | FocusStoreError::Parse { .. } => Self::internal(e),
         }
     }
 }
@@ -414,6 +220,7 @@ impl IntoResponse for ApiError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use adhd_ranch_domain::{Decision, DecisionKind};
     use adhd_ranch_storage::{JsonlDecisionLog, JsonlProposalQueue, MarkdownFocusStore};
     use axum::body::Body;
     use axum::http::Request;
@@ -479,6 +286,7 @@ mod tests {
             ServerDeps {
                 clock: Some(fixed_clock("2026-04-30T12:00:00Z")),
                 id_gen: Some(fixed_id("p-test")),
+                settings: None,
             },
         );
         Harness {

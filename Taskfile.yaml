@@ -25,7 +25,7 @@ tasks:
   test:rust:
     desc: Run Rust unit tests (workspace minus the Tauri host, which is slow to compile)
     cmds:
-      - cargo test -p adhd-ranch-domain -p adhd-ranch-storage -p adhd-ranch-http-api --all-targets
+      - cargo test -p adhd-ranch-domain -p adhd-ranch-storage -p adhd-ranch-commands -p adhd-ranch-http-api --all-targets
 
   test:web:
     desc: Run frontend tests
@@ -50,7 +50,7 @@ tasks:
     deps: [build:web]
     cmds:
       - cargo fmt --all -- --check
-      - cargo clippy -p adhd-ranch-domain -p adhd-ranch-storage -p adhd-ranch-http-api --all-targets -- -D warnings
+      - cargo clippy -p adhd-ranch-domain -p adhd-ranch-storage -p adhd-ranch-commands -p adhd-ranch-http-api --all-targets -- -D warnings
       - cargo clippy -p adhd-ranch --all-targets -- -D warnings
 
   lint:web:
