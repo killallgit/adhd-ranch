@@ -22,6 +22,8 @@ adhd-ranch-domain = { path = "../crates/domain" }
 adhd-ranch-storage = { path = "../crates/storage" }
 adhd-ranch-http-api = { path = "../crates/http-api" }
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros"] }
+time = { version = "0.3", features = ["formatting"] }
+uuid = { version = "1", features = ["v7"] }
 tauri = { version = "2", features = ["tray-icon"] }
 tauri-plugin-positioner = { version = "2", features = ["tray-icon"] }
 serde = { workspace = true }

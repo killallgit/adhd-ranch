@@ -1,5 +1,5 @@
 import type { FocusReader } from "../api/focuses";
-import type { ProposalReader } from "../api/proposals";
+import type { ProposalReader, ProposalWriter } from "../api/proposals";
 import { useFocuses } from "../hooks/useFocuses";
 import { useProposals } from "../hooks/useProposals";
 import { FocusList } from "./FocusList";
@@ -8,9 +8,10 @@ import { PendingTray } from "./PendingTray";
 export interface AppProps {
   readonly focusReader: FocusReader;
   readonly proposalReader: ProposalReader;
+  readonly proposalWriter: ProposalWriter;
 }
 
-export function App({ focusReader, proposalReader }: AppProps) {
+export function App({ focusReader, proposalReader, proposalWriter }: AppProps) {
   const focuses = useFocuses(focusReader);
   const proposals = useProposals(proposalReader);
 
@@ -32,7 +33,7 @@ export function App({ focusReader, proposalReader }: AppProps) {
         {focuses.status === "ready" && <FocusList focuses={focuses.focuses} />}
       </main>
       <footer className="app-footer">
-        <PendingTray proposals={proposalList} focuses={focusList} />
+        <PendingTray proposals={proposalList} focuses={focusList} proposalWriter={proposalWriter} />
       </footer>
     </div>
   );

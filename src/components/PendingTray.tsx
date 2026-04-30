@@ -1,16 +1,34 @@
 import { useState } from "react";
+import type { ProposalWriter } from "../api/proposals";
 import type { Focus } from "../types/focus";
 import type { Proposal } from "../types/proposal";
 
 export interface PendingTrayProps {
   readonly proposals: readonly Proposal[];
   readonly focuses: readonly Focus[];
+  readonly proposalWriter: ProposalWriter;
 }
 
-export function PendingTray({ proposals, focuses }: PendingTrayProps) {
+export function PendingTray({ proposals, focuses, proposalWriter }: PendingTrayProps) {
   const [expanded, setExpanded] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [errorById, setErrorById] = useState<Record<string, string>>({});
 
   if (proposals.length === 0) return null;
+
+  const handle = async (id: string, action: "accept" | "reject") => {
+    setBusyId(id);
+    setErrorById((prev) => ({ ...prev, [id]: "" }));
+    try {
+      if (action === "accept") await proposalWriter.accept(id);
+      else await proposalWriter.reject(id);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setErrorById((prev) => ({ ...prev, [id]: message }));
+    } finally {
+      setBusyId((prev) => (prev === id ? null : prev));
+    }
+  };
 
   return (
     <section
@@ -32,7 +50,15 @@ export function PendingTray({ proposals, focuses }: PendingTrayProps) {
       {expanded && (
         <ul id="pending-tray-list" className="pending-tray-list">
           {proposals.map((proposal) => (
-            <ProposalCard key={proposal.id} proposal={proposal} focuses={focuses} />
+            <ProposalCard
+              key={proposal.id}
+              proposal={proposal}
+              focuses={focuses}
+              busy={busyId === proposal.id}
+              error={errorById[proposal.id] ?? ""}
+              onAccept={() => handle(proposal.id, "accept")}
+              onReject={() => handle(proposal.id, "reject")}
+            />
           ))}
         </ul>
       )}
@@ -43,9 +69,13 @@ export function PendingTray({ proposals, focuses }: PendingTrayProps) {
 interface ProposalCardProps {
   readonly proposal: Proposal;
   readonly focuses: readonly Focus[];
+  readonly busy: boolean;
+  readonly error: string;
+  readonly onAccept: () => void;
+  readonly onReject: () => void;
 }
 
-function ProposalCard({ proposal, focuses }: ProposalCardProps) {
+function ProposalCard({ proposal, focuses, busy, error, onAccept, onReject }: ProposalCardProps) {
   const [reasoningOpen, setReasoningOpen] = useState(false);
   const target = describeTarget(proposal, focuses);
 
@@ -62,7 +92,8 @@ function ProposalCard({ proposal, focuses }: ProposalCardProps) {
           type="button"
           className="proposal-accept"
           aria-label={`accept proposal ${proposal.id}`}
-          disabled
+          disabled={busy}
+          onClick={onAccept}
         >
           ✓
         </button>
@@ -70,7 +101,8 @@ function ProposalCard({ proposal, focuses }: ProposalCardProps) {
           type="button"
           className="proposal-reject"
           aria-label={`reject proposal ${proposal.id}`}
-          disabled
+          disabled={busy}
+          onClick={onReject}
         >
           ✗
         </button>
@@ -87,6 +119,11 @@ function ProposalCard({ proposal, focuses }: ProposalCardProps) {
       {reasoningOpen && (
         <p data-testid="proposal-reasoning" className="proposal-reasoning">
           {proposal.reasoning}
+        </p>
+      )}
+      {error && (
+        <p data-testid="proposal-error" role="alert" className="proposal-error">
+          {error}
         </p>
       )}
     </li>

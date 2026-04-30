@@ -3,11 +3,12 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use adhd_ranch_storage::{FocusRepository, ProposalQueue};
+use adhd_ranch_storage::{DecisionLog, FocusRepository, ProposalQueue};
 use tokio::net::TcpListener;
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
 
+use crate::applier::ProposalDispatcher;
 use crate::router::router;
 
 #[derive(Debug)]
@@ -74,6 +75,8 @@ impl Drop for ServerHandle {
 pub async fn serve(
     repo: Arc<dyn FocusRepository>,
     queue: Arc<dyn ProposalQueue>,
+    decisions: Arc<dyn DecisionLog>,
+    dispatcher: Arc<ProposalDispatcher>,
     port_file: Option<PathBuf>,
 ) -> Result<ServerHandle, ServeError> {
     let listener = TcpListener::bind(SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0)).await?;
@@ -86,7 +89,7 @@ pub async fn serve(
         std::fs::write(path, addr.port().to_string())?;
     }
 
-    let app = router(repo, queue);
+    let app = router(repo, queue, decisions, dispatcher);
     let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
     let join = tokio::spawn(async move {
         let _ = axum::serve(listener, app)
@@ -107,7 +110,10 @@ pub async fn serve(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use adhd_ranch_storage::{JsonlProposalQueue, MarkdownFocusRepository};
+    use adhd_ranch_storage::{
+        FocusWriter, JsonlDecisionLog, JsonlProposalQueue, MarkdownFocusRepository,
+        MarkdownFocusWriter,
+    };
     use std::fs;
     use tempfile::TempDir;
 
@@ -130,11 +136,20 @@ mod tests {
             "a",
             &focus_md("a", "Alpha", "x", "2026-04-30T12:00:00Z"),
         );
-        let repo = Arc::new(MarkdownFocusRepository::new(focuses_root));
+        let repo = Arc::new(MarkdownFocusRepository::new(&focuses_root));
+        let writer: Arc<dyn FocusWriter> = Arc::new(MarkdownFocusWriter::new(&focuses_root));
         let queue = Arc::new(JsonlProposalQueue::new(dir.path().join("proposals.jsonl")));
+        let decisions = Arc::new(JsonlDecisionLog::new(dir.path().join("decisions.jsonl")));
+        let dispatcher = Arc::new(ProposalDispatcher::from_writer(
+            writer,
+            Arc::new(|| "2026-04-30T12:00:00Z".to_string()),
+            Arc::new(|| "id".to_string()),
+        ));
         let port_file = dir.path().join("run/port");
 
-        let handle = serve(repo, queue, Some(port_file.clone())).await.unwrap();
+        let handle = serve(repo, queue, decisions, dispatcher, Some(port_file.clone()))
+            .await
+            .unwrap();
         let port = std::fs::read_to_string(&port_file)
             .unwrap()
             .trim()

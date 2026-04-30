@@ -9,6 +9,7 @@ path = "src/lib.rs"
 
 [dependencies]
 adhd-ranch-domain = { path = "../domain" }
+fs2 = "0.4"
 notify = "6"
 notify-debouncer-mini = "0.4"
 serde_json = { workspace = true }

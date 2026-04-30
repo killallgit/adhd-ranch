@@ -3,7 +3,9 @@ use std::io::{self, BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
-use adhd_ranch_domain::Proposal;
+use adhd_ranch_domain::{Proposal, ProposalId};
+
+use crate::atomic::atomic_write;
 
 #[derive(Debug)]
 pub enum QueueError {
@@ -37,6 +39,8 @@ impl From<serde_json::Error> for QueueError {
 pub trait ProposalQueue: Send + Sync {
     fn append(&self, proposal: &Proposal) -> Result<(), QueueError>;
     fn list(&self) -> Result<Vec<Proposal>, QueueError>;
+    fn find(&self, id: &ProposalId) -> Result<Option<Proposal>, QueueError>;
+    fn remove(&self, id: &ProposalId) -> Result<bool, QueueError>;
 }
 
 pub struct JsonlProposalQueue {
@@ -93,12 +97,41 @@ impl ProposalQueue for JsonlProposalQueue {
         }
         Ok(out)
     }
+
+    fn find(&self, id: &ProposalId) -> Result<Option<Proposal>, QueueError> {
+        Ok(self.list()?.into_iter().find(|p| &p.id == id))
+    }
+
+    fn remove(&self, id: &ProposalId) -> Result<bool, QueueError> {
+        let _guard = self.write_lock.lock().unwrap_or_else(|e| e.into_inner());
+        let listed = self.list()?;
+        let mut removed = false;
+        let mut buf = String::new();
+        for p in &listed {
+            if &p.id == id {
+                removed = true;
+                continue;
+            }
+            buf.push_str(&serde_json::to_string(p)?);
+            buf.push('\n');
+        }
+        if !removed {
+            return Ok(false);
+        }
+        if buf.is_empty() {
+            // Remove file entirely so empty list = no file.
+            let _ = std::fs::remove_file(&self.path);
+        } else {
+            atomic_write(&self.path, buf.as_bytes())?;
+        }
+        Ok(true)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use adhd_ranch_domain::{NewFocus, ProposalId, ProposalKind};
+    use adhd_ranch_domain::{NewFocus, ProposalKind};
     use tempfile::TempDir;
 
     fn proposal(id: &str, kind: ProposalKind) -> Proposal {
@@ -171,5 +204,54 @@ mod tests {
         let queue = JsonlProposalQueue::new(&path);
         let listed = queue.list().unwrap();
         assert_eq!(listed.len(), 1);
+    }
+
+    #[test]
+    fn find_returns_proposal_or_none() {
+        let dir = TempDir::new().unwrap();
+        let queue = JsonlProposalQueue::new(dir.path().join("proposals.jsonl"));
+        queue
+            .append(&proposal("p1", ProposalKind::Discard))
+            .unwrap();
+        assert!(queue.find(&ProposalId("p1".into())).unwrap().is_some());
+        assert!(queue.find(&ProposalId("missing".into())).unwrap().is_none());
+    }
+
+    #[test]
+    fn remove_drops_one_line_and_keeps_others() {
+        let dir = TempDir::new().unwrap();
+        let queue = JsonlProposalQueue::new(dir.path().join("proposals.jsonl"));
+        queue
+            .append(&proposal("p1", ProposalKind::Discard))
+            .unwrap();
+        queue
+            .append(&proposal("p2", ProposalKind::Discard))
+            .unwrap();
+        assert!(queue.remove(&ProposalId("p1".into())).unwrap());
+        let listed = queue.list().unwrap();
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].id, ProposalId("p2".into()));
+    }
+
+    #[test]
+    fn remove_returns_false_when_id_unknown() {
+        let dir = TempDir::new().unwrap();
+        let queue = JsonlProposalQueue::new(dir.path().join("proposals.jsonl"));
+        queue
+            .append(&proposal("p1", ProposalKind::Discard))
+            .unwrap();
+        assert!(!queue.remove(&ProposalId("nope".into())).unwrap());
+    }
+
+    #[test]
+    fn remove_last_proposal_deletes_file() {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("proposals.jsonl");
+        let queue = JsonlProposalQueue::new(&path);
+        queue
+            .append(&proposal("p1", ProposalKind::Discard))
+            .unwrap();
+        queue.remove(&ProposalId("p1".into())).unwrap();
+        assert!(!path.exists());
     }
 }

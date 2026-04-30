@@ -18,3 +18,7 @@ pub fn port_file() -> io::Result<PathBuf> {
 pub fn proposals_file() -> io::Result<PathBuf> {
     Ok(data_root()?.join("proposals.jsonl"))
 }
+
+pub fn decisions_file() -> io::Result<PathBuf> {
+    Ok(data_root()?.join("decisions.jsonl"))
+}
