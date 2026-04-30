@@ -3,7 +3,7 @@ use std::sync::Arc;
 use adhd_ranch_domain::{
     Decision, DecisionKind, Proposal, ProposalId, ProposalKind, ProposalValidationError,
 };
-use adhd_ranch_storage::{DecisionLog, FocusRepository, FocusWriter, ProposalQueue};
+use adhd_ranch_storage::{DecisionLog, FocusStore, ProposalQueue};
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Json};
@@ -26,8 +26,7 @@ type IdGen = Arc<dyn Fn() -> String + Send + Sync>;
 
 #[derive(Clone)]
 struct AppState {
-    repo: Arc<dyn FocusRepository>,
-    writer: Arc<dyn FocusWriter>,
+    store: Arc<dyn FocusStore>,
     queue: Arc<dyn ProposalQueue>,
     decisions: Arc<dyn DecisionLog>,
     dispatcher: Arc<ProposalDispatcher>,
@@ -42,25 +41,16 @@ pub struct ServerDeps {
 }
 
 pub fn router(
-    repo: Arc<dyn FocusRepository>,
-    writer: Arc<dyn FocusWriter>,
+    store: Arc<dyn FocusStore>,
     queue: Arc<dyn ProposalQueue>,
     decisions: Arc<dyn DecisionLog>,
     dispatcher: Arc<ProposalDispatcher>,
 ) -> Router {
-    router_with(
-        repo,
-        writer,
-        queue,
-        decisions,
-        dispatcher,
-        ServerDeps::default(),
-    )
+    router_with(store, queue, decisions, dispatcher, ServerDeps::default())
 }
 
 pub fn router_with(
-    repo: Arc<dyn FocusRepository>,
-    writer: Arc<dyn FocusWriter>,
+    store: Arc<dyn FocusStore>,
     queue: Arc<dyn ProposalQueue>,
     decisions: Arc<dyn DecisionLog>,
     dispatcher: Arc<ProposalDispatcher>,
@@ -72,8 +62,7 @@ pub fn router_with(
         .unwrap_or_else(|| Arc::new(|| uuid::Uuid::now_v7().to_string()));
 
     let state = AppState {
-        repo,
-        writer,
+        store,
         queue,
         decisions,
         dispatcher,
@@ -105,7 +94,7 @@ async fn health() -> impl IntoResponse {
 async fn list_focuses(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<FocusCatalogEntry>>, ApiError> {
-    let focuses = state.repo.list().map_err(ApiError::internal)?;
+    let focuses = state.store.list().map_err(ApiError::internal)?;
     let catalog = focuses
         .into_iter()
         .map(|f| FocusCatalogEntry {
@@ -143,9 +132,9 @@ async fn create_focus(
         description: req.description,
     };
     let slug = state
-        .writer
+        .store
         .create_focus(&new_focus, &id, &created_at)
-        .map_err(ApiError::from_writer)?;
+        .map_err(ApiError::from_store)?;
     Ok((StatusCode::CREATED, Json(CreateFocusResponse { id: slug })))
 }
 
@@ -154,9 +143,9 @@ async fn delete_focus(
     Path(id): Path<String>,
 ) -> Result<StatusCode, ApiError> {
     state
-        .writer
+        .store
         .delete_focus(&id)
-        .map_err(ApiError::from_writer)?;
+        .map_err(ApiError::from_store)?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -174,9 +163,9 @@ async fn append_task(
         return Err(ApiError::bad_request("text must not be empty"));
     }
     state
-        .writer
+        .store
         .append_task(&id, &req.text)
-        .map_err(ApiError::from_writer)?;
+        .map_err(ApiError::from_store)?;
     Ok(StatusCode::CREATED)
 }
 
@@ -185,9 +174,9 @@ async fn delete_task(
     Path((id, idx)): Path<(String, usize)>,
 ) -> Result<StatusCode, ApiError> {
     state
-        .writer
+        .store
         .delete_task(&id, idx)
-        .map_err(ApiError::from_writer)?;
+        .map_err(ApiError::from_store)?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -395,19 +384,19 @@ impl ApiError {
         Self::bad_request(e.to_string())
     }
 
-    fn from_writer(e: adhd_ranch_storage::WriterError) -> Self {
-        use adhd_ranch_storage::WriterError;
+    fn from_store(e: adhd_ranch_storage::FocusStoreError) -> Self {
+        use adhd_ranch_storage::FocusStoreError;
         match e {
-            WriterError::FocusNotFound(_) => Self {
+            FocusStoreError::NotFound(_) => Self {
                 status: StatusCode::NOT_FOUND,
                 message: e.to_string(),
             },
-            WriterError::FocusAlreadyExists(_) => Self {
+            FocusStoreError::AlreadyExists(_) => Self {
                 status: StatusCode::CONFLICT,
                 message: e.to_string(),
             },
-            WriterError::TaskIndexOutOfRange { .. } => Self::bad_request(e.to_string()),
-            WriterError::Io(_) => Self::internal(e),
+            FocusStoreError::TaskIndexOutOfRange { .. } => Self::bad_request(e.to_string()),
+            FocusStoreError::Io(_) | FocusStoreError::Parse { .. } => Self::internal(e),
         }
     }
 }
@@ -425,9 +414,7 @@ impl IntoResponse for ApiError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use adhd_ranch_storage::{
-        JsonlDecisionLog, JsonlProposalQueue, MarkdownFocusRepository, MarkdownFocusWriter,
-    };
+    use adhd_ranch_storage::{JsonlDecisionLog, JsonlProposalQueue, MarkdownFocusStore};
     use axum::body::Body;
     use axum::http::Request;
     use http_body_util::BodyExt;
@@ -474,21 +461,18 @@ mod tests {
     fn make_app(dir: &std::path::Path) -> Harness {
         let focuses_root = dir.join("focuses");
         fs::create_dir_all(&focuses_root).unwrap();
-        let repo = Arc::new(MarkdownFocusRepository::new(&focuses_root));
-        let writer: Arc<dyn adhd_ranch_storage::FocusWriter> =
-            Arc::new(MarkdownFocusWriter::new(&focuses_root));
+        let store: Arc<dyn FocusStore> = Arc::new(MarkdownFocusStore::new(&focuses_root));
         let proposals_path = dir.join("proposals.jsonl");
         let decisions_path = dir.join("decisions.jsonl");
         let queue = Arc::new(JsonlProposalQueue::new(proposals_path.clone()));
         let decisions = Arc::new(JsonlDecisionLog::new(decisions_path.clone()));
-        let dispatcher = Arc::new(ProposalDispatcher::from_writer(
-            writer.clone(),
+        let dispatcher = Arc::new(ProposalDispatcher::from_store(
+            store.clone(),
             fixed_clock("2026-04-30T12:00:00Z"),
             fixed_id("focus-id-1"),
         ));
         let app = router_with(
-            repo,
-            writer,
+            store,
             queue,
             decisions,
             dispatcher,

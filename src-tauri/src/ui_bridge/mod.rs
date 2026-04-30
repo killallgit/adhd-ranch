@@ -4,15 +4,14 @@ use adhd_ranch_domain::{
     Caps, Decision, DecisionKind, Focus, NewFocus, OverCapMonitor, Proposal, ProposalId, Settings,
 };
 use adhd_ranch_http_api::ProposalDispatcher;
-use adhd_ranch_storage::{DecisionLog, FocusRepository, FocusWriter, ProposalQueue};
+use adhd_ranch_storage::{DecisionLog, FocusStore, ProposalQueue};
 
 use tauri::State;
 use time::format_description::well_known::Rfc3339;
 
 use crate::api::Health;
 
-pub struct FocusRepoState(pub Arc<dyn FocusRepository>);
-pub struct FocusWriterState(pub Arc<dyn FocusWriter>);
+pub struct FocusStoreState(pub Arc<dyn FocusStore>);
 pub struct ProposalQueueState(pub Arc<dyn ProposalQueue>);
 pub struct DecisionLogState(pub Arc<dyn DecisionLog>);
 pub struct DispatcherState(pub Arc<ProposalDispatcher>);
@@ -31,7 +30,7 @@ pub fn health() -> Health {
 }
 
 #[tauri::command]
-pub fn list_focuses(state: State<'_, FocusRepoState>) -> Result<Vec<Focus>, String> {
+pub fn list_focuses(state: State<'_, FocusStoreState>) -> Result<Vec<Focus>, String> {
     state.0.list().map_err(|e| e.to_string())
 }
 
@@ -49,7 +48,7 @@ pub struct CreatedFocus {
 pub fn create_focus(
     title: String,
     description: Option<String>,
-    state: State<'_, FocusWriterState>,
+    state: State<'_, FocusStoreState>,
 ) -> Result<CreatedFocus, String> {
     if title.trim().is_empty() {
         return Err("title must not be empty".into());
@@ -70,7 +69,7 @@ pub fn create_focus(
 }
 
 #[tauri::command]
-pub fn delete_focus(focus_id: String, state: State<'_, FocusWriterState>) -> Result<(), String> {
+pub fn delete_focus(focus_id: String, state: State<'_, FocusStoreState>) -> Result<(), String> {
     state.0.delete_focus(&focus_id).map_err(|e| e.to_string())
 }
 
@@ -78,7 +77,7 @@ pub fn delete_focus(focus_id: String, state: State<'_, FocusWriterState>) -> Res
 pub fn append_task(
     focus_id: String,
     text: String,
-    state: State<'_, FocusWriterState>,
+    state: State<'_, FocusStoreState>,
 ) -> Result<(), String> {
     if text.trim().is_empty() {
         return Err("text must not be empty".into());
@@ -93,7 +92,7 @@ pub fn append_task(
 pub fn delete_task(
     focus_id: String,
     index: usize,
-    state: State<'_, FocusWriterState>,
+    state: State<'_, FocusStoreState>,
 ) -> Result<(), String> {
     state
         .0
