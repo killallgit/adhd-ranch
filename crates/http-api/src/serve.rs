@@ -3,7 +3,7 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use adhd_ranch_storage::FocusRepository;
+use adhd_ranch_storage::{FocusRepository, ProposalQueue};
 use tokio::net::TcpListener;
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
@@ -73,6 +73,7 @@ impl Drop for ServerHandle {
 
 pub async fn serve(
     repo: Arc<dyn FocusRepository>,
+    queue: Arc<dyn ProposalQueue>,
     port_file: Option<PathBuf>,
 ) -> Result<ServerHandle, ServeError> {
     let listener = TcpListener::bind(SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0)).await?;
@@ -85,7 +86,7 @@ pub async fn serve(
         std::fs::write(path, addr.port().to_string())?;
     }
 
-    let app = router(repo);
+    let app = router(repo, queue);
     let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
     let join = tokio::spawn(async move {
         let _ = axum::serve(listener, app)
@@ -106,7 +107,7 @@ pub async fn serve(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use adhd_ranch_storage::MarkdownFocusRepository;
+    use adhd_ranch_storage::{JsonlProposalQueue, MarkdownFocusRepository};
     use std::fs;
     use tempfile::TempDir;
 
@@ -130,9 +131,10 @@ mod tests {
             &focus_md("a", "Alpha", "x", "2026-04-30T12:00:00Z"),
         );
         let repo = Arc::new(MarkdownFocusRepository::new(focuses_root));
+        let queue = Arc::new(JsonlProposalQueue::new(dir.path().join("proposals.jsonl")));
         let port_file = dir.path().join("run/port");
 
-        let handle = serve(repo, Some(port_file.clone())).await.unwrap();
+        let handle = serve(repo, queue, Some(port_file.clone())).await.unwrap();
         let port = std::fs::read_to_string(&port_file)
             .unwrap()
             .trim()
@@ -141,7 +143,7 @@ mod tests {
         assert_eq!(port, handle.port());
 
         let url = format!("http://127.0.0.1:{port}/focuses");
-        let body = reqwest_get_text(&url).await;
+        let body = http_get_text(&url).await;
         let entries: Vec<serde_json::Value> = serde_json::from_str(&body).unwrap();
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0]["id"], "a");
@@ -153,7 +155,7 @@ mod tests {
         );
     }
 
-    async fn reqwest_get_text(url: &str) -> String {
+    async fn http_get_text(url: &str) -> String {
         use tokio::io::{AsyncReadExt, AsyncWriteExt};
         let url = url.strip_prefix("http://").unwrap();
         let (host_port, path) = url.split_once('/').unwrap();

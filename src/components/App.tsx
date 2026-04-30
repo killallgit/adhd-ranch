@@ -1,13 +1,21 @@
 import type { FocusReader } from "../api/focuses";
+import type { ProposalReader } from "../api/proposals";
 import { useFocuses } from "../hooks/useFocuses";
+import { useProposals } from "../hooks/useProposals";
 import { FocusList } from "./FocusList";
+import { PendingTray } from "./PendingTray";
 
 export interface AppProps {
   readonly focusReader: FocusReader;
+  readonly proposalReader: ProposalReader;
 }
 
-export function App({ focusReader }: AppProps) {
-  const state = useFocuses(focusReader);
+export function App({ focusReader, proposalReader }: AppProps) {
+  const focuses = useFocuses(focusReader);
+  const proposals = useProposals(proposalReader);
+
+  const focusList = focuses.status === "ready" ? focuses.focuses : [];
+  const proposalList = proposals.status === "ready" ? proposals.proposals : [];
 
   return (
     <div data-testid="app-root" className="app-root">
@@ -15,14 +23,17 @@ export function App({ focusReader }: AppProps) {
         <h1 className="app-title">adhd-ranch</h1>
       </header>
       <main className="app-body">
-        {state.status === "loading" && <p data-testid="app-loading">Loading…</p>}
-        {state.status === "error" && (
+        {focuses.status === "loading" && <p data-testid="app-loading">Loading…</p>}
+        {focuses.status === "error" && (
           <p data-testid="app-error" role="alert">
-            {state.error.message}
+            {focuses.error.message}
           </p>
         )}
-        {state.status === "ready" && <FocusList focuses={state.focuses} />}
+        {focuses.status === "ready" && <FocusList focuses={focuses.focuses} />}
       </main>
+      <footer className="app-footer">
+        <PendingTray proposals={proposalList} focuses={focusList} />
+      </footer>
     </div>
   );
 }

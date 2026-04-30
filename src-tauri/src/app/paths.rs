@@ -14,3 +14,7 @@ pub fn focuses_root() -> io::Result<PathBuf> {
 pub fn port_file() -> io::Result<PathBuf> {
     Ok(data_root()?.join("run/port"))
 }
+
+pub fn proposals_file() -> io::Result<PathBuf> {
+    Ok(data_root()?.join("proposals.jsonl"))
+}

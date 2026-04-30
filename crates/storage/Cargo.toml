@@ -11,6 +11,7 @@ path = "src/lib.rs"
 adhd-ranch-domain = { path = "../domain" }
 notify = "6"
 notify-debouncer-mini = "0.4"
+serde_json = { workspace = true }
 
 [dev-dependencies]
 tempfile = "3"

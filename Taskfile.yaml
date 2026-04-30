@@ -94,3 +94,10 @@ tasks:
     desc: What CI runs
     cmds:
       - task: check
+
+  install-skill:
+    desc: Install the /checkpoint slash command into ~/.claude/commands/
+    cmds:
+      - mkdir -p "$HOME/.claude/commands"
+      - cp -f skill/checkpoint.md "$HOME/.claude/commands/checkpoint.md"
+      - echo "installed checkpoint.md to $HOME/.claude/commands/"

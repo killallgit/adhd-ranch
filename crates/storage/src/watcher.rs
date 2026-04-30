@@ -29,7 +29,7 @@ pub struct FocusWatcher {
     _debouncer: Debouncer<notify::RecommendedWatcher>,
 }
 
-pub fn watch_focuses<P, F>(
+pub fn watch_path<P, F>(
     root: P,
     debounce: Duration,
     mut on_change: F,
@@ -70,7 +70,7 @@ mod tests {
         let counter = Arc::new(AtomicUsize::new(0));
         let counter_in_cb = counter.clone();
 
-        let _watcher = watch_focuses(dir.path(), Duration::from_millis(50), move || {
+        let _watcher = watch_path(dir.path(), Duration::from_millis(50), move || {
             counter_in_cb.fetch_add(1, Ordering::SeqCst);
         })
         .unwrap();
