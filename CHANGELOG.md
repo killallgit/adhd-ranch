@@ -22,3 +22,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Cap notifications now flow through a `CapNotifier` trait owned by the commands crate; the Tauri shell provides a single adapter, removing the inline cap-evaluation/notification logic from the app composition root.
 - Proposal accept/reject now lives in a dedicated `ProposalLifecycle` module that owns proposal load → edit → validate → mutate → record-decision → clear-queue. The `ProposalDispatcher`/`*Applier` strategy traits are removed; the inline `match` over `ProposalKind` replaces the per-kind adapters. Focus creation in the direct path and the proposal path now share a single helper.
+- Tauri filesystem watchers now share a single `install_change_handlers` helper that fans a debounced change event out to a list of handlers, replacing the asymmetric mix of inline closure and per-watcher helper.

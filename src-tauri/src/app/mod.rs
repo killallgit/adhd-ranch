@@ -80,16 +80,19 @@ pub fn run() {
 
         app.manage(ui_bridge::CommandsState(commands));
 
-        let watch_handle = app.handle().clone();
-        let watch_evaluator = evaluator.clone();
-        let focuses_watcher = watch_path(&focuses_root, Duration::from_millis(200), move || {
-            let _ = watch_handle.emit(FOCUSES_CHANGED_EVENT, ());
-            let _ = watch_evaluator.evaluate();
-        })?;
-        let proposals_watcher = install_watcher(
-            app.handle().clone(),
+        let focuses_watcher = install_change_handlers(
+            &focuses_root,
+            vec![
+                emit_event_handler(app.handle().clone(), FOCUSES_CHANGED_EVENT),
+                evaluate_caps_handler(evaluator.clone()),
+            ],
+        )?;
+        let proposals_watcher = install_change_handlers(
             proposals_path.parent().expect("proposals path has parent"),
-            PROPOSALS_CHANGED_EVENT,
+            vec![emit_event_handler(
+                app.handle().clone(),
+                PROPOSALS_CHANGED_EVENT,
+            )],
         )?;
         app.manage(WatcherHandles {
             _focuses: focuses_watcher,
@@ -135,15 +138,32 @@ struct WatcherHandles {
     _proposals: FocusWatcher,
 }
 
-fn install_watcher(
-    handle: AppHandle,
+type ChangeHandler = Box<dyn Fn() + Send + 'static>;
+
+const WATCH_DEBOUNCE: Duration = Duration::from_millis(200);
+
+fn install_change_handlers(
     path: &std::path::Path,
-    event: &'static str,
+    handlers: Vec<ChangeHandler>,
 ) -> Result<FocusWatcher, Box<dyn std::error::Error>> {
-    let watcher = watch_path(path, Duration::from_millis(200), move || {
-        let _ = handle.emit(event, ());
+    let watcher = watch_path(path, WATCH_DEBOUNCE, move || {
+        for handler in &handlers {
+            handler();
+        }
     })?;
     Ok(watcher)
+}
+
+fn emit_event_handler(handle: AppHandle, event: &'static str) -> ChangeHandler {
+    Box::new(move || {
+        let _ = handle.emit(event, ());
+    })
+}
+
+fn evaluate_caps_handler(evaluator: Arc<CapEvaluator>) -> ChangeHandler {
+    Box::new(move || {
+        let _ = evaluator.evaluate();
+    })
 }
 
 fn install_http_server(
