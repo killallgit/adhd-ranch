@@ -144,7 +144,17 @@ caps:
   max_tasks_per_focus: 7
 alerts:
   system_notifications: true
+widget:
+  window_level: status   # floating | status | screensaver
 ```
+
+`widget.window_level` controls the macOS NSWindow level the popover sits at:
+
+- `floating` (3) — above normal windows, below the status bar.
+- `status` (25, default) — above status bar items; sane default for a tray widget.
+- `screensaver` (1000) — above absolutely everything, including fullscreen apps.
+
+Changes apply at app startup; restart the app to pick up edits.
 
 ## Scope
 

@@ -1,6 +1,8 @@
 pub mod cap_notifier;
+pub mod menu;
 pub mod paths;
 pub mod tray;
+pub mod window_level;
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -102,9 +104,16 @@ pub fn run() {
         let server = install_http_server(store, queue, decision_log)?;
         app.manage(server);
 
+        if let Some(window) = app.get_webview_window("main") {
+            window_level::apply(&window, settings.widget.window_level);
+        }
+
         tray::install(app.handle())?;
         Ok(())
     });
+
+    builder = builder.menu(menu::build);
+    builder = builder.on_menu_event(menu::handle_event);
 
     builder = builder.on_window_event(|window, event| {
         if let tauri::WindowEvent::Focused(false) = event {

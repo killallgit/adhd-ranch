@@ -66,7 +66,7 @@ mod tests {
     use std::sync::Mutex;
 
     use adhd_ranch_domain::focus::{Focus, FocusId, Task};
-    use adhd_ranch_domain::{Alerts, Caps, NewFocus};
+    use adhd_ranch_domain::{Alerts, Caps, NewFocus, Widget};
     use adhd_ranch_storage::FocusStoreError;
 
     use super::*;
@@ -179,6 +179,7 @@ mod tests {
             alerts: Alerts {
                 system_notifications: notifications,
             },
+            widget: Widget::default(),
         }
     }
 
