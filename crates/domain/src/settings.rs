@@ -3,6 +3,20 @@ use serde::{Deserialize, Serialize};
 pub const DEFAULT_MAX_FOCUSES: usize = 5;
 pub const DEFAULT_MAX_TASKS_PER_FOCUS: usize = 7;
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum WindowLevel {
+    Floating,
+    #[default]
+    Status,
+    Screensaver,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct Widget {
+    pub window_level: WindowLevel,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Caps {
     pub max_focuses: usize,
@@ -35,6 +49,7 @@ impl Default for Alerts {
 pub struct Settings {
     pub caps: Caps,
     pub alerts: Alerts,
+    pub widget: Widget,
 }
 
 impl Settings {
@@ -53,6 +68,7 @@ impl Settings {
                     section = match name {
                         "caps" => "caps",
                         "alerts" => "alerts",
+                        "widget" => "widget",
                         _ => "",
                     };
                 }
@@ -79,6 +95,11 @@ impl Settings {
                         settings.alerts.system_notifications = b;
                     }
                 }
+                ("widget", "window_level") => {
+                    if let Some(level) = parse_window_level(value) {
+                        settings.widget.window_level = level;
+                    }
+                }
                 _ => {}
             }
         }
@@ -97,6 +118,15 @@ fn parse_bool(value: &str) -> Option<bool> {
     match value {
         "true" | "yes" | "on" => Some(true),
         "false" | "no" | "off" => Some(false),
+        _ => None,
+    }
+}
+
+fn parse_window_level(value: &str) -> Option<WindowLevel> {
+    match value.trim_matches('"') {
+        "floating" => Some(WindowLevel::Floating),
+        "status" => Some(WindowLevel::Status),
+        "screensaver" => Some(WindowLevel::Screensaver),
         _ => None,
     }
 }
@@ -143,5 +173,29 @@ mod tests {
             "# comment\ncaps:\n  # nested comment\n  max_focuses: 2 # trailing\n\n",
         );
         assert_eq!(s.caps.max_focuses, 2);
+    }
+
+    #[test]
+    fn defaults_widget_window_level_to_status() {
+        let s = Settings::parse_yaml("");
+        assert_eq!(s.widget.window_level, WindowLevel::Status);
+    }
+
+    #[test]
+    fn parses_widget_window_level_floating() {
+        let s = Settings::parse_yaml("widget:\n  window_level: floating\n");
+        assert_eq!(s.widget.window_level, WindowLevel::Floating);
+    }
+
+    #[test]
+    fn parses_widget_window_level_screensaver() {
+        let s = Settings::parse_yaml("widget:\n  window_level: screensaver\n");
+        assert_eq!(s.widget.window_level, WindowLevel::Screensaver);
+    }
+
+    #[test]
+    fn invalid_window_level_falls_back_to_default() {
+        let s = Settings::parse_yaml("widget:\n  window_level: bonkers\n");
+        assert_eq!(s.widget.window_level, WindowLevel::Status);
     }
 }

@@ -25,6 +25,7 @@ jobs:
       - uses: arduino/setup-task@v2
         with:
           version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install frontend deps
         run: npm ci --no-audit --no-fund || npm install --no-audit --no-fund

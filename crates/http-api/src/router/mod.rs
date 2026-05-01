@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use adhd_ranch_commands::{Clock, CommandError, Commands, IdGen, ProposalDispatcher};
+use adhd_ranch_commands::{Clock, CommandError, Commands, IdGen};
 use adhd_ranch_domain::Settings;
 use adhd_ranch_storage::{DecisionLog, FocusStore, ProposalQueue};
 use axum::http::StatusCode;
@@ -36,16 +36,14 @@ pub fn router(
     store: Arc<dyn FocusStore>,
     queue: Arc<dyn ProposalQueue>,
     decisions: Arc<dyn DecisionLog>,
-    dispatcher: Arc<ProposalDispatcher>,
 ) -> Router {
-    router_with(store, queue, decisions, dispatcher, ServerDeps::default())
+    router_with(store, queue, decisions, ServerDeps::default())
 }
 
 pub fn router_with(
     store: Arc<dyn FocusStore>,
     queue: Arc<dyn ProposalQueue>,
     decisions: Arc<dyn DecisionLog>,
-    dispatcher: Arc<ProposalDispatcher>,
     deps: ServerDeps,
 ) -> Router {
     let clock: Clock = deps.clock.unwrap_or_else(|| Arc::new(now_rfc3339));
@@ -55,7 +53,7 @@ pub fn router_with(
     let settings = deps.settings.unwrap_or_default();
 
     let commands = Arc::new(Commands::new(
-        store, queue, decisions, dispatcher, clock, id_gen, settings,
+        store, queue, decisions, clock, id_gen, settings,
     ));
     let state = AppState { commands };
 

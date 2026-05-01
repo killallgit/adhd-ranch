@@ -1,4 +1,4 @@
-use adhd_ranch_domain::{Decision, DecisionKind, NewFocus, Proposal, ProposalId, ProposalKind};
+use adhd_ranch_domain::{NewFocus, Proposal, ProposalId, ProposalKind};
 use serde::{Deserialize, Serialize};
 
 use crate::error::CommandError;
@@ -83,88 +83,10 @@ impl Commands {
         id: &str,
         edit: ProposalEdit,
     ) -> Result<DecisionOutcome, CommandError> {
-        let original = self.load_proposal(id)?;
-        let (proposal, edited) = apply_edit(original, &edit);
-        proposal.validate()?;
-        let outcome = self.dispatcher.apply(&proposal)?;
-        self.record_decision(
-            &proposal,
-            DecisionKind::Accept,
-            outcome.target.clone(),
-            edited,
-        )?;
-        self.queue.remove(&proposal.id)?;
-        Ok(DecisionOutcome {
-            id: id.to_string(),
-            target: outcome.target,
-        })
+        self.lifecycle.accept(id, edit)
     }
 
     pub fn reject_proposal(&self, id: &str) -> Result<DecisionOutcome, CommandError> {
-        let proposal = self.load_proposal(id)?;
-        self.record_decision(&proposal, DecisionKind::Reject, None, false)?;
-        self.queue.remove(&proposal.id)?;
-        Ok(DecisionOutcome {
-            id: id.to_string(),
-            target: None,
-        })
+        self.lifecycle.reject(id)
     }
-
-    fn load_proposal(&self, id: &str) -> Result<Proposal, CommandError> {
-        self.queue
-            .find(&ProposalId(id.to_string()))?
-            .ok_or_else(|| CommandError::NotFound(format!("proposal not found: {id}")))
-    }
-
-    fn record_decision(
-        &self,
-        proposal: &Proposal,
-        kind: DecisionKind,
-        target: Option<String>,
-        edited: bool,
-    ) -> Result<(), CommandError> {
-        let decision = Decision {
-            ts: (self.clock)(),
-            proposal_id: proposal.id.0.clone(),
-            decision: kind,
-            reasoning: proposal.reasoning.clone(),
-            target,
-            edited,
-        };
-        self.decisions.append(&decision)?;
-        Ok(())
-    }
-}
-
-fn apply_edit(mut proposal: Proposal, edit: &ProposalEdit) -> (Proposal, bool) {
-    let mut edited = false;
-    match &mut proposal.kind {
-        ProposalKind::AddTask {
-            target_focus_id,
-            task_text,
-        } => {
-            if let Some(new_id) = edit.target_focus_id.as_ref() {
-                if new_id != target_focus_id {
-                    *target_focus_id = new_id.clone();
-                    edited = true;
-                }
-            }
-            if let Some(new_text) = edit.task_text.as_ref() {
-                if new_text != task_text {
-                    *task_text = new_text.clone();
-                    edited = true;
-                }
-            }
-        }
-        ProposalKind::NewFocus { new_focus } => {
-            if let Some(replacement) = edit.new_focus.as_ref() {
-                if replacement != new_focus {
-                    *new_focus = replacement.clone();
-                    edited = true;
-                }
-            }
-        }
-        ProposalKind::Discard => {}
-    }
-    (proposal, edited)
 }
