@@ -44,6 +44,16 @@ pub struct Settings {
 }
 
 impl Settings {
+    pub fn to_yaml(&self) -> String {
+        format!(
+            "caps:\n  max_focuses: {}\n  max_tasks_per_focus: {}\nalerts:\n  system_notifications: {}\nwidget:\n  always_on_top: {}\n",
+            self.caps.max_focuses,
+            self.caps.max_tasks_per_focus,
+            self.alerts.system_notifications,
+            self.widget.always_on_top,
+        )
+    }
+
     pub fn parse_yaml(input: &str) -> Settings {
         let mut settings = Settings::default();
         let mut section: &str = "";
@@ -173,5 +183,22 @@ mod tests {
     fn invalid_always_on_top_falls_back_to_default() {
         let s = Settings::parse_yaml("widget:\n  always_on_top: maybe\n");
         assert!(!s.widget.always_on_top);
+    }
+
+    #[test]
+    fn to_yaml_round_trips() {
+        let s = Settings {
+            caps: Caps {
+                max_focuses: 3,
+                max_tasks_per_focus: 4,
+            },
+            alerts: Alerts {
+                system_notifications: false,
+            },
+            widget: Widget {
+                always_on_top: true,
+            },
+        };
+        assert_eq!(Settings::parse_yaml(&s.to_yaml()), s);
     }
 }

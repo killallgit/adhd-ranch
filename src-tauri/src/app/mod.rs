@@ -24,6 +24,11 @@ pub const FOCUSES_CHANGED_EVENT: &str = "focuses-changed";
 pub const PROPOSALS_CHANGED_EVENT: &str = "proposals-changed";
 
 pub fn run() {
+    let settings_path = paths::settings_file().expect("settings path");
+    let settings = load_settings(&settings_path);
+
+    let event_settings_path = settings_path.clone();
+
     let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_notification::init())
         .invoke_handler(tauri::generate_handler![
@@ -38,19 +43,21 @@ pub fn run() {
             ui_bridge::append_task,
             ui_bridge::delete_task,
             ui_bridge::get_caps,
-        ]);
+        ])
+        .menu(move |handle| menu::build(handle, settings.widget.always_on_top));
 
-    builder = builder.setup(|app| {
+    builder = builder.on_menu_event(move |app, event| {
+        menu::handle_event(app, event, &event_settings_path);
+    });
+
+    builder = builder.setup(move |app| {
         let focuses_root = paths::focuses_root()?;
         std::fs::create_dir_all(&focuses_root)?;
         let proposals_path = paths::proposals_file()?;
         let decisions_path = paths::decisions_file()?;
-        let settings_path = paths::settings_file()?;
         if let Some(parent) = proposals_path.parent() {
             std::fs::create_dir_all(parent)?;
         }
-
-        let settings = load_settings(&settings_path);
 
         let store: Arc<dyn FocusStore> = Arc::new(MarkdownFocusStore::new(focuses_root.clone()));
         let queue: Arc<dyn ProposalQueue> =
@@ -108,9 +115,6 @@ pub fn run() {
 
         Ok(())
     });
-
-    builder = builder.menu(menu::build);
-    builder = builder.on_menu_event(menu::handle_event);
 
     builder
         .build(tauri::generate_context!())

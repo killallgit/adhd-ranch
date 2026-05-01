@@ -1,3 +1,4 @@
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useState } from "react";
 import type { CapsReader } from "../api/caps";
 import type { FocusWriter } from "../api/focusWriter";
@@ -9,6 +10,7 @@ import { CapBadge } from "./CapBadge";
 import { FocusList } from "./FocusList";
 import { NewFocusForm } from "./NewFocusForm";
 import { PendingTray } from "./PendingTray";
+import { Titlebar } from "./Titlebar";
 
 export interface AppProps {
   readonly focusReader: FocusReader;
@@ -55,8 +57,13 @@ export function App({
     await focusWriter.createFocus(input);
   };
 
+  const handleClose = () => {
+    void getCurrentWindow().hide();
+  };
+
   return (
     <div data-testid="app-root" className="app-root" data-over-cap={capState.anyOver}>
+      <Titlebar onClose={handleClose} />
       <header className="app-header">
         <h1 className="app-title">adhd-ranch</h1>
         <CapBadge capState={capState} maxFocuses={state.caps.max_focuses} />

@@ -28,6 +28,34 @@ body,
   overflow: hidden;
 }
 
+.titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  height: 28px;
+  margin: -12px -12px 4px;
+  padding: 0 8px;
+  flex-shrink: 0;
+  border-radius: 12px 12px 0 0;
+}
+
+.titlebar-close {
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 2px 4px;
+  opacity: 0.4;
+  line-height: 1;
+  position: relative;
+  z-index: 1;
+}
+
+.titlebar-close:hover {
+  opacity: 0.9;
+}
+
 .app-header {
   margin-bottom: 8px;
 }
