@@ -3,9 +3,7 @@ import type { CapsReader } from "../api/caps";
 import type { FocusWriter } from "../api/focusWriter";
 import type { FocusReader } from "../api/focuses";
 import type { ProposalReader, ProposalWriter } from "../api/proposals";
-import { useCaps } from "../hooks/useCaps";
-import { useFocuses } from "../hooks/useFocuses";
-import { useProposals } from "../hooks/useProposals";
+import { useAppState } from "../hooks/useAppState";
 import { computeCapState } from "../lib/capState";
 import { CapBadge } from "./CapBadge";
 import { FocusList } from "./FocusList";
@@ -27,15 +25,13 @@ export function App({
   proposalWriter,
   capsReader,
 }: AppProps) {
-  const focuses = useFocuses(focusReader);
-  const proposals = useProposals(proposalReader);
-  const caps = useCaps(capsReader);
+  const state = useAppState({ focusReader, proposalReader, capsReader });
   const [busyFocusId, setBusyFocusId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const focusList = focuses.status === "ready" ? focuses.focuses : [];
-  const proposalList = proposals.status === "ready" ? proposals.proposals : [];
-  const capState = computeCapState(focusList, caps);
+  const focusList = state.status === "ready" ? state.focuses : [];
+  const proposalList = state.status === "ready" ? state.proposals : [];
+  const capState = computeCapState(focusList, state.caps);
 
   const wrap = async (focusId: string, run: () => Promise<unknown>) => {
     setBusyFocusId(focusId);
@@ -63,18 +59,18 @@ export function App({
     <div data-testid="app-root" className="app-root" data-over-cap={capState.anyOver}>
       <header className="app-header">
         <h1 className="app-title">adhd-ranch</h1>
-        <CapBadge capState={capState} maxFocuses={caps.max_focuses} />
+        <CapBadge capState={capState} maxFocuses={state.caps.max_focuses} />
       </header>
       <main className="app-body">
-        {focuses.status === "loading" && <p data-testid="app-loading">Loading…</p>}
-        {focuses.status === "error" && (
+        {state.status === "loading" && <p data-testid="app-loading">Loading…</p>}
+        {state.status === "error" && (
           <p data-testid="app-error" role="alert">
-            {focuses.error.message}
+            {state.error.message}
           </p>
         )}
-        {focuses.status === "ready" && (
+        {state.status === "ready" && (
           <FocusList
-            focuses={focuses.focuses}
+            focuses={state.focuses}
             busyFocusId={busyFocusId}
             onClearTask={handleClearTask}
             onDeleteFocus={handleDeleteFocus}
