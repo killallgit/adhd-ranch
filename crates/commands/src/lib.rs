@@ -4,6 +4,7 @@ use adhd_ranch_domain::Settings;
 use adhd_ranch_storage::{DecisionLog, FocusStore, ProposalQueue};
 
 pub mod applier;
+pub mod caps;
 pub mod error;
 pub mod focus;
 pub mod proposal;
@@ -12,6 +13,7 @@ pub use applier::{
     AddTaskApplier, AppliedOutcome, DiscardApplier, NewFocusApplier, ProposalApplier,
     ProposalDispatcher,
 };
+pub use caps::{CapEvaluator, CapNotifier};
 pub use error::CommandError;
 pub use focus::{CreateFocusInput, CreatedFocus};
 pub use proposal::{CreateProposalInput, CreatedProposal, DecisionOutcome, ProposalEdit};

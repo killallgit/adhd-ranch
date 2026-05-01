@@ -17,3 +17,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Widget CRUD: new focus, delete focus, add and remove tasks.
 - `settings.yaml` with focus and task caps; cap badge and macOS overload notifications.
 - Edit-proposal modal, empty-state hero, and v1 README.
+
+### Changed
+
+- Cap notifications now flow through a `CapNotifier` trait owned by the commands crate; the Tauri shell provides a single adapter, removing the inline cap-evaluation/notification logic from the app composition root.

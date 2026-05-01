@@ -3,14 +3,13 @@ use std::sync::Arc;
 use adhd_ranch_commands::{
     Commands, CreateFocusInput, CreatedFocus, CreatedProposal, DecisionOutcome, ProposalEdit,
 };
-use adhd_ranch_domain::{Caps, Focus, OverCapMonitor, Proposal};
+use adhd_ranch_domain::{Caps, Focus, Proposal};
 
 use tauri::State;
 
 use crate::api::Health;
 
 pub struct CommandsState(pub Arc<Commands>);
-pub struct MonitorState(pub Arc<OverCapMonitor>);
 
 #[tauri::command]
 pub fn health() -> Health {

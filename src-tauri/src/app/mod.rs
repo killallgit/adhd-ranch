@@ -1,21 +1,22 @@
+pub mod cap_notifier;
 pub mod paths;
 pub mod tray;
 
 use std::sync::Arc;
 use std::time::Duration;
 
-use adhd_ranch_commands::{Commands, ProposalDispatcher};
-use adhd_ranch_domain::{cap_state, CapTransition, Caps, OverCapMonitor, Settings};
+use adhd_ranch_commands::{CapEvaluator, Commands, ProposalDispatcher};
+use adhd_ranch_domain::{OverCapMonitor, Settings};
 use adhd_ranch_http_api::{serve, ServerHandle};
 use adhd_ranch_storage::{
     watch_path, DecisionLog, FocusStore, FocusWatcher, JsonlDecisionLog, JsonlProposalQueue,
     MarkdownFocusStore, ProposalQueue,
 };
 use tauri::{AppHandle, Emitter, Manager};
-use tauri_plugin_notification::NotificationExt;
 use time::format_description::well_known::Rfc3339;
 
 use crate::ui_bridge;
+use cap_notifier::TauriCapNotifier;
 
 pub const FOCUSES_CHANGED_EVENT: &str = "focuses-changed";
 pub const PROPOSALS_CHANGED_EVENT: &str = "proposals-changed";
@@ -76,21 +77,21 @@ pub fn run() {
         ));
 
         let monitor = Arc::new(OverCapMonitor::new());
+        let notifier = Arc::new(TauriCapNotifier::new(app.handle().clone()));
+        let evaluator = Arc::new(CapEvaluator::new(
+            store.clone(),
+            monitor,
+            notifier,
+            settings,
+        ));
 
         app.manage(ui_bridge::CommandsState(commands));
-        app.manage(ui_bridge::MonitorState(monitor.clone()));
 
-        let cap_handle = app.handle().clone();
-        let cap_store = store.clone();
-        let cap_monitor = monitor.clone();
+        let watch_handle = app.handle().clone();
+        let watch_evaluator = evaluator.clone();
         let focuses_watcher = watch_path(&focuses_root, Duration::from_millis(200), move || {
-            let _ = cap_handle.emit(FOCUSES_CHANGED_EVENT, ());
-            evaluate_caps(
-                &cap_handle,
-                cap_store.as_ref(),
-                cap_monitor.as_ref(),
-                settings,
-            );
+            let _ = watch_handle.emit(FOCUSES_CHANGED_EVENT, ());
+            let _ = watch_evaluator.evaluate();
         })?;
         let proposals_watcher = install_watcher(
             app.handle().clone(),
@@ -132,49 +133,6 @@ fn load_settings(path: &std::path::Path) -> Settings {
     match std::fs::read_to_string(path) {
         Ok(raw) => Settings::parse_yaml(&raw),
         Err(_) => Settings::default(),
-    }
-}
-
-fn evaluate_caps(
-    handle: &AppHandle,
-    store: &dyn FocusStore,
-    monitor: &OverCapMonitor,
-    settings: Settings,
-) {
-    let focuses = match store.list() {
-        Ok(f) => f,
-        Err(_) => return,
-    };
-    let state = cap_state(&focuses, settings.caps);
-    let transition = monitor.evaluate(&state);
-    if !settings.alerts.system_notifications {
-        return;
-    }
-    notify_transitions(handle, &transition, settings.caps);
-}
-
-fn notify_transitions(handle: &AppHandle, transition: &CapTransition, caps: Caps) {
-    if transition.focuses_to_over {
-        let _ = handle
-            .notification()
-            .builder()
-            .title("Too many focuses")
-            .body(format!(
-                "You're over the limit of {} focuses — trim one.",
-                caps.max_focuses
-            ))
-            .show();
-    }
-    for id in &transition.task_to_over_focus_ids {
-        let _ = handle
-            .notification()
-            .builder()
-            .title("Focus has too many tasks")
-            .body(format!(
-                "Focus {id} has more than {} tasks.",
-                caps.max_tasks_per_focus
-            ))
-            .show();
     }
 }
 
