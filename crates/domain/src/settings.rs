@@ -3,18 +3,9 @@ use serde::{Deserialize, Serialize};
 pub const DEFAULT_MAX_FOCUSES: usize = 5;
 pub const DEFAULT_MAX_TASKS_PER_FOCUS: usize = 7;
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum WindowLevel {
-    Floating,
-    #[default]
-    Status,
-    Screensaver,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct Widget {
-    pub window_level: WindowLevel,
+    pub always_on_top: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -95,9 +86,9 @@ impl Settings {
                         settings.alerts.system_notifications = b;
                     }
                 }
-                ("widget", "window_level") => {
-                    if let Some(level) = parse_window_level(value) {
-                        settings.widget.window_level = level;
+                ("widget", "always_on_top") => {
+                    if let Some(b) = parse_bool(value) {
+                        settings.widget.always_on_top = b;
                     }
                 }
                 _ => {}
@@ -118,15 +109,6 @@ fn parse_bool(value: &str) -> Option<bool> {
     match value {
         "true" | "yes" | "on" => Some(true),
         "false" | "no" | "off" => Some(false),
-        _ => None,
-    }
-}
-
-fn parse_window_level(value: &str) -> Option<WindowLevel> {
-    match value.trim_matches('"') {
-        "floating" => Some(WindowLevel::Floating),
-        "status" => Some(WindowLevel::Status),
-        "screensaver" => Some(WindowLevel::Screensaver),
         _ => None,
     }
 }
@@ -176,26 +158,20 @@ mod tests {
     }
 
     #[test]
-    fn defaults_widget_window_level_to_status() {
+    fn widget_always_on_top_defaults_false() {
         let s = Settings::parse_yaml("");
-        assert_eq!(s.widget.window_level, WindowLevel::Status);
+        assert!(!s.widget.always_on_top);
     }
 
     #[test]
-    fn parses_widget_window_level_floating() {
-        let s = Settings::parse_yaml("widget:\n  window_level: floating\n");
-        assert_eq!(s.widget.window_level, WindowLevel::Floating);
+    fn parses_widget_always_on_top_true() {
+        let s = Settings::parse_yaml("widget:\n  always_on_top: true\n");
+        assert!(s.widget.always_on_top);
     }
 
     #[test]
-    fn parses_widget_window_level_screensaver() {
-        let s = Settings::parse_yaml("widget:\n  window_level: screensaver\n");
-        assert_eq!(s.widget.window_level, WindowLevel::Screensaver);
-    }
-
-    #[test]
-    fn invalid_window_level_falls_back_to_default() {
-        let s = Settings::parse_yaml("widget:\n  window_level: bonkers\n");
-        assert_eq!(s.widget.window_level, WindowLevel::Status);
+    fn invalid_always_on_top_falls_back_to_default() {
+        let s = Settings::parse_yaml("widget:\n  always_on_top: maybe\n");
+        assert!(!s.widget.always_on_top);
     }
 }

@@ -25,15 +25,15 @@ adhd-ranch-http-api = { path = "../crates/http-api" }
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros"] }
 time = { version = "0.3", features = ["formatting"] }
 uuid = { version = "1", features = ["v7"] }
-tauri = { version = "2", features = ["macos-private-api", "tray-icon"] }
+tauri = { version = "2", features = ["macos-private-api"] }
 tauri-plugin-notification = "2"
-tauri-plugin-positioner = { version = "2", features = ["tray-icon"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.5"
 objc2-app-kit = { version = "0.2", features = ["NSWindow"] }
+objc2-foundation = { version = "0.2", features = ["NSString"] }
 
 [features]
 default = ["custom-protocol"]

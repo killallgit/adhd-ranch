@@ -1,8 +1,8 @@
 pub mod cap_notifier;
 pub mod menu;
 pub mod paths;
-pub mod tray;
-pub mod window_level;
+pub mod window_always_on_top;
+pub mod window_autosave;
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -25,7 +25,6 @@ pub const PROPOSALS_CHANGED_EVENT: &str = "proposals-changed";
 
 pub fn run() {
     let mut builder = tauri::Builder::default()
-        .plugin(tauri_plugin_positioner::init())
         .plugin(tauri_plugin_notification::init())
         .invoke_handler(tauri::generate_handler![
             ui_bridge::health,
@@ -42,9 +41,6 @@ pub fn run() {
         ]);
 
     builder = builder.setup(|app| {
-        #[cfg(target_os = "macos")]
-        app.set_activation_policy(tauri::ActivationPolicy::Accessory);
-
         let focuses_root = paths::focuses_root()?;
         std::fs::create_dir_all(&focuses_root)?;
         let proposals_path = paths::proposals_file()?;
@@ -105,27 +101,30 @@ pub fn run() {
         app.manage(server);
 
         if let Some(window) = app.get_webview_window("main") {
-            window_level::apply(&window, settings.widget.window_level);
+            window_always_on_top::apply(&window, settings.widget.always_on_top);
+            window_autosave::apply(&window, "adhd-ranch-main");
+            let _ = window.show();
         }
 
-        tray::install(app.handle())?;
         Ok(())
     });
 
     builder = builder.menu(menu::build);
     builder = builder.on_menu_event(menu::handle_event);
 
-    builder = builder.on_window_event(|window, event| {
-        if let tauri::WindowEvent::Focused(false) = event {
-            if window.label() == "main" {
-                let _ = window.hide();
-            }
-        }
-    });
-
     builder
-        .run(tauri::generate_context!())
-        .expect("tauri runtime error");
+        .build(tauri::generate_context!())
+        .expect("tauri build error")
+        .run(|app, event| {
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Reopen { .. } = event {
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                }
+            }
+            let _ = (app, event);
+        });
 }
 
 fn now_rfc3339() -> String {

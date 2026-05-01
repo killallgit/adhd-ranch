@@ -9,9 +9,7 @@
     "core:window:allow-hide",
     "core:window:allow-set-focus",
     "core:window:allow-is-visible",
-    "positioner:default",
-    "positioner:allow-set-tray-icon-state",
-    "notification:default",
+"notification:default",
     "notification:allow-notify"
   ]
 }
