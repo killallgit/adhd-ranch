@@ -5,7 +5,7 @@ pub mod tray;
 use std::sync::Arc;
 use std::time::Duration;
 
-use adhd_ranch_commands::{CapEvaluator, Commands, ProposalDispatcher};
+use adhd_ranch_commands::{CapEvaluator, Commands};
 use adhd_ranch_domain::{OverCapMonitor, Settings};
 use adhd_ranch_http_api::{serve, ServerHandle};
 use adhd_ranch_storage::{
@@ -60,17 +60,10 @@ pub fn run() {
         let decision_log: Arc<dyn DecisionLog> =
             Arc::new(JsonlDecisionLog::new(decisions_path.clone()));
 
-        let dispatcher = Arc::new(ProposalDispatcher::from_store(
-            store.clone(),
-            Arc::new(now_rfc3339),
-            Arc::new(|| uuid::Uuid::now_v7().to_string()),
-        ));
-
         let commands = Arc::new(Commands::new(
             store.clone(),
             queue.clone(),
             decision_log.clone(),
-            dispatcher.clone(),
             Arc::new(now_rfc3339),
             Arc::new(|| uuid::Uuid::now_v7().to_string()),
             settings,
@@ -103,7 +96,7 @@ pub fn run() {
             _proposals: proposals_watcher,
         });
 
-        let server = install_http_server(store, queue, decision_log, dispatcher)?;
+        let server = install_http_server(store, queue, decision_log)?;
         app.manage(server);
 
         tray::install(app.handle())?;
@@ -157,12 +150,10 @@ fn install_http_server(
     store: Arc<dyn FocusStore>,
     queue: Arc<dyn ProposalQueue>,
     decisions: Arc<dyn DecisionLog>,
-    dispatcher: Arc<ProposalDispatcher>,
 ) -> Result<ServerHandle, Box<dyn std::error::Error>> {
     let port_file = paths::port_file()?;
     let runtime = tauri::async_runtime::handle();
-    let handle = runtime.block_on(async move {
-        serve(store, queue, decisions, dispatcher, Some(port_file)).await
-    })?;
+    let handle =
+        runtime.block_on(async move { serve(store, queue, decisions, Some(port_file)).await })?;
     Ok(handle)
 }

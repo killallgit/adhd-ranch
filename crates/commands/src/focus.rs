@@ -1,8 +1,11 @@
+use std::sync::Arc;
+
 use adhd_ranch_domain::{Caps, Focus, NewFocus};
+use adhd_ranch_storage::FocusStore;
 use serde::{Deserialize, Serialize};
 
 use crate::error::CommandError;
-use crate::Commands;
+use crate::{Clock, Commands, IdGen};
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct CreateFocusInput {
@@ -16,6 +19,17 @@ pub struct CreatedFocus {
     pub id: String,
 }
 
+pub(crate) fn create_focus_in_store(
+    store: &Arc<dyn FocusStore>,
+    clock: &Clock,
+    id_gen: &IdGen,
+    new_focus: &NewFocus,
+) -> Result<String, CommandError> {
+    let id = id_gen();
+    let created_at = clock();
+    Ok(store.create_focus(new_focus, &id, &created_at)?)
+}
+
 impl Commands {
     pub fn list_focuses(&self) -> Result<Vec<Focus>, CommandError> {
         Ok(self.store.list()?)
@@ -25,13 +39,11 @@ impl Commands {
         if input.title.trim().is_empty() {
             return Err(CommandError::BadRequest("title must not be empty".into()));
         }
-        let id = (self.id_gen)();
-        let created_at = (self.clock)();
         let new_focus = NewFocus {
             title: input.title,
             description: input.description,
         };
-        let slug = self.store.create_focus(&new_focus, &id, &created_at)?;
+        let slug = create_focus_in_store(&self.store, &self.clock, &self.id_gen, &new_focus)?;
         Ok(CreatedFocus { id: slug })
     }
 

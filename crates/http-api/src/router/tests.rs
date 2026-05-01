@@ -52,16 +52,10 @@ fn make_app(dir: &std::path::Path) -> Harness {
     let decisions_path = dir.join("decisions.jsonl");
     let queue = Arc::new(JsonlProposalQueue::new(proposals_path.clone()));
     let decisions = Arc::new(JsonlDecisionLog::new(decisions_path.clone()));
-    let dispatcher = Arc::new(ProposalDispatcher::from_store(
-        store.clone(),
-        fixed_clock("2026-04-30T12:00:00Z"),
-        fixed_id("focus-id-1"),
-    ));
     let app = router_with(
         store,
         queue,
         decisions,
-        dispatcher,
         ServerDeps {
             clock: Some(fixed_clock("2026-04-30T12:00:00Z")),
             id_gen: Some(fixed_id("p-test")),
