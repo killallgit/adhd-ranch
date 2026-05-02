@@ -23,6 +23,19 @@
         "resizable": true,
         "transparent": true,
         "visible": false
+      },
+      {
+        "label": "new-focus",
+        "url": "new-focus.html",
+        "title": "New Focus",
+        "width": 320,
+        "height": 180,
+        "minWidth": 320,
+        "minHeight": 180,
+        "decorations": false,
+        "resizable": false,
+        "transparent": true,
+        "visible": false
       }
     ],
     "security": {
