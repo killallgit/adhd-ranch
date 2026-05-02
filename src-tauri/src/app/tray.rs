@@ -1,21 +1,27 @@
+use std::path::PathBuf;
 use std::sync::Arc;
 
-use adhd_ranch_domain::{cap_state, Focus, Settings};
-use adhd_ranch_storage::FocusStore;
+use adhd_ranch_domain::{cap_state, DisplayConfig, Focus, Settings};
+use adhd_ranch_storage::{write_settings, FocusStore};
 use tauri::image::Image;
 use tauri::menu::{IsMenuItem, Menu, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder};
 use tauri::tray::{TrayIcon, TrayIconBuilder};
 use tauri::{AppHandle, Manager, Runtime};
 
+use super::overlay_manager::OverlayManagerState;
+use super::{DisplayConfigState, MonitorsState};
+
 const QUIT_ID: &str = "tray-quit";
 const NO_FOCUSES_ID: &str = "tray-no-focuses";
 const NEW_FOCUS_ID: &str = "tray-new-focus";
 const DELETE_PREFIX: &str = "tray-delete-";
+const DISPLAY_PREFIX: &str = "tray-display-";
 
 pub fn setup<R: Runtime>(
     app: &AppHandle<R>,
     store: Arc<dyn FocusStore>,
     settings: Settings,
+    settings_path: PathBuf,
 ) -> tauri::Result<TrayIcon<R>> {
     let focuses = match store.list() {
         Ok(f) => f,
@@ -27,10 +33,11 @@ pub fn setup<R: Runtime>(
     let menu = build_menu(app, &focuses)?;
     let over_cap = cap_state(&focuses, settings.caps).any_over();
 
-    let mut builder = TrayIconBuilder::new()
+    let settings_path_for_handler = settings_path.clone();
+    let mut builder = TrayIconBuilder::with_id("main-tray")
         .menu(&menu)
         .show_menu_on_left_click(true)
-        .on_menu_event(|app, event| {
+        .on_menu_event(move |app, event| {
             let id = event.id().0.as_str();
             if id == QUIT_ID {
                 app.exit(0);
@@ -43,6 +50,12 @@ pub fn setup<R: Runtime>(
                 let focus_id = focus_id.to_string();
                 let app_handle = app.clone();
                 std::thread::spawn(move || handle_delete(app_handle, focus_id));
+            } else if let Some(idx_str) = id.strip_prefix(DISPLAY_PREFIX) {
+                if let Ok(idx) = idx_str.parse::<usize>() {
+                    let app_handle = app.clone();
+                    let path = settings_path_for_handler.clone();
+                    std::thread::spawn(move || handle_display_toggle(app_handle, idx, path));
+                }
             }
         });
 
@@ -91,6 +104,35 @@ pub fn rebuild_handler<R: Runtime>(
 
 fn build_menu<R: Runtime>(handle: &AppHandle<R>, focuses: &[Focus]) -> tauri::Result<Menu<R>> {
     let mut items: Vec<Box<dyn IsMenuItem<R>>> = Vec::new();
+
+    // Displays submenu — reads current config from managed state.
+    if let Some(monitors_state) = handle.try_state::<MonitorsState>() {
+        let enabled_indices = handle
+            .try_state::<DisplayConfigState>()
+            .and_then(|s| s.0.lock().ok().map(|c| c.enabled_indices.clone()))
+            .unwrap_or_else(|| vec![0]);
+
+        if !monitors_state.0.is_empty() {
+            let mut sub = SubmenuBuilder::new(handle, "Displays");
+            for (idx, monitor) in monitors_state.0.iter().enumerate() {
+                let check = if enabled_indices.contains(&idx) {
+                    "✓ "
+                } else {
+                    "  "
+                };
+                let name = monitor.name.as_deref().unwrap_or("Unknown Display");
+                let item = MenuItemBuilder::with_id(
+                    format!("{DISPLAY_PREFIX}{idx}"),
+                    format!("{check}{name}"),
+                )
+                .build(handle)?;
+                sub = sub.item(&item);
+            }
+            let displays_submenu = sub.build()?;
+            items.push(Box::new(displays_submenu));
+            items.push(Box::new(PredefinedMenuItem::separator(handle)?));
+        }
+    }
 
     let new_focus = MenuItemBuilder::with_id(NEW_FOCUS_ID, "+ New Focus").build(handle)?;
     items.push(Box::new(new_focus));
@@ -150,6 +192,72 @@ fn handle_delete<R: Runtime>(app: AppHandle<R>, focus_id: String) {
             if let Err(e) = state.0.delete_focus(&focus_id) {
                 log::error!("tray delete_focus({focus_id:?}): {e}");
             }
+        }
+    }
+}
+
+fn handle_display_toggle<R: Runtime>(app: AppHandle<R>, idx: usize, settings_path: PathBuf) {
+    let Some(display_state) = app.try_state::<DisplayConfigState>() else {
+        return;
+    };
+    let Some(monitors_state) = app.try_state::<MonitorsState>() else {
+        return;
+    };
+    let Some(overlay_state) = app.try_state::<OverlayManagerState>() else {
+        return;
+    };
+
+    // Ignore out-of-bounds indices (e.g., stale config entries).
+    if idx >= monitors_state.0.len() {
+        return;
+    }
+
+    let new_config = {
+        let Ok(mut config) = display_state.0.lock() else {
+            return;
+        };
+        if config.enabled_indices.contains(&idx) {
+            config.enabled_indices.retain(|&i| i != idx);
+        } else {
+            config.enabled_indices.push(idx);
+            config.enabled_indices.sort_unstable();
+        }
+        config.clone()
+    };
+
+    persist_display_config(&settings_path, &new_config);
+
+    // Window creation/show/close must happen on the main thread on macOS.
+    let overlay_mgr = overlay_state.0.clone();
+    let monitors = monitors_state.0.clone();
+    let config_for_main = new_config.clone();
+    let app_for_main = app.clone();
+    if let Err(e) = app.run_on_main_thread(move || {
+        overlay_mgr.apply(&app_for_main, &monitors, &config_for_main);
+    }) {
+        log::error!("tray: run_on_main_thread failed: {e}");
+    }
+
+    rebuild_tray_menu(&app);
+}
+
+fn persist_display_config(settings_path: &PathBuf, config: &DisplayConfig) {
+    let raw = std::fs::read_to_string(settings_path).unwrap_or_default();
+    let mut settings = Settings::parse_yaml(&raw);
+    settings.displays = config.clone();
+    if let Err(e) = write_settings(settings_path, &settings) {
+        log::error!("tray: failed to persist display config: {e}");
+    }
+}
+
+fn rebuild_tray_menu<R: Runtime>(app: &AppHandle<R>) {
+    let focuses = app
+        .try_state::<crate::ui_bridge::CommandsState>()
+        .and_then(|s| s.0.list_focuses().ok())
+        .unwrap_or_default();
+    if let Some(tray) = app.tray_by_id("main-tray") {
+        if let Ok(menu) = build_menu(app, &focuses) {
+            let _ = tray.set_menu(Some(menu));
         }
     }
 }

@@ -11,7 +11,7 @@ pub fn write_settings(path: &Path, settings: &Settings) -> io::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use adhd_ranch_domain::{Alerts, Caps, Widget};
+    use adhd_ranch_domain::{Alerts, Caps, DisplayConfig, Widget};
     use tempfile::TempDir;
 
     use super::*;
@@ -31,6 +31,7 @@ mod tests {
             widget: Widget {
                 always_on_top: true,
             },
+            displays: DisplayConfig::default(),
         };
         write_settings(&path, &settings).unwrap();
         let raw = std::fs::read_to_string(&path).unwrap();
@@ -52,6 +53,9 @@ mod tests {
             widget: Widget {
                 always_on_top: false,
             },
+            displays: DisplayConfig {
+                enabled_indices: vec![0, 2],
+            },
         };
         write_settings(&path, &original).unwrap();
 
@@ -66,5 +70,6 @@ mod tests {
         assert_eq!(final_settings.caps.max_tasks_per_focus, 10);
         assert!(final_settings.alerts.system_notifications);
         assert!(final_settings.widget.always_on_top);
+        assert_eq!(final_settings.displays.enabled_indices, vec![0, 2]);
     }
 }

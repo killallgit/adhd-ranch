@@ -13,7 +13,7 @@
     "macOSPrivateApi": true,
     "windows": [
       {
-        "label": "main",
+        "label": "overlay-0",
         "title": "Adhd Ranch",
         "width": 400,
         "height": 600,
