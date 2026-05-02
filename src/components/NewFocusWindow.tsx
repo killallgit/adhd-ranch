@@ -1,57 +1,32 @@
-import { invoke } from "@tauri-apps/api/core";
-import { getCurrentWindow } from "@tauri-apps/api/window";
-import { useEffect, useState } from "react";
+export interface NewFocusWindowProps {
+  readonly title: string;
+  readonly description: string;
+  readonly submitting: boolean;
+  readonly error: string | null;
+  readonly onTitleChange: (v: string) => void;
+  readonly onDescriptionChange: (v: string) => void;
+  readonly onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
+  readonly onCancel: () => void;
+}
 
-export function NewFocusWindow() {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") void hideWindow();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
-  const hideWindow = async () => {
-    setTitle("");
-    setDescription("");
-    setError(null);
-    await getCurrentWindow().hide();
-  };
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (title.trim().length === 0) {
-      setError("title is required");
-      return;
-    }
-    setSubmitting(true);
-    setError(null);
-    try {
-      await invoke("create_focus", {
-        title: title.trim(),
-        description: description.trim() || null,
-      });
-      await hideWindow();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
+export function NewFocusWindow({
+  title,
+  description,
+  submitting,
+  error,
+  onTitleChange,
+  onDescriptionChange,
+  onSubmit,
+  onCancel,
+}: NewFocusWindowProps) {
   return (
-    <form className="new-focus-form" onSubmit={handleSubmit}>
+    <form className="new-focus-form" onSubmit={onSubmit}>
       <input
         type="text"
         placeholder="Title"
         aria-label="new focus title"
         value={title}
-        onChange={(e) => setTitle(e.target.value)}
+        onChange={(e) => onTitleChange(e.target.value)}
         disabled={submitting}
         // biome-ignore lint/a11y/noAutofocus: first field in a small dedicated window
         autoFocus
@@ -61,14 +36,14 @@ export function NewFocusWindow() {
         placeholder="Description"
         aria-label="new focus description"
         value={description}
-        onChange={(e) => setDescription(e.target.value)}
+        onChange={(e) => onDescriptionChange(e.target.value)}
         disabled={submitting}
       />
       <div className="new-focus-actions">
         <button type="submit" disabled={submitting}>
           Create
         </button>
-        <button type="button" onClick={() => void hideWindow()} disabled={submitting}>
+        <button type="button" onClick={onCancel} disabled={submitting}>
           Cancel
         </button>
       </div>
