@@ -1,19 +1,38 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { createFixtureCapsReader } from "../api/caps";
 import { createFixtureFocusReader } from "../api/fixtureFocusReader";
-import { createFixtureProposalReader } from "../api/fixtureProposalReader";
 import type { FocusWriter } from "../api/focusWriter";
-import type { ProposalWriter } from "../api/proposals";
 import type { Focus } from "../types/focus";
 import { App } from "./App";
 
-const sample: Focus[] = [{ id: "a", title: "Customer X bug", description: "", tasks: [] }];
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: vi.fn().mockResolvedValue(undefined),
+}));
 
-const noopProposalWriter: ProposalWriter = {
-  accept: () => Promise.resolve({ id: "x", target: null }),
-  reject: () => Promise.resolve({ id: "x", target: null }),
-};
+vi.mock(import("../hooks/usePigMovement"), async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    usePigMovement: (focuses: readonly Focus[]) =>
+      focuses.map((f) => ({
+        id: f.id,
+        name: f.title,
+        x: 100,
+        y: 100,
+        vx: 1,
+        vy: 0,
+        frameIndex: 0,
+        direction: "right" as "left" | "right",
+        lastFrameAt: 0,
+        nextTurnAt: 9_999_999,
+      })),
+  };
+});
+
+const sample: Focus[] = [
+  { id: "a", title: "Customer X bug", description: "", tasks: [] },
+  { id: "b", title: "API refactor", description: "", tasks: [] },
+];
 
 function noopFocusWriter(): FocusWriter {
   return {
@@ -24,47 +43,17 @@ function noopFocusWriter(): FocusWriter {
   };
 }
 
-const baseCaps = { max_focuses: 5, max_tasks_per_focus: 7 };
-
-describe("App", () => {
-  it("renders root element and shows focuses once ready", async () => {
-    const focusReader = createFixtureFocusReader(sample);
-    const proposalReader = createFixtureProposalReader([]);
-    render(
-      <App
-        focusReader={focusReader}
-        focusWriter={noopFocusWriter()}
-        proposalReader={proposalReader}
-        proposalWriter={noopProposalWriter}
-        capsReader={createFixtureCapsReader(baseCaps)}
-      />,
-    );
-    expect(screen.getByTestId("app-root")).toBeInTheDocument();
-    await waitFor(() => {
-      expect(screen.getByText("Customer X bug")).toBeInTheDocument();
-    });
-    expect(screen.queryByTestId("cap-badge")).not.toBeInTheDocument();
+describe("App overlay", () => {
+  it("renders the overlay root", () => {
+    render(<App focusReader={createFixtureFocusReader([])} focusWriter={noopFocusWriter()} />);
+    expect(document.querySelector(".overlay-root")).toBeInTheDocument();
   });
 
-  it("shows the cap badge when over the focus limit", async () => {
-    const overFocuses: Focus[] = Array.from({ length: 6 }, (_, i) => ({
-      id: `f${i}`,
-      title: `F${i}`,
-      description: "",
-      tasks: [],
-    }));
-    render(
-      <App
-        focusReader={createFixtureFocusReader(overFocuses)}
-        focusWriter={noopFocusWriter()}
-        proposalReader={createFixtureProposalReader([])}
-        proposalWriter={noopProposalWriter}
-        capsReader={createFixtureCapsReader(baseCaps)}
-      />,
-    );
+  it("spawns a pig for each focus", async () => {
+    render(<App focusReader={createFixtureFocusReader(sample)} focusWriter={noopFocusWriter()} />);
     await waitFor(() => {
-      expect(screen.getByTestId("cap-badge")).toBeInTheDocument();
+      expect(screen.getByText("Customer X bug")).toBeInTheDocument();
+      expect(screen.getByText("API refactor")).toBeInTheDocument();
     });
-    expect(screen.getByTestId("app-root")).toHaveAttribute("data-over-cap", "true");
   });
 });

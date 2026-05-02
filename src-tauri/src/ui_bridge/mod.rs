@@ -9,8 +9,11 @@ use adhd_ranch_domain::{Caps, Focus, Proposal};
 use tauri::State;
 
 use crate::api::Health;
+use crate::app::pig_hittest::{PigHitTester, PigRect};
 
 pub struct CommandsState(pub Arc<Commands>);
+
+pub struct PigHitState(pub PigHitTester);
 
 #[tauri::command]
 pub fn health() -> Health {
@@ -124,4 +127,9 @@ pub fn create_proposal(
         .create_proposal(input)
         .inspect(|p| log::info!("proposal created: {}", p.id))
         .inspect_err(|e| log::error!("create_proposal: {e}"))
+}
+
+#[tauri::command]
+pub fn update_pig_rects(rects: Vec<PigRect>, state: State<'_, PigHitState>) {
+    state.0.update(rects);
 }
