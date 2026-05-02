@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import type { Proposal } from "../types/proposal";
 import type { CommandError } from "../types/error";
+import type { Proposal } from "../types/proposal";
 import type { Unsubscribe } from "./focuses";
 import type {
   ProposalDecisionResult,
