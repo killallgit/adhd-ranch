@@ -1,8 +1,8 @@
 # PRD — adhd-ranch
 
-**Status:** Draft v1
+**Status:** Draft v1.2
 **Owner:** ryan
-**Last updated:** 2026-04-30
+**Last updated:** 2026-05-01
 
 ---
 
@@ -14,7 +14,7 @@ The problem isn't capacity. It's *signal compression*. The user needs a few buck
 
 ## Why now
 
-Agentic coding is the multiplier. A user with 3+ Claude Code sessions running at once has exactly the context-fragmentation this addresses. The skill/slash-command/hook surfaces of Claude Code make it feasible to get free, in-context summaries without separate LLM cost.
+Agentic coding is the multiplier. A user with 3+ Claude Code sessions running at once has exactly the context-fragmentation this addresses. The ambient pig overlay makes Focuses physically visible without demanding attention — the reminder is peripheral, not modal.
 
 ## Target user
 
@@ -26,88 +26,82 @@ Solo developer (initially: the author) who:
 
 ## Guiding metaphor
 
-**Issue tracking for a 5 year old.** A small number of buckets. An adult sorts new things into them. The 5 year old clears bullets when they're done.
+**A ranch you can see from the corner of your eye.** Pixel pig sprites roam the screen — one pig per Focus. They walk slowly. You don't have to look at them. But when you glance, you know what's on your ranch. Click a pig to see its tasks. Clear a task from that card. The pigs never interrupt; they just exist.
 
-## Goals (v1)
+## Goals (v1.2)
 
-1. Always-visible widget showing a short list of current Focuses, each with up to a few Tasks.
-2. Zero-friction capture: user runs `/checkpoint` in any Claude Code session; the in-session agent decides what bucket the moment belongs to and proposes an update.
-3. Human in the loop: every agent-suggested change is a *proposal* the user must accept.
-4. Hard caps (5 Focuses, 7 Tasks per Focus) with overload alerts when exceeded.
-5. Markdown is the source of truth — user can hand-edit any Focus file in any editor.
+1. Pixel pig sprites roam a fullscreen transparent overlay — one pig per Focus.
+2. Clicking a pig shows its name and Task list in a small popover. Tasks can be cleared from the popover.
+3. Manual Focus creation via menu bar item (simple native-style list). No agent flow in v1.2.
+4. Markdown is the source of truth — user can hand-edit any Focus file; pig count updates live via file watcher.
+5. Hard caps (5 Focuses, 7 Tasks per Focus) with overload alerts.
 
-## Non-goals (v1)
+## Non-goals (v1.2)
 
-- Mirroring Jira / GitHub. No external aggregators.
-- Auto-completion of Tasks (`complete_task` deferred).
-- Auto-merge of Focuses (`merge_focus` deferred).
+- Agent proposals / `/checkpoint` flow — deferred to v1.3.
+- Notification hook forwarding — deferred.
+- Auto-completion of Tasks (`complete_task`) — deferred.
+- Auto-merge of Focuses (`merge_focus`) — deferred.
 - Cross-platform (Linux/Windows). macOS only.
 - Multi-user / sync / cloud.
-- Token-economical automatic capture (no Stop hook capture; user-triggered only).
-- Notification hook forwarding ("Claude needs you" relay) — deferred to v1.x.
+- Fancy menu bar UI — native NSMenu list is sufficient.
 
 ## User stories
 
-- **US1.** As a developer with three Claude sessions running, I glance at my menubar and see three buckets: "Customer X bug", "API refactor", "Doc cleanup". Each bucket lists 2–4 plain-English bullets. I never need to wonder "wait, what was I doing in that other terminal?"
-- **US2.** Mid-session, I run `/checkpoint`. The agent reads my buckets, summarizes what we just did in one sentence, picks the right bucket, and submits a proposal. I tap accept in the widget. Done.
-- **US3.** I run `/checkpoint` on something that doesn't fit any bucket. The agent proposes a new Focus with a suggested title + description. I accept or edit the title.
-- **US4.** I finish a Task. I tap `✗` next to its bullet. Bullet disappears. No "are you sure".
-- **US5.** I add a Task by hand: open `~/.adhd-ranch/focuses/customer-x-bug/focus.md` in vim, append `- [ ] release staging`. Save. Widget reflects it within seconds.
-- **US6.** I have 6 Focuses open. The widget shows a red badge. macOS notification: "too much going on — trim 1". I delete a stale Focus.
+- **US1.** I glance at my screen and see three pixel pigs wandering in the corners. I know immediately: three things are on my plate. I don't have to open anything.
+- **US2.** I click a pig. A small dark card appears near the pig: its name and a short task list. I tap `✗` next to a task. It disappears. Card closes when I click elsewhere.
+- **US3.** I finish a Focus. I open the menu bar item, find it in the list, and delete it. Pig disappears from the screen.
+- **US4.** I add a Focus: click the menu bar item → "+ New Focus" → enter name + description. A new pig spawns and starts wandering.
+- **US5.** I hand-edit `~/.adhd-ranch/focuses/customer-x-bug/focus.md` in vim, append `- [ ] release staging`. Save. Pig's task list reflects it within seconds.
+- **US6.** I have 6 Focuses. The menu bar icon shows a red badge. I delete a stale Focus.
 
 ## Functional requirements
 
 ### FR1 — Focus storage
-Each Focus is a directory under `~/.adhd-ranch/focuses/<slug>/` containing `focus.md` with YAML frontmatter (`id`, `title`, `description`, `created_at`) and a body of `- [ ]` bullets. Plain text only.
 
-### FR2 — Tauri menubar app
-- macOS tray icon via `TrayIconBuilder`.
-- Borderless, always-on-top popover positioned near the tray icon.
-- File watcher (`notify`) on `~/.adhd-ranch/focuses/`; UI re-renders on disk changes.
-- macOS system notifications via `tauri-plugin-notification`.
+Unchanged. Each Focus is a directory under `~/.adhd-ranch/focuses/<slug>/` containing `focus.md` with YAML frontmatter (`id`, `title`, `description`, `created_at`) and a body of `- [ ]` bullets. Plain text only.
 
-### FR3 — Widget UI
-Popover layout (top → bottom):
-1. List of Focuses, each with its Tasks. Each Task has inline `✗`. Each Focus has `…` → `Delete` (with confirm).
-2. "+ New Focus" button (always visible — also empty-state hero when no Focuses exist).
-3. Collapsed `📥 N pending` tray (badge with proposal count). Tap to expand.
-4. Expanded tray: per proposal, an inline card with summary + suggested target Focus + `✓ / ✗ / edit`. Reasoning hidden behind `?`.
+### FR2 — Transparent overlay window
 
-### FR4 — HTTP API
-Localhost-only, ephemeral port written to `~/.adhd-ranch/run/port`.
+- Full-screen transparent Tauri window: no decorations, always-on-top, covers the primary monitor.
+- Click-through when not hovering a pig: Rust polling thread reads `NSEvent.mouseLocation` every 16ms, compares against pig bounding boxes (sent from frontend), calls `window.set_ignore_cursor_events(!is_over_pig)`.
+- Pigs receive click events normally; transparent background passes clicks to whatever is beneath.
+- File watcher (`notify`) on `~/.adhd-ranch/focuses/`; pig count re-renders on disk changes.
 
-| Method | Path                       | Purpose                                              |
-|--------|----------------------------|------------------------------------------------------|
-| GET    | `/health`                  | liveness for clients                                 |
-| GET    | `/focuses`                 | catalog `[{id, title, description}]` for the agent   |
-| POST   | `/focuses`                 | create Focus `{title, description}`                  |
-| DELETE | `/focuses/{id}`            | remove Focus dir                                     |
-| POST   | `/focuses/{id}/tasks`      | append Task `{text}` (used by widget UI on accept)   |
-| DELETE | `/focuses/{id}/tasks/{idx}`| remove Task by 0-based bullet index                  |
-| POST   | `/proposals`               | enqueue proposal from `/checkpoint` agent            |
-| GET    | `/proposals`               | list pending proposals                               |
-| POST   | `/proposals/{id}/accept`   | accept; mutation applied; row appended to decisions  |
-| POST   | `/proposals/{id}/reject`   | reject; row appended to decisions                    |
+### FR3 — Pig UI
 
-No auth.
+- One `PigSprite` per Focus, positioned at the sprite's current (x, y) on the overlay.
+- Pigs wander the full screen: slow drift (~35 px/s), smooth random direction changes every 3–8 s, gentle boundary steering (40px margin from edges).
+- Animation: 4 frames per direction (left/right), ticked at ~150ms (≈6.7fps).
+- Sprite: real pixel-art sprite sheet when assets are ready (4 directions × 4 frames in one PNG); placeholder CSS/SVG pig until then.
+- Clicking a pig opens `PigDetail` popover near the pig (edge-clamped): Focus title + task list + `✗` per task.
+- `PigDetail` closes on click-outside.
 
-### FR5 — `/checkpoint` slash command
-- Installed at `~/.claude/commands/checkpoint.md` (global).
-- Reads port from `~/.adhd-ranch/run/port`. If missing or `/health` fails, errors clearly: "adhd-ranch not running, please start the app".
-- Instructs the in-session agent to:
-  1. `GET /focuses`.
-  2. Compose ONE sentence (≤ 12 words) summarizing the current work.
-  3. Decide kind: `add_task` | `new_focus` | `discard`.
-  4. `POST /proposals` with `{ kind, target_focus_id?, task_text?, new_focus?, summary, reasoning }`.
-- Single proposal per `/checkpoint`. Agent runs it again if multiple buckets affected.
+### FR4 — Menu bar item
+
+- Tray icon in the macOS menu bar.
+- Native NSMenu with:
+  - List of current Focuses (each as a menu item showing title).
+  - Clicking a Focus item → brings the pig into view / opens its detail (TBD).
+  - Separator.
+  - "+ New Focus" → opens a small webview popover for title + description input.
+  - Separator.
+  - "Quit" → Cmd-Q.
+- Red badge on tray icon when over-cap.
+
+### FR5 — HTTP API
+
+Localhost-only, ephemeral port. Retained for `/checkpoint` flow (v1.3). No changes to routes.
 
 ### FR6 — Caps
+
 - `MAX_FOCUSES = 5`, `MAX_TASKS_PER_FOCUS = 7` (configurable in `settings.yaml`).
-- Writes that exceed caps still succeed (no hard rejection — markdown is canonical and user might edit anyway), but flip an over-cap flag.
-- Widget shows red badge while over.
+- Writes exceeding caps succeed but flip over-cap flag.
+- Tray icon shows red badge while over.
 - macOS notification fires once per `under → over` transition.
 
 ### FR7 — Configuration
+
 `~/.adhd-ranch/settings.yaml`:
 ```yaml
 caps:
@@ -115,58 +109,51 @@ caps:
   max_tasks_per_focus: 7
 alerts:
   system_notifications: true
+widget:
+  always_on_top: true
 ```
-Defaults applied for any missing keys.
 
 ### FR8 — Audit log
-Every accepted/rejected proposal appended to `~/.adhd-ranch/decisions.jsonl` with `{ts, proposal_id, decision, reasoning, target}`. Useful for tuning the routing prompt later.
+
+Retained. Every accepted/rejected proposal appended to `~/.adhd-ranch/decisions.jsonl`. Unused in v1.2 but preserved for v1.3.
 
 ## Non-functional requirements
 
-- **Latency:** widget reflects file changes within 1s of save. HTTP `POST /proposals` returns within 50ms.
-- **Reliability:** atomic writes (tmpfile + rename), per-file `flock`. No partial-write corruption visible to readers.
+- **Latency:** pig count reflects file changes within 1s of save.
+- **Click-through:** hit-test polling at ~60fps (16ms); transition latency < 32ms.
+- **Reliability:** atomic writes (tmpfile + rename), per-file `flock`. No partial-write corruption.
 - **Footprint:** Tauri release build < 20 MB on disk; idle RAM < 50 MB.
-- **Resilience:** if the app crashes, no markdown corruption (atomic writes); on relaunch the app reads from disk and resumes.
-- **Privacy:** zero outbound network. No telemetry, no LLM calls, no tickets posted anywhere.
+- **Privacy:** zero outbound network. No telemetry.
 
-## Success metrics (v1)
+## Success metrics (v1.2)
 
-This is a personal tool first. Metrics are subjective:
+- Author can name their active Focuses by glancing at the screen without opening any tool.
+- Pigs are visible and not disruptive — clicks pass through to other apps with < 32ms latency.
+- Click-a-pig → task card round trip feels instant (< 100ms perceived).
 
-- Author uses `/checkpoint` ≥ 5 times per work day for two weeks without abandoning.
-- Author can name their currently active Focuses without opening any other tool.
-- Routing accuracy ≥ 70% (proposals accepted as-is, no edit) — measured from `decisions.jsonl`.
-- Proposals are useful enough that the user prefers them to manually editing markdown for at least half the writes.
+## Out of scope / v1.3+
 
-If those hold, the bet pays. If not, the audit log gives labelled data to improve the prompt or fold in a Pass-2 routing call.
-
-## Out of scope / v2 ideas
-
+- `/checkpoint` slash command + agent proposal flow.
 - `merge_focus` and `complete_task` proposal kinds.
-- Notification-hook forwarding ("Claude needs you" badge).
-- Slash command for `/new-focus`.
-- `/usr/local/bin/adhd-ranch` symlink for shell shortcuts.
+- Menu bar Focus detail (clicking Focus in menu → highlight pig, open detail).
+- Notification-hook forwarding.
 - Linux + Windows ports.
 - External aggregators: Jira, GitHub, Linear.
-- Schema migrations (when frontmatter changes).
-- Rollup pass with separate LLM call (only if naive in-session routing proves insufficient).
-- Multi-machine sync (probably never — markdown in a synced dir like iCloud or git-managed dotfiles handles this for free).
+- Multi-machine sync.
 
 ## Open questions / risks
 
-- **R1.** Routing accuracy of a one-shot prompt may be poor when Focuses overlap conceptually. Mitigation: user can edit proposal target; audit log captures every miss for prompt tuning.
-- **R2.** The user might not run `/checkpoint` often enough. Mitigation: a future automatic/idle trigger can plug in via the same HTTP entrypoint without architectural change. Not v1.
-- **R3.** The 5/7 caps might feel too tight. Mitigation: configurable; trivial to bump.
-- **R4.** No real auth on the HTTP API. Any local process can write. Acceptable for a personal Mac; revisit if shared.
-- **R5.** `flock` semantics on macOS over network filesystems (iCloud Drive, NFS) are not perfect. Mitigation: keep `~/.adhd-ranch/` on local disk in v1; document.
+- **R1.** Click-through latency: 16ms Rust poll + IPC round-trip should feel transparent, but needs real-device testing.
+- **R2.** NSEvent.mouseLocation coordinate space: macOS uses bottom-left origin; CSS uses top-left. Must flip Y using screen height.
+- **R3.** Multiple monitors: pigs spawn on primary monitor only (v1.2). Multi-monitor layout deferred.
+- **R4.** Pig positions on resize: if screen resolution changes (external monitor connect/disconnect), pigs reset to safe positions.
+- **R5.** Always-on-top + fullscreen apps: at kCGFloatingWindowLevel (3), pigs disappear behind fullscreen apps. Acceptable for v1.2.
 
 ## Implementation phases
 
-1. **Phase 0 — Skeleton.** Tauri project, tray icon, popover window, empty `~/.adhd-ranch/` structure, hard-coded Focus list.
-2. **Phase 1 — Storage.** Markdown read/write, file watcher, schema parser, atomic writes, settings load.
-3. **Phase 2 — HTTP API.** All routes from FR4. Proposals queue. Accept/reject paths.
-4. **Phase 3 — Slash command.** `~/.claude/commands/checkpoint.md` with prompt template; manual end-to-end test.
-5. **Phase 4 — Caps + alerts.** Over-cap detection, system notifications, widget badge.
-6. **Phase 5 — Polish.** Edit-proposal modal, delete-Focus confirm, empty state, decisions audit log, packaging (`.app`, dmg).
-
-Each phase is independently testable. v1 ships at end of Phase 5.
+1. **Phase 0 (done):** Tauri skeleton, storage, HTTP API, markdown read/write, caps, file watcher, proposals queue.
+2. **Phase 1 (done):** Custom titlebar, app menu, always-on-top, regular Mac app.
+3. **Phase 2 — Pig overlay:** Transparent fullscreen window, click-through Rust polling thread, `PigSprite` placeholder, `usePigMovement`, `PigDetail` popover, `App.tsx` rewrite.
+4. **Phase 3 — Menu bar:** Tray icon, native NSMenu list, new-focus creation from tray, delete from tray.
+5. **Phase 4 — Real sprites:** Swap placeholder for real sprite sheet (4×4 grid PNG). Wire direction + frame to CSS background-position.
+6. **Phase 5 — Agent flow (v1.3):** Restore `/checkpoint` command + proposal queue UI (tray submenu or modal).
