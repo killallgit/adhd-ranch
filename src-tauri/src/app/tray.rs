@@ -9,6 +9,7 @@ use tauri::{AppHandle, Manager, Runtime};
 
 const QUIT_ID: &str = "tray-quit";
 const NO_FOCUSES_ID: &str = "tray-no-focuses";
+const NEW_FOCUS_ID: &str = "tray-new-focus";
 const DELETE_PREFIX: &str = "tray-delete-";
 
 pub fn setup<R: Runtime>(
@@ -33,6 +34,11 @@ pub fn setup<R: Runtime>(
             let id = event.id().0.as_str();
             if id == QUIT_ID {
                 app.exit(0);
+            } else if id == NEW_FOCUS_ID {
+                if let Some(win) = app.get_webview_window("new-focus") {
+                    let _ = win.show();
+                    let _ = win.set_focus();
+                }
             } else if let Some(focus_id) = id.strip_prefix(DELETE_PREFIX) {
                 let focus_id = focus_id.to_string();
                 let app_handle = app.clone();
@@ -85,6 +91,10 @@ pub fn rebuild_handler<R: Runtime>(
 
 fn build_menu<R: Runtime>(handle: &AppHandle<R>, focuses: &[Focus]) -> tauri::Result<Menu<R>> {
     let mut items: Vec<Box<dyn IsMenuItem<R>>> = Vec::new();
+
+    let new_focus = MenuItemBuilder::with_id(NEW_FOCUS_ID, "+ New Focus").build(handle)?;
+    items.push(Box::new(new_focus));
+    items.push(Box::new(PredefinedMenuItem::separator(handle)?));
 
     if focuses.is_empty() {
         let item = MenuItemBuilder::with_id(NO_FOCUSES_ID, "No focuses yet")
