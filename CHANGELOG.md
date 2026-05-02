@@ -1,32 +1,52 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+All notable changes to adhd-ranch. Follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+---
 
 ## [Unreleased]
 
-### Added
+## [1.1.0] — 2026-05-01
 
-- Tauri v2 + React scaffolding with borderless always-on-top tray popover.
-- Build pipeline: `.app` and `.dmg` produced from tag-driven release workflow.
-- Markdown-backed focuses on disk, watched for live UI refresh.
-- Localhost HTTP API exposing `/health` and `/focuses`.
-- `/checkpoint` slash command and a proposal queue for accept/reject review.
-- Atomic write of accepted proposals with a decision audit log.
-- Widget CRUD: new focus, delete focus, add and remove tasks.
-- `settings.yaml` with focus and task caps; cap badge and macOS overload notifications.
-- Edit-proposal modal, empty-state hero, and v1 README.
+Regular Mac app pivot. Replaces the tray-popover model with a draggable floating window, Dock icon, and standard app menu.
+
+### Added
+- Custom titlebar with drag region and close `×` button (hides window, keeps app running)
+- App menu: `Adhd Ranch` / `File` / `Edit` / `Window` submenus
+- `Window > Always on Top` checkbox — toggles window level and persists to `settings.yaml`
+- `Window > Show Ranch` — re-shows and focuses the window
+- Dock icon and `RunEvent::Reopen` handler (clicking Dock icon reopens window)
+- `widget.always_on_top: bool` setting in `settings.yaml` (replaces `window_level` enum)
+- Window position + size autosaved via `setFrameAutosaveName:` across launches
+- `Settings::to_yaml()` + `storage::write_settings` for atomic settings persistence
+- `File > Close` and `Cmd-W` hide the window; `Cmd-Q` quits
 
 ### Changed
+- Window size: 400×600, resizable, minimum 320×400 (was 360×480, fixed)
+- Activation policy: `Regular` (Dock icon) instead of `Accessory` (hidden from Dock)
+- `WindowLevel` enum replaced with `always_on_top: bool`
 
-- Cap notifications now flow through a `CapNotifier` trait owned by the commands crate; the Tauri shell provides a single adapter, removing the inline cap-evaluation/notification logic from the app composition root.
-- Proposal accept/reject now lives in a dedicated `ProposalLifecycle` module that owns proposal load → edit → validate → mutate → record-decision → clear-queue. The `ProposalDispatcher`/`*Applier` strategy traits are removed; the inline `match` over `ProposalKind` replaces the per-kind adapters. Focus creation in the direct path and the proposal path now share a single helper.
-- Tauri filesystem watchers now share a single `install_change_handlers` helper that fans a debounced change event out to a list of handlers, replacing the asymmetric mix of inline closure and per-watcher helper.
-- React widget composes its three async data sources through a single `useAppState` hook with one readiness contract; proposal-reader errors now surface in the UI instead of being silently swallowed.
+### Removed
+- Tray icon and `tray.rs`
+- `window_level.rs` and `WindowLevel` / `parse_window_level` from domain
+- `tauri-plugin-positioner` dependency
+- `WindowEvent::Focused(false) → hide` auto-hide on focus loss
+- `widget.window_level` settings key
+
+---
+
+## [1.0.0] — 2026-04 (tray-popover baseline)
 
 ### Added
+- Tray icon toggles borderless popover window
+- Focus CRUD: create, delete, task add/clear from widget
+- Proposal queue: `/checkpoint` skill enqueues proposals; accept/reject from widget
+- Decisions audit log (append-only `.jsonl`)
+- Cap monitoring: max focuses + max tasks per focus with macOS notifications
+- Edit proposal modal with focus-retarget support
+- Localhost HTTP API (`/health`, `/focuses`, `/proposals`, `/caps`)
+- Live file-watcher refresh (debounced, no polling)
+- `settings.yaml`: caps, alerts, widget config
+- `.app` + `.dmg` packaging; tag-driven GitHub releases
+- CI: lint + typecheck + tests on push
 
-- `widget.window_level` setting (`floating` | `status` | `screensaver`, default `status`) that controls the macOS NSWindow level of the popover. `status` puts it above the status bar; `screensaver` keeps it above fullscreen apps.
-- Tray right-click menu with `Show` and `Quit` items.
-- Hidden app menu with `Cmd-Q` (quit) and `Cmd-W` (hide widget) accelerators so the popover is keyboard-dismissible and the app is keyboard-quittable in `Accessory` activation mode.
