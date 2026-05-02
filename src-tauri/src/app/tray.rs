@@ -8,6 +8,7 @@ use tauri::menu::{IsMenuItem, Menu, MenuItemBuilder, PredefinedMenuItem, Submenu
 use tauri::tray::{TrayIcon, TrayIconBuilder};
 use tauri::{AppHandle, Manager, Runtime};
 
+use super::overlay_manager::OverlayManagerState;
 use super::{DisplayConfigState, MonitorsState};
 
 const QUIT_ID: &str = "tray-quit";
@@ -202,9 +203,14 @@ fn handle_display_toggle<R: Runtime>(app: AppHandle<R>, idx: usize, settings_pat
     let Some(monitors_state) = app.try_state::<MonitorsState>() else {
         return;
     };
-    let Some(hit_state) = app.try_state::<crate::ui_bridge::PigHitState>() else {
+    let Some(overlay_state) = app.try_state::<OverlayManagerState>() else {
         return;
     };
+
+    // Ignore out-of-bounds indices (e.g., stale config entries).
+    if idx >= monitors_state.0.len() {
+        return;
+    }
 
     let new_config = {
         let Ok(mut config) = display_state.0.lock() else {
@@ -221,8 +227,8 @@ fn handle_display_toggle<R: Runtime>(app: AppHandle<R>, idx: usize, settings_pat
 
     persist_display_config(&settings_path, &new_config);
 
-    // Window creation/show/hide must happen on the main thread on macOS.
-    let overlay_mgr = hit_state.0.clone();
+    // Window creation/show/close must happen on the main thread on macOS.
+    let overlay_mgr = overlay_state.0.clone();
     let monitors = monitors_state.0.clone();
     let config_for_main = new_config.clone();
     let app_for_main = app.clone();

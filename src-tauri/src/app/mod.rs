@@ -10,13 +10,13 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use adhd_ranch_commands::{CapEvaluator, Commands};
-use adhd_ranch_domain::{DisplayConfig, OverCapMonitor, Settings};
+use adhd_ranch_domain::{DisplayConfig, OverCapMonitor, RectUpdater, Settings};
 use adhd_ranch_http_api::{serve, ServerHandle};
 use adhd_ranch_storage::{
     watch_path, DecisionLog, FocusStore, FocusWatcher, JsonlDecisionLog, JsonlProposalQueue,
     MarkdownFocusStore, ProposalQueue,
 };
-use overlay_manager::{MonitorInfo, OverlayManager};
+use overlay_manager::{MonitorInfo, OverlayManager, OverlayManagerState};
 use tauri::{AppHandle, Emitter, Manager};
 use time::format_description::well_known::Rfc3339;
 
@@ -96,16 +96,20 @@ pub fn run() {
         app.manage(ui_bridge::CommandsState(commands));
 
         // Enumerate connected monitors and store for tray + overlay management.
-        let monitor_infos: Vec<MonitorInfo> = app
-            .available_monitors()
-            .unwrap_or_default()
-            .into_iter()
-            .map(|m| MonitorInfo {
-                name: m.name().map(|s| s.to_string()),
-                size: *m.size(),
-                position: *m.position(),
-            })
-            .collect();
+        let monitor_infos: Vec<MonitorInfo> = match app.available_monitors() {
+            Ok(monitors) => monitors
+                .into_iter()
+                .map(|m| MonitorInfo {
+                    name: m.name().map(|s| s.to_string()),
+                    size: *m.size(),
+                    position: *m.position(),
+                })
+                .collect(),
+            Err(e) => {
+                log::error!("setup: failed to enumerate monitors: {e}");
+                Vec::new()
+            }
+        };
 
         let display_config = settings.displays.clone();
         app.manage(MonitorsState(monitor_infos.clone()));
@@ -116,7 +120,9 @@ pub fn run() {
         // Overlay manager must be managed before windows are shown so invoke
         // calls from React can find PigHitState immediately.
         let overlay_manager = OverlayManager::new();
-        app.manage(ui_bridge::PigHitState(overlay_manager.clone()));
+        let rect_updater: Arc<dyn RectUpdater> = Arc::new(overlay_manager.clone());
+        app.manage(ui_bridge::PigHitState(rect_updater));
+        app.manage(OverlayManagerState(overlay_manager.clone()));
         overlay_manager.apply(app.handle(), &monitor_infos, &display_config);
 
         let tray_icon = tray::setup(

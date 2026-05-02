@@ -1,11 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
-pub struct PigRect {
-    pub x: f64,
-    pub y: f64,
-    pub size: f64,
-}
+use adhd_ranch_domain::PigRect;
 
 #[derive(Clone)]
 pub struct PigHitTester {

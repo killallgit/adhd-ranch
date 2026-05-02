@@ -2,10 +2,10 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use adhd_ranch_domain::DisplayConfig;
+use adhd_ranch_domain::{DisplayConfig, PigRect, RectUpdater};
 use tauri::{AppHandle, Manager, Runtime, WebviewUrl, WebviewWindowBuilder};
 
-use crate::app::pig_hittest::{PigHitTester, PigRect};
+use crate::app::pig_hittest::PigHitTester;
 
 #[derive(Clone)]
 pub struct MonitorInfo {
@@ -23,6 +23,8 @@ pub struct OverlayManager {
     entries: Arc<Mutex<HashMap<String, OverlayEntry>>>,
 }
 
+pub struct OverlayManagerState(pub OverlayManager);
+
 impl Default for OverlayManager {
     fn default() -> Self {
         Self::new()
@@ -33,14 +35,6 @@ impl OverlayManager {
     pub fn new() -> Self {
         Self {
             entries: Arc::new(Mutex::new(HashMap::new())),
-        }
-    }
-
-    pub fn update_rects(&self, label: &str, rects: Vec<PigRect>) {
-        if let Ok(map) = self.entries.lock() {
-            if let Some(entry) = map.get(label) {
-                entry.tester.update(rects);
-            }
         }
     }
 
@@ -56,8 +50,29 @@ impl OverlayManager {
                 if let Err(e) = self.ensure_shown(app, &label, monitor) {
                     log::error!("overlay_manager: {label} failed: {e}");
                 }
-            } else if let Some(window) = app.get_webview_window(&label) {
-                let _ = window.hide();
+            } else {
+                self.destroy(app, &label);
+            }
+        }
+
+        // Close stale overlay windows for indices beyond current monitor count.
+        if let Ok(mut map) = self.entries.lock() {
+            let stale: Vec<String> = map
+                .keys()
+                .filter(|label| {
+                    label
+                        .strip_prefix("overlay-")
+                        .and_then(|n| n.parse::<usize>().ok())
+                        .map(|idx| idx >= monitors.len())
+                        .unwrap_or(false)
+                })
+                .cloned()
+                .collect();
+            for label in stale {
+                if let Some(window) = app.get_webview_window(&label) {
+                    let _ = window.close();
+                }
+                map.remove(&label);
             }
         }
     }
@@ -133,5 +148,24 @@ impl OverlayManager {
         }
 
         Ok(())
+    }
+
+    fn destroy<R: Runtime>(&self, app: &AppHandle<R>, label: &str) {
+        if let Some(window) = app.get_webview_window(label) {
+            let _ = window.close();
+        }
+        if let Ok(mut map) = self.entries.lock() {
+            map.remove(label);
+        }
+    }
+}
+
+impl RectUpdater for OverlayManager {
+    fn update_rects(&self, label: &str, rects: Vec<PigRect>) {
+        if let Ok(map) = self.entries.lock() {
+            if let Some(entry) = map.get(label) {
+                entry.tester.update(rects);
+            }
+        }
     }
 }

@@ -8,13 +8,13 @@ use adhd_ranch_domain::{Caps, Focus, Proposal};
 
 use tauri::State;
 
+use adhd_ranch_domain::{PigRect, RectUpdater};
+
 use crate::api::Health;
-use crate::app::overlay_manager::OverlayManager;
-use crate::app::pig_hittest::PigRect;
 
 pub struct CommandsState(pub Arc<Commands>);
 
-pub struct PigHitState(pub OverlayManager);
+pub struct PigHitState(pub Arc<dyn RectUpdater>);
 
 #[tauri::command]
 pub fn health() -> Health {

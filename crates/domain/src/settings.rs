@@ -125,13 +125,10 @@ impl Settings {
                     }
                 }
                 ("displays", "enabled") => {
-                    let indices: Vec<usize> = value
+                    settings.displays.enabled_indices = value
                         .split(',')
                         .filter_map(|s| s.trim().parse().ok())
                         .collect();
-                    if !indices.is_empty() {
-                        settings.displays.enabled_indices = indices;
-                    }
                 }
                 _ => {}
             }
