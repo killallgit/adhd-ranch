@@ -136,10 +136,20 @@ pub fn run() {
             let app_handle = app.handle().clone();
             let window_clone = window.clone();
             std::thread::spawn(move || {
+                // Start click-through immediately so background is passthrough before first poll.
+                let _ = window_clone.set_ignore_cursor_events(true);
                 let mut last_over = false;
                 loop {
                     if let Ok(cursor) = app_handle.cursor_position() {
-                        let over = hittester.is_hit(cursor.x, cursor.y);
+                        // cursor_position() is in global desktop coords; pig rects from the
+                        // frontend are in webview-local physical pixels. Subtract window origin.
+                        let origin = window_clone
+                            .outer_position()
+                            .map(|p| (p.x as f64, p.y as f64))
+                            .unwrap_or((0.0, 0.0));
+                        let local_x = cursor.x - origin.0;
+                        let local_y = cursor.y - origin.1;
+                        let over = hittester.is_hit(local_x, local_y);
                         if over != last_over {
                             let _ = window_clone.set_ignore_cursor_events(!over);
                             last_over = over;

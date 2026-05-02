@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { PIG_SIZE } from "../hooks/usePigMovement";
 import type { Focus } from "../types/focus";
 
@@ -5,6 +6,8 @@ export interface PigDetailProps {
   readonly focus: Focus;
   readonly pigX: number;
   readonly pigY: number;
+  readonly viewportW: number;
+  readonly viewportH: number;
   readonly onClose: () => void;
   readonly onClearTask: (index: number) => void;
 }
@@ -12,20 +15,35 @@ export interface PigDetailProps {
 const CARD_W = 210;
 const CARD_OFFSET_X = PIG_SIZE + 8;
 
-export function PigDetail({ focus, pigX, pigY, onClose, onClearTask }: PigDetailProps) {
-  const screenW = window.screen.width;
-  const screenH = window.screen.height;
+export function PigDetail({
+  focus,
+  pigX,
+  pigY,
+  viewportW,
+  viewportH,
+  onClose,
+  onClearTask,
+}: PigDetailProps) {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
 
   const rawX = pigX + CARD_OFFSET_X;
-  const x = Math.min(rawX, screenW - CARD_W - 16);
-  const y = Math.max(16, Math.min(pigY, screenH - 200));
+  const x = Math.min(rawX, viewportW - CARD_W - 16);
+  const y = Math.max(16, Math.min(pigY, viewportH - 200));
 
   return (
     <>
       <div
         className="pig-detail-backdrop"
         onClick={onClose}
-        onKeyDown={(e) => e.key === "Escape" && onClose()}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") onClose();
+        }}
         role="presentation"
       />
       <div className="pig-detail" style={{ left: x, top: y, width: CARD_W }}>

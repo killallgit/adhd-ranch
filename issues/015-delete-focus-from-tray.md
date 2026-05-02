@@ -11,9 +11,11 @@ Each Focus item in the tray NSMenu gains a submenu. Hovering the Focus title rev
 - **Tray menu change** (`src-tauri/src/app/tray.rs`):
   - Replace each plain `MenuItem` for a focus with a `Submenu` whose title is the focus title.
   - Submenu contents:
-    ```
+
+    ```text
     Delete "Customer X bug"…
     ```
+
   - Menu item id carries the focus id so the event handler knows which focus to delete.
 - **Confirmation dialog**:
   - Use `tauri_plugin_dialog::blocking::confirm` (or the async variant) to show a native macOS sheet:
@@ -38,7 +40,7 @@ On `main`, hovering a Focus name in the tray menu reveals a submenu; clicking "D
 - [ ] Confirming deletes the focus directory and calls the existing `delete_focus` command path.
 - [ ] Cancelling does nothing.
 - [ ] Tray menu updates within 1s of deletion (pig also disappears from overlay).
-- [ ] No confirmation dialog if the user cancels.
+- [ ] No deletion occurs when the user cancels in the confirmation dialog.
 - [ ] `task check` green.
 
 ## Blocked by

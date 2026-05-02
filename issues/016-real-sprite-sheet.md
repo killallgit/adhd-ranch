@@ -17,6 +17,7 @@ Swap the placeholder 🐷 emoji in `PigSprite.tsx` for the real 4-direction × 4
 - **`PigSprite.tsx` change** (the swap comment at lines 16–26 marks the exact location):
   - Remove the `<span className="pig-emoji">` element.
   - Replace with:
+
     ```tsx
     <div
       className="pig-sprite-frame"
@@ -29,6 +30,7 @@ Swap the placeholder 🐷 emoji in `PigSprite.tsx` for the real 4-direction × 4
       }}
     />
     ```
+
   - `row` derived from `direction`: `left=1, right=2` (up/down unused in v1.2 — pigs only move in 2D horizontal plane for now).
   - Remove `scaleX(-1)` transform from the button (direction handled by row selection instead).
 - **CSS**: add `.pig-sprite-frame { display: block; }`. Remove `.pig-emoji` rule.

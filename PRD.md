@@ -58,15 +58,18 @@ Solo developer (initially: the author) who:
 ## Functional requirements
 
 ### FR1 — Focus storage
+
 Unchanged. Each Focus is a directory under `~/.adhd-ranch/focuses/<slug>/` containing `focus.md` with YAML frontmatter (`id`, `title`, `description`, `created_at`) and a body of `- [ ]` bullets. Plain text only.
 
 ### FR2 — Transparent overlay window
+
 - Full-screen transparent Tauri window: no decorations, always-on-top, covers the primary monitor.
 - Click-through when not hovering a pig: Rust polling thread reads `NSEvent.mouseLocation` every 16ms, compares against pig bounding boxes (sent from frontend), calls `window.set_ignore_cursor_events(!is_over_pig)`.
 - Pigs receive click events normally; transparent background passes clicks to whatever is beneath.
 - File watcher (`notify`) on `~/.adhd-ranch/focuses/`; pig count re-renders on disk changes.
 
 ### FR3 — Pig UI
+
 - One `PigSprite` per Focus, positioned at the sprite's current (x, y) on the overlay.
 - Pigs wander the full screen: slow drift (~35 px/s), smooth random direction changes every 3–8 s, gentle boundary steering (40px margin from edges).
 - Animation: 4 frames per direction (left/right), ticked at ~150ms (≈6.7fps).
@@ -75,6 +78,7 @@ Unchanged. Each Focus is a directory under `~/.adhd-ranch/focuses/<slug>/` conta
 - `PigDetail` closes on click-outside.
 
 ### FR4 — Menu bar item
+
 - Tray icon in the macOS menu bar.
 - Native NSMenu with:
   - List of current Focuses (each as a menu item showing title).
@@ -86,15 +90,18 @@ Unchanged. Each Focus is a directory under `~/.adhd-ranch/focuses/<slug>/` conta
 - Red badge on tray icon when over-cap.
 
 ### FR5 — HTTP API
+
 Localhost-only, ephemeral port. Retained for `/checkpoint` flow (v1.3). No changes to routes.
 
 ### FR6 — Caps
+
 - `MAX_FOCUSES = 5`, `MAX_TASKS_PER_FOCUS = 7` (configurable in `settings.yaml`).
 - Writes exceeding caps succeed but flip over-cap flag.
 - Tray icon shows red badge while over.
 - macOS notification fires once per `under → over` transition.
 
 ### FR7 — Configuration
+
 `~/.adhd-ranch/settings.yaml`:
 ```yaml
 caps:
@@ -107,6 +114,7 @@ widget:
 ```
 
 ### FR8 — Audit log
+
 Retained. Every accepted/rejected proposal appended to `~/.adhd-ranch/decisions.jsonl`. Unused in v1.2 but preserved for v1.3.
 
 ## Non-functional requirements

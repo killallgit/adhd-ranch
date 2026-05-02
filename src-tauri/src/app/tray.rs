@@ -15,7 +15,13 @@ pub fn setup<R: Runtime>(
     store: Arc<dyn FocusStore>,
     settings: Settings,
 ) -> tauri::Result<TrayIcon<R>> {
-    let focuses = store.list().unwrap_or_default();
+    let focuses = match store.list() {
+        Ok(f) => f,
+        Err(e) => {
+            log::error!("tray setup: failed to read focuses: {e}");
+            Vec::new()
+        }
+    };
     let menu = build_menu(app, &focuses)?;
     let over_cap = cap_state(&focuses, settings.caps).any_over();
 
@@ -36,6 +42,8 @@ pub fn setup<R: Runtime>(
 
     if over_cap {
         let _ = tray.set_icon(Some(red_icon()));
+    } else if app.default_window_icon().is_none() {
+        let _ = tray.set_icon(None);
     }
 
     Ok(tray)
@@ -48,7 +56,13 @@ pub fn rebuild_handler<R: Runtime>(
     settings: Settings,
 ) -> Box<dyn Fn() + Send + 'static> {
     Box::new(move || {
-        let focuses = store.list().unwrap_or_default();
+        let focuses = match store.list() {
+            Ok(f) => f,
+            Err(e) => {
+                log::error!("tray rebuild: failed to read focuses: {e}");
+                return;
+            }
+        };
         if let Ok(menu) = build_menu(&handle, &focuses) {
             let _ = tray.set_menu(Some(menu));
         }
@@ -57,6 +71,8 @@ pub fn rebuild_handler<R: Runtime>(
             let _ = tray.set_icon(Some(red_icon()));
         } else if let Some(icon) = handle.default_window_icon() {
             let _ = tray.set_icon(Some(icon.clone()));
+        } else {
+            let _ = tray.set_icon(None);
         }
     })
 }

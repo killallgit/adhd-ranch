@@ -3,6 +3,7 @@ import type { FocusWriter } from "../api/focusWriter";
 import type { FocusReader } from "../api/focuses";
 import { useFocuses } from "../hooks/useFocuses";
 import { usePigMovement } from "../hooks/usePigMovement";
+import { useViewport } from "../hooks/useViewport";
 import { PigDetail } from "./PigDetail";
 import { PigSprite } from "./PigSprite";
 
@@ -15,10 +16,20 @@ export function App({ focusReader, focusWriter }: AppProps) {
   const focusState = useFocuses(focusReader);
   const focuses = focusState.status === "ready" ? focusState.focuses : [];
   const pigs = usePigMovement(focuses);
+  const { screenW, screenH } = useViewport();
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const selectedPig = pigs.find((p) => p.id === selectedId);
   const selectedFocus = focuses.find((f) => f.id === selectedId);
+
+  async function handleClearTask(index: number) {
+    if (!selectedFocus) return;
+    try {
+      await focusWriter.deleteTask(selectedFocus.id, index);
+    } catch {
+      // focusWriter already logs the typed error
+    }
+  }
 
   return (
     <div className="overlay-root">
@@ -38,10 +49,10 @@ export function App({ focusReader, focusWriter }: AppProps) {
           focus={selectedFocus}
           pigX={selectedPig.x}
           pigY={selectedPig.y}
+          viewportW={screenW}
+          viewportH={screenH}
           onClose={() => setSelectedId(null)}
-          onClearTask={(index) => {
-            void focusWriter.deleteTask(selectedFocus.id, index);
-          }}
+          onClearTask={handleClearTask}
         />
       )}
     </div>

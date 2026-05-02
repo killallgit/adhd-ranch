@@ -14,13 +14,15 @@ Reinstate a macOS menu bar tray icon (removed in v1.1 per D1, now repurposed as 
   - Normal icon: the app's pig icon (or a placeholder until real assets exist).
   - Over-cap icon: swapped to a red-badged variant via `TrayIcon::set_icon` on the `focuses-changed` + cap-check path.
 - **NSMenu contents** (built with `tauri::menu::MenuBuilder`):
-  ```
+
+  ```text
   [Focus title 1]   ← MenuItemBuilder, disabled (no action yet — submenu comes in 014)
   [Focus title 2]
   …
   ─
   Quit              ← calls app.exit(0)
   ```
+
   Empty-state: show a single greyed-out "No focuses yet" item.
 - **Live rebuild**:
   - Subscribe to the existing `FOCUSES_CHANGED_EVENT` from within setup.

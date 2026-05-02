@@ -7,15 +7,19 @@
 ## Ubiquitous Language
 
 ### Focus
+
 A top-level item the user is paying attention to. Represents a real-world goal (e.g. "Customer X bug"). Created manually by the user (via menu bar or hand-edit), or in v1.3+ via an accepted `new_focus` proposal. Owns a flat list of Tasks. Rendered in the UI as a Pig.
 
 ### Pig
+
 The visual representation of a Focus. A pixel-art sprite that wanders the screen. One pig = one Focus. Clicking a pig opens its detail card. Pigs are not stored — they are ephemeral projections of Focus state.
 
 ### Task
+
 A child item under a Focus. Single sentence. Created by user action or (v1.3+) by an accepted `add_task` proposal. Tree is capped at two levels — Focus → Task. No sub-tasks. Removed only by user action.
 
 ### Proposal
+
 A pending suggestion from the in-session agent at `/checkpoint` time. Three kinds: `add_task`, `new_focus`, `discard`. Held in a queue until the user accepts or rejects. **Deferred to v1.3** — not part of the current UI.
 
 ## Persistence
@@ -142,14 +146,8 @@ caps:
 alerts:
   system_notifications: true
 widget:
-  window_level: status   # floating | status | screensaver
+  always_on_top: true
 ```
-
-`widget.window_level` controls the macOS NSWindow level the popover sits at:
-
-- `floating` (3) — above normal windows, below the status bar.
-- `status` (25, default) — above status bar items; sane default for a tray widget.
-- `screensaver` (1000) — above absolutely everything, including fullscreen apps.
 
 Changes apply at app startup; restart the app to pick up edits.
 
