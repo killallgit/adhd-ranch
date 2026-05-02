@@ -13,7 +13,7 @@ use super::window_always_on_top;
 pub const ALWAYS_ON_TOP_ID: &str = "always-on-top";
 pub const SHOW_RANCH_ID: &str = "show-ranch";
 pub const CLOSE_WINDOW_ID: &str = "close-window";
-const MAIN_WINDOW: &str = "main";
+const MAIN_WINDOW: &str = "overlay-0";
 
 pub fn build<R: Runtime>(handle: &AppHandle<R>, always_on_top: bool) -> tauri::Result<Menu<R>> {
     let app_submenu = SubmenuBuilder::new(handle, "Adhd Ranch")

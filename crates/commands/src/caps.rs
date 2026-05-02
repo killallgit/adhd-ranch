@@ -180,6 +180,7 @@ mod tests {
                 system_notifications: notifications,
             },
             widget: Widget::default(),
+            displays: adhd_ranch_domain::DisplayConfig::default(),
         }
     }
 

@@ -36,21 +36,43 @@ impl Default for Alerts {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+/// Which monitor indices have an active overlay window. Default: primary only (index 0).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DisplayConfig {
+    pub enabled_indices: Vec<usize>,
+}
+
+impl Default for DisplayConfig {
+    fn default() -> Self {
+        Self {
+            enabled_indices: vec![0],
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct Settings {
     pub caps: Caps,
     pub alerts: Alerts,
     pub widget: Widget,
+    pub displays: DisplayConfig,
 }
 
 impl Settings {
     pub fn to_yaml(&self) -> String {
+        let enabled: Vec<String> = self
+            .displays
+            .enabled_indices
+            .iter()
+            .map(|i| i.to_string())
+            .collect();
         format!(
-            "caps:\n  max_focuses: {}\n  max_tasks_per_focus: {}\nalerts:\n  system_notifications: {}\nwidget:\n  always_on_top: {}\n",
+            "caps:\n  max_focuses: {}\n  max_tasks_per_focus: {}\nalerts:\n  system_notifications: {}\nwidget:\n  always_on_top: {}\ndisplays:\n  enabled: {}\n",
             self.caps.max_focuses,
             self.caps.max_tasks_per_focus,
             self.alerts.system_notifications,
             self.widget.always_on_top,
+            enabled.join(","),
         )
     }
 
@@ -70,6 +92,7 @@ impl Settings {
                         "caps" => "caps",
                         "alerts" => "alerts",
                         "widget" => "widget",
+                        "displays" => "displays",
                         _ => "",
                     };
                 }
@@ -99,6 +122,15 @@ impl Settings {
                 ("widget", "always_on_top") => {
                     if let Some(b) = parse_bool(value) {
                         settings.widget.always_on_top = b;
+                    }
+                }
+                ("displays", "enabled") => {
+                    let indices: Vec<usize> = value
+                        .split(',')
+                        .filter_map(|s| s.trim().parse().ok())
+                        .collect();
+                    if !indices.is_empty() {
+                        settings.displays.enabled_indices = indices;
                     }
                 }
                 _ => {}
@@ -198,7 +230,34 @@ mod tests {
             widget: Widget {
                 always_on_top: true,
             },
+            displays: DisplayConfig {
+                enabled_indices: vec![0, 2],
+            },
         };
         assert_eq!(Settings::parse_yaml(&s.to_yaml()), s);
+    }
+
+    #[test]
+    fn displays_default_is_primary_only() {
+        let s = Settings::parse_yaml("");
+        assert_eq!(s.displays.enabled_indices, vec![0]);
+    }
+
+    #[test]
+    fn parses_displays_enabled_multi() {
+        let s = Settings::parse_yaml("displays:\n  enabled: 0,1,2\n");
+        assert_eq!(s.displays.enabled_indices, vec![0, 1, 2]);
+    }
+
+    #[test]
+    fn parses_displays_enabled_single() {
+        let s = Settings::parse_yaml("displays:\n  enabled: 1\n");
+        assert_eq!(s.displays.enabled_indices, vec![1]);
+    }
+
+    #[test]
+    fn invalid_display_indices_ignored() {
+        let s = Settings::parse_yaml("displays:\n  enabled: 0,bad,2\n");
+        assert_eq!(s.displays.enabled_indices, vec![0, 2]);
     }
 }

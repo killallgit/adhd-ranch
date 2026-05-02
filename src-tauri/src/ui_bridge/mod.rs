@@ -9,11 +9,12 @@ use adhd_ranch_domain::{Caps, Focus, Proposal};
 use tauri::State;
 
 use crate::api::Health;
-use crate::app::pig_hittest::{PigHitTester, PigRect};
+use crate::app::overlay_manager::OverlayManager;
+use crate::app::pig_hittest::PigRect;
 
 pub struct CommandsState(pub Arc<Commands>);
 
-pub struct PigHitState(pub PigHitTester);
+pub struct PigHitState(pub OverlayManager);
 
 #[tauri::command]
 pub fn health() -> Health {
@@ -130,6 +131,10 @@ pub fn create_proposal(
 }
 
 #[tauri::command]
-pub fn update_pig_rects(rects: Vec<PigRect>, state: State<'_, PigHitState>) {
-    state.0.update(rects);
+pub fn update_pig_rects(
+    window: tauri::WebviewWindow,
+    rects: Vec<PigRect>,
+    state: State<'_, PigHitState>,
+) {
+    state.0.update_rects(window.label(), rects);
 }

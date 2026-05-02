@@ -11,7 +11,7 @@ pub fn write_settings(path: &Path, settings: &Settings) -> io::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use adhd_ranch_domain::{Alerts, Caps, Widget};
+    use adhd_ranch_domain::{Alerts, Caps, DisplayConfig, Widget};
     use tempfile::TempDir;
 
     use super::*;
@@ -31,6 +31,7 @@ mod tests {
             widget: Widget {
                 always_on_top: true,
             },
+            displays: DisplayConfig::default(),
         };
         write_settings(&path, &settings).unwrap();
         let raw = std::fs::read_to_string(&path).unwrap();
@@ -52,6 +53,7 @@ mod tests {
             widget: Widget {
                 always_on_top: false,
             },
+            displays: DisplayConfig::default(),
         };
         write_settings(&path, &original).unwrap();
 

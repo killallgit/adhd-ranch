@@ -13,5 +13,5 @@ pub use decision::{Decision, DecisionKind};
 pub use focus::{Focus, FocusId, Task};
 pub use parse::{parse_focus_md, ParseError};
 pub use proposal::{NewFocus, Proposal, ProposalId, ProposalKind, ProposalValidationError};
-pub use settings::{Alerts, Caps, Settings, Widget};
+pub use settings::{Alerts, Caps, DisplayConfig, Settings, Widget};
 pub use slug::slugify;

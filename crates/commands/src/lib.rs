@@ -54,6 +54,6 @@ impl Commands {
     }
 
     pub fn settings(&self) -> Settings {
-        self.settings
+        self.settings.clone()
     }
 }

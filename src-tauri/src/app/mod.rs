@@ -1,20 +1,22 @@
 pub mod cap_notifier;
 pub mod menu;
+pub mod overlay_manager;
 pub mod paths;
 pub mod pig_hittest;
 pub mod tray;
 pub mod window_always_on_top;
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use adhd_ranch_commands::{CapEvaluator, Commands};
-use adhd_ranch_domain::{OverCapMonitor, Settings};
+use adhd_ranch_domain::{DisplayConfig, OverCapMonitor, Settings};
 use adhd_ranch_http_api::{serve, ServerHandle};
 use adhd_ranch_storage::{
     watch_path, DecisionLog, FocusStore, FocusWatcher, JsonlDecisionLog, JsonlProposalQueue,
     MarkdownFocusStore, ProposalQueue,
 };
+use overlay_manager::{MonitorInfo, OverlayManager};
 use tauri::{AppHandle, Emitter, Manager};
 use time::format_description::well_known::Rfc3339;
 
@@ -24,11 +26,15 @@ use cap_notifier::TauriCapNotifier;
 pub const FOCUSES_CHANGED_EVENT: &str = "focuses-changed";
 pub const PROPOSALS_CHANGED_EVENT: &str = "proposals-changed";
 
+pub struct MonitorsState(pub Vec<MonitorInfo>);
+pub struct DisplayConfigState(pub Arc<Mutex<DisplayConfig>>);
+
 pub fn run() {
     let settings_path = paths::settings_file().expect("settings path");
     let settings = load_settings(&settings_path);
 
     let event_settings_path = settings_path.clone();
+    let always_on_top = settings.widget.always_on_top;
 
     let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_log::Builder::new().build())
@@ -48,7 +54,7 @@ pub fn run() {
             ui_bridge::get_caps,
             ui_bridge::update_pig_rects,
         ])
-        .menu(move |handle| menu::build(handle, settings.widget.always_on_top));
+        .menu(move |handle| menu::build(handle, always_on_top));
 
     builder = builder.on_menu_event(move |app, event| {
         menu::handle_event(app, event, &event_settings_path);
@@ -75,21 +81,50 @@ pub fn run() {
             decision_log.clone(),
             Arc::new(now_rfc3339),
             Arc::new(|| uuid::Uuid::now_v7().to_string()),
-            settings,
+            settings.clone(),
         ));
 
-        let monitor = Arc::new(OverCapMonitor::new());
+        let cap_monitor = Arc::new(OverCapMonitor::new());
         let notifier = Arc::new(TauriCapNotifier::new(app.handle().clone()));
         let evaluator = Arc::new(CapEvaluator::new(
             store.clone(),
-            monitor,
+            cap_monitor,
             notifier,
-            settings,
+            settings.clone(),
         ));
 
         app.manage(ui_bridge::CommandsState(commands));
 
-        let tray_icon = tray::setup(app.handle(), store.clone(), settings)?;
+        // Enumerate connected monitors and store for tray + overlay management.
+        let monitor_infos: Vec<MonitorInfo> = app
+            .available_monitors()
+            .unwrap_or_default()
+            .into_iter()
+            .map(|m| MonitorInfo {
+                name: m.name().map(|s| s.to_string()),
+                size: *m.size(),
+                position: *m.position(),
+            })
+            .collect();
+
+        let display_config = settings.displays.clone();
+        app.manage(MonitorsState(monitor_infos.clone()));
+        app.manage(DisplayConfigState(Arc::new(Mutex::new(
+            display_config.clone(),
+        ))));
+
+        // Overlay manager must be managed before windows are shown so invoke
+        // calls from React can find PigHitState immediately.
+        let overlay_manager = OverlayManager::new();
+        app.manage(ui_bridge::PigHitState(overlay_manager.clone()));
+        overlay_manager.apply(app.handle(), &monitor_infos, &display_config);
+
+        let tray_icon = tray::setup(
+            app.handle(),
+            store.clone(),
+            settings.clone(),
+            settings_path.clone(),
+        )?;
 
         let focuses_watcher = install_change_handlers(
             &focuses_root,
@@ -120,47 +155,6 @@ pub fn run() {
         let server = install_http_server(store, queue, decision_log)?;
         app.manage(server);
 
-        let hittester = pig_hittest::PigHitTester::new();
-        app.manage(ui_bridge::PigHitState(hittester.clone()));
-
-        if let Some(window) = app.get_webview_window("main") {
-            if let Ok(Some(monitor)) = window.current_monitor() {
-                let size = monitor.size();
-                let pos = monitor.position();
-                let _ = window.set_size(tauri::PhysicalSize::new(size.width, size.height));
-                let _ = window.set_position(tauri::PhysicalPosition::new(pos.x, pos.y));
-            }
-
-            window_always_on_top::apply(&window, true);
-            let _ = window.show();
-
-            let app_handle = app.handle().clone();
-            let window_clone = window.clone();
-            std::thread::spawn(move || {
-                // Start click-through immediately so background is passthrough before first poll.
-                let _ = window_clone.set_ignore_cursor_events(true);
-                let mut last_over = false;
-                loop {
-                    if let Ok(cursor) = app_handle.cursor_position() {
-                        // cursor_position() is in global desktop coords; pig rects from the
-                        // frontend are in webview-local physical pixels. Subtract window origin.
-                        let origin = window_clone
-                            .outer_position()
-                            .map(|p| (p.x as f64, p.y as f64))
-                            .unwrap_or((0.0, 0.0));
-                        let local_x = cursor.x - origin.0;
-                        let local_y = cursor.y - origin.1;
-                        let over = hittester.is_hit(local_x, local_y);
-                        if over != last_over {
-                            let _ = window_clone.set_ignore_cursor_events(!over);
-                            last_over = over;
-                        }
-                    }
-                    std::thread::sleep(std::time::Duration::from_millis(16));
-                }
-            });
-        }
-
         Ok(())
     });
 
@@ -170,7 +164,7 @@ pub fn run() {
         .run(|app, event| {
             #[cfg(target_os = "macos")]
             if let tauri::RunEvent::Reopen { .. } = event {
-                if let Some(window) = app.get_webview_window("main") {
+                if let Some(window) = app.get_webview_window("overlay-0") {
                     let _ = window.show();
                     let _ = window.set_focus();
                 }
