@@ -137,7 +137,9 @@ fn handle_delete<R: Runtime>(app: AppHandle<R>, focus_id: String) {
 
     if confirmed {
         if let Some(state) = app.try_state::<crate::ui_bridge::CommandsState>() {
-            let _ = state.0.delete_focus(&focus_id);
+            if let Err(e) = state.0.delete_focus(&focus_id) {
+                log::error!("tray delete_focus({focus_id:?}): {e}");
+            }
         }
     }
 }
