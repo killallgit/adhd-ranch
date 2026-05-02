@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import type { CommandError } from "../types/error";
 import type { Proposal } from "../types/proposal";
 import type { Unsubscribe } from "./focuses";
 import type {
@@ -33,11 +34,21 @@ export function createTauriProposalReader(): ProposalReader {
 export function createTauriProposalWriter(): ProposalWriter {
   return {
     async accept(id: string, edit?: ProposalEdit): Promise<ProposalDecisionResult> {
-      const result = await invoke<RustDecisionResponse>("accept_proposal", { id, edit });
+      const result = await invoke<RustDecisionResponse>("accept_proposal", { id, edit }).catch(
+        (e: unknown): never => {
+          console.error("[adhd-ranch] accept_proposal", e as CommandError);
+          throw e;
+        },
+      );
       return { id: result.id, target: result.target };
     },
     async reject(id: string): Promise<ProposalDecisionResult> {
-      const result = await invoke<RustDecisionResponse>("reject_proposal", { id });
+      const result = await invoke<RustDecisionResponse>("reject_proposal", { id }).catch(
+        (e: unknown): never => {
+          console.error("[adhd-ranch] reject_proposal", e as CommandError);
+          throw e;
+        },
+      );
       return { id: result.id, target: result.target };
     },
   };

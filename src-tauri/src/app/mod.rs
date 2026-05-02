@@ -30,6 +30,7 @@ pub fn run() {
     let event_settings_path = settings_path.clone();
 
     let mut builder = tauri::Builder::default()
+        .plugin(tauri_plugin_log::Builder::new().build())
         .plugin(tauri_plugin_notification::init())
         .invoke_handler(tauri::generate_handler![
             ui_bridge::health,

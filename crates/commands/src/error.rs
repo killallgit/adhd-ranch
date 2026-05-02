@@ -1,7 +1,8 @@
 use adhd_ranch_domain::ProposalValidationError;
 use adhd_ranch_storage::{FocusStoreError, JsonlError};
 
-#[derive(Debug)]
+#[derive(Debug, serde::Serialize)]
+#[serde(tag = "type", content = "message", rename_all = "snake_case")]
 pub enum CommandError {
     BadRequest(String),
     NotFound(String),
