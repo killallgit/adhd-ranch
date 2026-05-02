@@ -1,15 +1,19 @@
 use std::sync::Arc;
 
 use adhd_ranch_commands::{
-    Commands, CreateFocusInput, CreatedFocus, CreatedProposal, DecisionOutcome, ProposalEdit,
+    CommandError, Commands, CreateFocusInput, CreatedFocus, CreatedProposal, DecisionOutcome,
+    ProposalEdit,
 };
 use adhd_ranch_domain::{Caps, Focus, Proposal};
 
 use tauri::State;
 
 use crate::api::Health;
+use crate::app::pig_hittest::{PigHitTester, PigRect};
 
 pub struct CommandsState(pub Arc<Commands>);
+
+pub struct PigHitState(pub PigHitTester);
 
 #[tauri::command]
 pub fn health() -> Health {
@@ -17,13 +21,19 @@ pub fn health() -> Health {
 }
 
 #[tauri::command]
-pub fn list_focuses(state: State<'_, CommandsState>) -> Result<Vec<Focus>, String> {
-    state.0.list_focuses().map_err(|e| e.to_string())
+pub fn list_focuses(state: State<'_, CommandsState>) -> Result<Vec<Focus>, CommandError> {
+    state
+        .0
+        .list_focuses()
+        .inspect_err(|e| log::error!("list_focuses: {e}"))
 }
 
 #[tauri::command]
-pub fn list_proposals(state: State<'_, CommandsState>) -> Result<Vec<Proposal>, String> {
-    state.0.list_proposals().map_err(|e| e.to_string())
+pub fn list_proposals(state: State<'_, CommandsState>) -> Result<Vec<Proposal>, CommandError> {
+    state
+        .0
+        .list_proposals()
+        .inspect_err(|e| log::error!("list_proposals: {e}"))
 }
 
 #[tauri::command]
@@ -31,19 +41,24 @@ pub fn create_focus(
     title: String,
     description: Option<String>,
     state: State<'_, CommandsState>,
-) -> Result<CreatedFocus, String> {
+) -> Result<CreatedFocus, CommandError> {
     state
         .0
         .create_focus(CreateFocusInput {
-            title,
+            title: title.clone(),
             description: description.unwrap_or_default(),
         })
-        .map_err(|e| e.to_string())
+        .inspect(|f| log::info!("focus created: {}", f.id))
+        .inspect_err(|e| log::error!("create_focus({title:?}): {e}"))
 }
 
 #[tauri::command]
-pub fn delete_focus(focus_id: String, state: State<'_, CommandsState>) -> Result<(), String> {
-    state.0.delete_focus(&focus_id).map_err(|e| e.to_string())
+pub fn delete_focus(focus_id: String, state: State<'_, CommandsState>) -> Result<(), CommandError> {
+    state
+        .0
+        .delete_focus(&focus_id)
+        .inspect(|_| log::info!("focus deleted: {focus_id}"))
+        .inspect_err(|e| log::error!("delete_focus({focus_id:?}): {e}"))
 }
 
 #[tauri::command]
@@ -51,11 +66,12 @@ pub fn append_task(
     focus_id: String,
     text: String,
     state: State<'_, CommandsState>,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     state
         .0
         .append_task(&focus_id, &text)
-        .map_err(|e| e.to_string())
+        .inspect(|_| log::info!("task appended to {focus_id}"))
+        .inspect_err(|e| log::error!("append_task({focus_id:?}): {e}"))
 }
 
 #[tauri::command]
@@ -63,11 +79,12 @@ pub fn delete_task(
     focus_id: String,
     index: usize,
     state: State<'_, CommandsState>,
-) -> Result<(), String> {
+) -> Result<(), CommandError> {
     state
         .0
         .delete_task(&focus_id, index)
-        .map_err(|e| e.to_string())
+        .inspect(|_| log::info!("task {index} deleted from {focus_id}"))
+        .inspect_err(|e| log::error!("delete_task({focus_id:?}, {index}): {e}"))
 }
 
 #[tauri::command]
@@ -80,25 +97,39 @@ pub fn accept_proposal(
     id: String,
     edit: Option<ProposalEdit>,
     state: State<'_, CommandsState>,
-) -> Result<DecisionOutcome, String> {
+) -> Result<DecisionOutcome, CommandError> {
     state
         .0
         .accept_proposal(&id, edit.unwrap_or_default())
-        .map_err(|e| e.to_string())
+        .inspect(|o| log::info!("proposal {id} accepted → {:?}", o.target))
+        .inspect_err(|e| log::error!("accept_proposal({id:?}): {e}"))
 }
 
 #[tauri::command]
 pub fn reject_proposal(
     id: String,
     state: State<'_, CommandsState>,
-) -> Result<DecisionOutcome, String> {
-    state.0.reject_proposal(&id).map_err(|e| e.to_string())
+) -> Result<DecisionOutcome, CommandError> {
+    state
+        .0
+        .reject_proposal(&id)
+        .inspect(|_| log::info!("proposal {id} rejected"))
+        .inspect_err(|e| log::error!("reject_proposal({id:?}): {e}"))
+}
+
+#[tauri::command]
+pub fn update_pig_rects(rects: Vec<PigRect>, state: State<'_, PigHitState>) {
+    state.0.update(rects);
 }
 
 #[tauri::command]
 pub fn create_proposal(
     input: adhd_ranch_commands::CreateProposalInput,
     state: State<'_, CommandsState>,
-) -> Result<CreatedProposal, String> {
-    state.0.create_proposal(input).map_err(|e| e.to_string())
+) -> Result<CreatedProposal, CommandError> {
+    state
+        .0
+        .create_proposal(input)
+        .inspect(|p| log::info!("proposal created: {}", p.id))
+        .inspect_err(|e| log::error!("create_proposal: {e}"))
 }
