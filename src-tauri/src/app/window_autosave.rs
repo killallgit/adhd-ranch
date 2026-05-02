@@ -16,7 +16,7 @@ pub fn apply<R: Runtime>(window: &WebviewWindow<R>, name: &str) {
 
     let ns_name = NSString::from_str(name);
     unsafe {
-        let _: () = msg_send![&*raw, setFrameAutosaveName: &*ns_name];
+        let _: bool = msg_send![&*raw, setFrameAutosaveName: &*ns_name];
     }
 }
 
