@@ -69,7 +69,7 @@ created_at: 2026-04-30T12:00:00Z
 
 ## Core interaction loop (v1.2)
 
-Steps 1–3 are **implemented**. Steps 4–5 are **next slice** (issues 014, 015).
+Steps 1–5 are **implemented**.
 
 1. **Pigs roam the screen.** One pig per Focus, wandering at ~35px/s with slow random direction changes.
 2. **Click a pig.** `PigDetail` card opens near the pig: Focus title + Task list with `✗` per Task. Click-outside or Escape closes.
