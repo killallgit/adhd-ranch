@@ -69,11 +69,13 @@ created_at: 2026-04-30T12:00:00Z
 
 ## Core interaction loop (v1.2)
 
+Steps 1–3 are **implemented**. Steps 4–5 are **next slice** (issues 014, 015).
+
 1. **Pigs roam the screen.** One pig per Focus, wandering at ~35px/s with slow random direction changes.
-2. **Click a pig.** `PigDetail` card opens near the pig: Focus title + Task list with `✗` per Task. Click-outside closes.
-3. **Clear a task.** Tap `✗` → `DELETE /focuses/{id}/tasks/{idx}` → markdown updated → pig's task list reflects change.
-4. **Create a Focus.** Menu bar item → "+ New Focus" → title + description → `POST /focuses` → new pig spawns.
-5. **Delete a Focus.** Menu bar item → Focus list → delete → pig disappears.
+2. **Click a pig.** `PigDetail` card opens near the pig: Focus title + Task list with `✗` per Task. Click-outside or Escape closes.
+3. **Clear a task.** Tap `✗` → `delete_task` Tauri command → markdown updated → pig's task list reflects change.
+4. **Create a Focus.** *(014)* Menu bar item → "+ New Focus" → small webview form → `create_focus` → new pig spawns.
+5. **Delete a Focus.** *(015)* Menu bar item → Focus submenu → "Delete…" → native confirmation → `delete_focus` → pig disappears.
 
 ## Agent proposal flow (v1.3 — deferred)
 

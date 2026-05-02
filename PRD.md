@@ -2,7 +2,7 @@
 
 **Status:** Draft v1.2
 **Owner:** ryan
-**Last updated:** 2026-05-01
+**Last updated:** 2026-05-02
 
 ---
 
@@ -144,8 +144,8 @@ Retained. Every accepted/rejected proposal appended to `~/.adhd-ranch/decisions.
 ## Open questions / risks
 
 - **R1.** Click-through latency: 16ms Rust poll + IPC round-trip should feel transparent, but needs real-device testing.
-- **R2.** NSEvent.mouseLocation coordinate space: macOS uses bottom-left origin; CSS uses top-left. Must flip Y using screen height.
-- **R3.** Multiple monitors: pigs spawn on primary monitor only (v1.2). Multi-monitor layout deferred.
+- **R2.** ~~NSEvent.mouseLocation coordinate space~~ — resolved. Polling thread subtracts `window.outer_position()` from cursor before hit-test; pig rects are in webview-local physical pixels.
+- **R3.** Multiple monitors: pigs spawn on primary monitor only. Tracked in issue #11 (017 — configurable display spanning).
 - **R4.** Pig positions on resize: if screen resolution changes (external monitor connect/disconnect), pigs reset to safe positions.
 - **R5.** Always-on-top + fullscreen apps: at kCGFloatingWindowLevel (3), pigs disappear behind fullscreen apps. Acceptable for v1.2.
 
@@ -153,7 +153,6 @@ Retained. Every accepted/rejected proposal appended to `~/.adhd-ranch/decisions.
 
 1. **Phase 0 (done):** Tauri skeleton, storage, HTTP API, markdown read/write, caps, file watcher, proposals queue.
 2. **Phase 1 (done):** Custom titlebar, app menu, always-on-top, regular Mac app.
-3. **Phase 2 — Pig overlay:** Transparent fullscreen window, click-through Rust polling thread, `PigSprite` placeholder, `usePigMovement`, `PigDetail` popover, `App.tsx` rewrite.
-4. **Phase 3 — Menu bar:** Tray icon, native NSMenu list, new-focus creation from tray, delete from tray.
-5. **Phase 4 — Real sprites:** Swap placeholder for real sprite sheet (4×4 grid PNG). Wire direction + frame to CSS background-position.
-6. **Phase 5 — Agent flow (v1.3):** Restore `/checkpoint` command + proposal queue UI (tray submenu or modal).
+3. **Phase 2 (done):** Transparent fullscreen window, click-through Rust polling thread, `PigSprite` placeholder, `usePigMovement`, `PigDetail` popover, tray icon + live focus list, typed errors, structured logging.
+4. **Phase 3 (in progress):** New-focus creation from tray (issue #7/014), delete from tray (issue #8/015), configurable display spanning (issue #11/017), real sprite sheet (issue #9/016 — needs asset).
+5. **Phase 4 — Agent flow (v1.3):** Restore `/checkpoint` command + proposal queue UI (tray submenu or modal).
