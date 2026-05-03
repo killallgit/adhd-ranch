@@ -8,7 +8,7 @@ use tauri::menu::{
     CheckMenuItemBuilder, IsMenuItem, Menu, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder,
 };
 use tauri::tray::{TrayIcon, TrayIconBuilder};
-use tauri::{AppHandle, Emitter, Manager, Runtime};
+use tauri::{AppHandle, Emitter, Manager, Wry};
 
 use super::{DisplayConfigState, MonitorsState};
 use crate::display::DisplayManagerState;
@@ -22,12 +22,12 @@ const DISPLAY_PREFIX: &str = "tray-display-";
 #[cfg(debug_assertions)]
 const DEVTOOLS_ID: &str = "tray-devtools";
 
-pub fn setup<R: Runtime>(
-    app: &AppHandle<R>,
+pub fn setup(
+    app: &AppHandle<Wry>,
     store: Arc<dyn FocusStore>,
     settings: Settings,
     settings_path: PathBuf,
-) -> tauri::Result<TrayIcon<R>> {
+) -> tauri::Result<TrayIcon<Wry>> {
     let focuses = match store.list() {
         Ok(f) => f,
         Err(e) => {
@@ -90,9 +90,9 @@ pub fn setup<R: Runtime>(
     Ok(tray)
 }
 
-pub fn rebuild_handler<R: Runtime>(
-    tray: TrayIcon<R>,
-    handle: AppHandle<R>,
+pub fn rebuild_handler(
+    tray: TrayIcon<Wry>,
+    handle: AppHandle<Wry>,
     store: Arc<dyn FocusStore>,
     settings: Settings,
 ) -> Box<dyn Fn() + Send + 'static> {
@@ -121,8 +121,8 @@ pub fn rebuild_handler<R: Runtime>(
 /// Threshold: flat checklist in the tray root; more monitors nest under "Displays".
 const DISPLAY_SUBMENU_MIN_COUNT: usize = 4;
 
-fn build_menu<R: Runtime>(handle: &AppHandle<R>, focuses: &[Focus]) -> tauri::Result<Menu<R>> {
-    let mut items: Vec<Box<dyn IsMenuItem<R>>> = Vec::new();
+fn build_menu(handle: &AppHandle<Wry>, focuses: &[Focus]) -> tauri::Result<Menu<Wry>> {
+    let mut items: Vec<Box<dyn IsMenuItem<Wry>>> = Vec::new();
 
     let gather = MenuItemBuilder::with_id(GATHER_PIGS_ID, "Gather Pigs").build(handle)?;
     items.push(Box::new(gather));
@@ -171,13 +171,13 @@ fn build_menu<R: Runtime>(handle: &AppHandle<R>, focuses: &[Focus]) -> tauri::Re
     let quit = MenuItemBuilder::with_id(QUIT_ID, "Quit").build(handle)?;
     items.push(Box::new(quit));
 
-    let item_refs: Vec<&dyn IsMenuItem<R>> = items.iter().map(|b| b.as_ref()).collect();
+    let item_refs: Vec<&dyn IsMenuItem<Wry>> = items.iter().map(|b| b.as_ref()).collect();
     Menu::with_items(handle, &item_refs)
 }
 
-fn append_display_items<R: Runtime>(
-    handle: &AppHandle<R>,
-    items: &mut Vec<Box<dyn IsMenuItem<R>>>,
+fn append_display_items(
+    handle: &AppHandle<Wry>,
+    items: &mut Vec<Box<dyn IsMenuItem<Wry>>>,
 ) -> tauri::Result<()> {
     let Some(monitors_state) = handle.try_state::<MonitorsState>() else {
         return Ok(());
@@ -219,7 +219,7 @@ fn append_display_items<R: Runtime>(
     Ok(())
 }
 
-fn handle_delete<R: Runtime>(app: AppHandle<R>, focus_id: String) {
+fn handle_delete(app: AppHandle<Wry>, focus_id: String) {
     if let Some(state) = app.try_state::<crate::ui_bridge::CommandsState>() {
         if let Err(e) = state.0.delete_focus(&focus_id) {
             log::error!("tray delete_focus({focus_id:?}): {e}");
@@ -227,7 +227,7 @@ fn handle_delete<R: Runtime>(app: AppHandle<R>, focus_id: String) {
     }
 }
 
-fn handle_display_toggle<R: Runtime>(app: AppHandle<R>, idx: usize, settings_path: PathBuf) {
+fn handle_display_toggle(app: AppHandle<Wry>, idx: usize, settings_path: PathBuf) {
     let Some(display_state) = app.try_state::<DisplayConfigState>() else {
         return;
     };
@@ -259,7 +259,7 @@ fn handle_display_toggle<R: Runtime>(app: AppHandle<R>, idx: usize, settings_pat
     persist_display_config(&settings_path, &new_config);
 
     // Window creation/show/close must happen on the main thread on macOS.
-    let display_mgr = overlay_state.0.clone();
+    let display_mgr = Arc::clone(&overlay_state.0);
     let monitors = monitors_state.0.clone();
     let config_for_main = new_config.clone();
     let app_for_main = app.clone();
@@ -281,7 +281,7 @@ fn persist_display_config(settings_path: &PathBuf, config: &DisplayConfig) {
     }
 }
 
-fn rebuild_tray_menu<R: Runtime>(app: &AppHandle<R>) {
+fn rebuild_tray_menu(app: &AppHandle<Wry>) {
     let focuses = app
         .try_state::<crate::ui_bridge::CommandsState>()
         .and_then(|s| s.0.list_focuses().ok())

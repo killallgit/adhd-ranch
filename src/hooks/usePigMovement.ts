@@ -280,10 +280,13 @@ export function usePigMovement(
     setPigs((prev) => {
       const r = regionRef.current;
       const margin = 20;
+      const rowHeight = PIG_SIZE + 24;
+      const colWidth = PIG_SIZE + 24;
+      const rows = Math.max(1, Math.floor((r.h - margin * 2) / rowHeight));
       const next = prev.map((p, i) => ({
         ...p,
-        x: r.x + r.w - margin - PIG_SIZE,
-        y: r.y + margin + i * (PIG_SIZE + 24),
+        x: r.x + r.w - margin - PIG_SIZE - Math.floor(i / rows) * colWidth,
+        y: r.y + margin + (i % rows) * rowHeight,
         vx: 0,
         vy: 0,
       }));

@@ -1,12 +1,7 @@
-import { invoke } from "@tauri-apps/api/core";
 import { useRef } from "react";
 import pigSheet from "../assets/pig-spritesheet.png";
 import { DRAG_THRESHOLD, PIG_SIZE } from "../hooks/usePigMovement";
 import type { PigDirection } from "../hooks/usePigMovement";
-
-function setDragActive(active: boolean) {
-  invoke("set_pig_drag_active", { active }).catch(() => {});
-}
 
 const SHEET_COLS = 4;
 const DIRECTION_ROW: Record<PigDirection, number> = {
@@ -29,6 +24,7 @@ export interface PigSpriteProps {
   readonly onDragStart: (x: number, y: number) => void;
   readonly onDragMove: (x: number, y: number) => void;
   readonly onDragEnd: () => { wasDrag: boolean };
+  readonly onSetDragActive: (active: boolean) => void;
 }
 
 export function PigSprite({
@@ -41,6 +37,7 @@ export function PigSprite({
   onDragStart,
   onDragMove,
   onDragEnd,
+  onSetDragActive,
 }: PigSpriteProps) {
   const bob = BOB_OFFSETS[frame % BOB_OFFSETS.length];
   const col = frame % SHEET_COLS;
@@ -60,7 +57,7 @@ export function PigSprite({
         cursor: isDraggingRef.current ? "grabbing" : "pointer",
       }}
       onPointerDown={(e) => {
-        setDragActive(true);
+        onSetDragActive(true);
         e.currentTarget.setPointerCapture?.(e.pointerId);
         startPosRef.current = { x: e.clientX, y: e.clientY };
         isDraggingRef.current = false;
@@ -78,7 +75,7 @@ export function PigSprite({
         }
       }}
       onPointerUp={(e) => {
-        setDragActive(false);
+        onSetDragActive(false);
         e.currentTarget.releasePointerCapture?.(e.pointerId);
         startPosRef.current = null;
         const { wasDrag } = onDragEnd();
@@ -86,15 +83,15 @@ export function PigSprite({
         if (!wasDrag) onClick();
       }}
       onPointerCancel={(e) => {
-        setDragActive(false);
+        onSetDragActive(false);
         e.currentTarget.releasePointerCapture?.(e.pointerId);
         startPosRef.current = null;
         onDragEnd();
         isDraggingRef.current = false;
       }}
       onLostPointerCapture={() => {
-        if (isDraggingRef.current) {
-          setDragActive(false);
+        if (startPosRef.current) {
+          onSetDragActive(false);
           startPosRef.current = null;
           onDragEnd();
           isDraggingRef.current = false;

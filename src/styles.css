@@ -223,6 +223,9 @@ body,
   flex-direction: column;
   gap: 10px;
   margin: 0;
+}
+
+.new-focus-form--window {
   background: rgba(22, 22, 26, 0.97);
   border-radius: 12px;
   padding: 20px;

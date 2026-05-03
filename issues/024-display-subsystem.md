@@ -44,7 +44,7 @@ Window ends up smaller than the actual span and offset inside it → open outer 
 
 Replace `app/overlay_manager.rs` + `app/pig_hittest.rs` with a `display/` module tree:
 
-```
+```text
 src-tauri/src/display/
   mod.rs        — DisplayManager (public surface; re-exports; impl RectUpdater)
   monitor.rs    — pure types + math: LogicalMonitor, compute_span, disambiguate_names

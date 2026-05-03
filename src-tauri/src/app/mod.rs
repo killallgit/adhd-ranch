@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use crate::display::monitor::LogicalMonitor;
-use crate::display::{DisplayManager, DisplayManagerState};
+use crate::display::{DisplayManager, DisplayManagerState, DisplayService};
 use adhd_ranch_commands::{CapEvaluator, Commands};
 use adhd_ranch_domain::{DisplayConfig, OverCapMonitor, RectUpdater, Settings};
 use adhd_ranch_http_api::{serve, ServerHandle};
@@ -119,10 +119,11 @@ pub fn run() {
         // calls from React can find PigHitState immediately.
         let display_manager = DisplayManager::new();
         let rect_updater: Arc<dyn RectUpdater> = Arc::new(display_manager.clone());
+        let display_svc: Arc<dyn DisplayService> = Arc::new(display_manager.clone());
         app.manage(ui_bridge::PigHitState(rect_updater));
         app.manage(ui_bridge::DragLockState(display_manager.drag_active()));
-        app.manage(DisplayManagerState(display_manager.clone()));
-        display_manager.apply(app.handle(), &monitor_infos, &display_config);
+        app.manage(DisplayManagerState(Arc::clone(&display_svc)));
+        display_svc.apply(app.handle(), &monitor_infos, &display_config);
 
         let tray_icon = tray::setup(
             app.handle(),
@@ -192,7 +193,7 @@ fn load_settings(path: &std::path::Path) -> Settings {
 }
 
 #[allow(dead_code)]
-struct TrayHandle<R: tauri::Runtime>(tauri::tray::TrayIcon<R>);
+struct TrayHandle(tauri::tray::TrayIcon<tauri::Wry>);
 
 #[allow(dead_code)]
 struct WatcherHandles {

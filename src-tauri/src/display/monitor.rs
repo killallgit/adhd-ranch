@@ -185,4 +185,19 @@ mod tests {
         assert_eq!(monitors[0].label, "LG UltraFine");
         assert_eq!(monitors[1].label, "DELL U2720Q");
     }
+
+    // Test 7: portrait monitor above landscape (negative y) — span covers full vertical range
+    #[test]
+    fn compute_span_portrait_above_landscape() {
+        // Landscape at origin, portrait above it at negative y
+        let monitors = vec![
+            mon(0, (0.0, 0.0), (2560.0, 1440.0)),
+            mon(1, (500.0, -1920.0), (1080.0, 1920.0)),
+        ];
+        let span = compute_span(&monitors);
+        assert_eq!(span.x, 0.0);
+        assert_eq!(span.y, -1920.0);
+        assert_eq!(span.width, 2560.0); // max_x=2560, min_x=0
+        assert_eq!(span.height, 3360.0); // max_y=1440, min_y=-1920 → 1440-(-1920)=3360
+    }
 }

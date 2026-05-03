@@ -1,5 +1,6 @@
+import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { FocusWriter } from "../api/focusWriter";
 import type { FocusReader } from "../api/focuses";
 import { useFocuses } from "../hooks/useFocuses";
@@ -23,22 +24,24 @@ export function App({ focusReader, focusWriter }: AppProps) {
   );
   const { screenW, screenH } = useViewport();
 
+  const handleSetDragActive = useCallback((active: boolean) => {
+    invoke("set_pig_drag_active", { active }).catch(() => {});
+  }, []);
+
   useEffect(() => {
-    let cleanup: (() => void) | undefined;
-    listen("gather-pigs", gather).then((fn) => {
-      cleanup = fn;
-    });
-    return () => cleanup?.();
+    const unlistenPromise = listen("gather-pigs", gather);
+    return () => {
+      unlistenPromise.then((unlisten) => unlisten());
+    };
   }, [gather]);
 
   useEffect(() => {
-    let cleanup: (() => void) | undefined;
-    listen<SpawnRegion>("display-region", (event) => {
+    const unlistenPromise = listen<SpawnRegion>("display-region", (event) => {
       setRegion(event.payload);
-    }).then((fn) => {
-      cleanup = fn;
     });
-    return () => cleanup?.();
+    return () => {
+      unlistenPromise.then((unlisten) => unlisten());
+    };
   }, [setRegion]);
 
   const selectedPig = pigs.find((p) => p.id === selectedId);
@@ -95,6 +98,7 @@ export function App({ focusReader, focusWriter }: AppProps) {
           onDragStart={(x, y) => startDrag(pig.id, x, y)}
           onDragMove={moveDrag}
           onDragEnd={endDrag}
+          onSetDragActive={handleSetDragActive}
         />
       ))}
       {selectedPig && selectedFocus && (

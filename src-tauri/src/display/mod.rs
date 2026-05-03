@@ -3,12 +3,12 @@ pub mod monitor;
 pub mod overlay;
 
 use std::collections::HashMap;
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use adhd_ranch_domain::{DisplayConfig, PigRect, RectUpdater};
 use serde::Serialize;
-use tauri::{AppHandle, Runtime};
+use tauri::{AppHandle, Wry};
 
 use hit_test::PigHitTester;
 use monitor::LogicalMonitor;
@@ -27,6 +27,8 @@ pub struct PrimaryRegion {
 
 struct OverlayEntry {
     tester: PigHitTester,
+    /// Signals the associated hit-test poller thread to exit.
+    stop: Arc<AtomicBool>,
 }
 
 #[derive(Clone)]
@@ -36,7 +38,13 @@ pub struct DisplayManager {
     drag_active: Arc<AtomicBool>,
 }
 
-pub struct DisplayManagerState(pub DisplayManager);
+/// Trait boundary for the display subsystem so callers depend on behaviour, not concrete type.
+pub trait DisplayService: Send + Sync {
+    fn drag_active(&self) -> Arc<AtomicBool>;
+    fn apply(&self, app: &AppHandle<Wry>, monitors: &[LogicalMonitor], config: &DisplayConfig);
+}
+
+pub struct DisplayManagerState(pub Arc<dyn DisplayService>);
 
 impl Default for DisplayManager {
     fn default() -> Self {
@@ -51,28 +59,27 @@ impl DisplayManager {
             drag_active: Arc::new(AtomicBool::new(false)),
         }
     }
+}
 
-    pub fn drag_active(&self) -> Arc<AtomicBool> {
+impl DisplayService for DisplayManager {
+    fn drag_active(&self) -> Arc<AtomicBool> {
         Arc::clone(&self.drag_active)
     }
 
-    pub fn apply<R: Runtime>(
-        &self,
-        app: &AppHandle<R>,
-        monitors: &[LogicalMonitor],
-        config: &DisplayConfig,
-    ) {
+    fn apply(&self, app: &AppHandle<Wry>, monitors: &[LogicalMonitor], config: &DisplayConfig) {
+        // Filter by the monitor's own index field, not its enumeration position.
         let enabled: Vec<&LogicalMonitor> = monitors
             .iter()
-            .enumerate()
-            .filter(|(idx, _)| config.enabled_indices.contains(idx))
-            .map(|(_, m)| m)
+            .filter(|m| config.enabled_indices.contains(&m.index))
             .collect();
 
         if enabled.is_empty() {
             overlay::destroy(app);
             if let Ok(mut map) = self.entries.lock() {
-                map.remove(OVERLAY_LABEL);
+                if let Some(entry) = map.remove(OVERLAY_LABEL) {
+                    // Signal the old poller to exit before the entry is dropped.
+                    entry.stop.store(true, Ordering::Relaxed);
+                }
             }
             return;
         }
@@ -96,21 +103,30 @@ impl DisplayManager {
             .map(|map| map.contains_key(OVERLAY_LABEL))
             .unwrap_or(false);
 
-        let tester = if already_managed {
-            self.entries
+        let (tester, stop) = if already_managed {
+            let (t, s) = self
+                .entries
                 .lock()
                 .ok()
-                .and_then(|map| map.get(OVERLAY_LABEL).map(|e| e.tester.clone()))
-                .unwrap_or_default()
+                .and_then(|map| {
+                    map.get(OVERLAY_LABEL)
+                        .map(|e| (e.tester.clone(), Arc::clone(&e.stop)))
+                })
+                .unwrap_or_else(|| (PigHitTester::new(), Arc::new(AtomicBool::new(false))));
+            (t, s)
         } else {
             let t = PigHitTester::new();
+            let s = Arc::new(AtomicBool::new(false));
             if let Ok(mut map) = self.entries.lock() {
                 map.insert(
                     OVERLAY_LABEL.to_string(),
-                    OverlayEntry { tester: t.clone() },
+                    OverlayEntry {
+                        tester: t.clone(),
+                        stop: Arc::clone(&s),
+                    },
                 );
             }
-            t
+            (t, s)
         };
 
         if let Err(e) = overlay::ensure_shown(
@@ -124,6 +140,7 @@ impl DisplayManager {
                 already_managed,
                 primary_region: &primary_region,
                 drag_active: Arc::clone(&self.drag_active),
+                stop,
             },
         ) {
             log::error!("display: overlay failed: {e}");

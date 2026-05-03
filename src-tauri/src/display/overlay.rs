@@ -2,7 +2,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-use tauri::{AppHandle, Emitter, Manager, Runtime, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder, Wry};
 
 use super::hit_test::PigHitTester;
 use super::PrimaryRegion;
@@ -18,9 +18,11 @@ pub struct ShowParams<'a> {
     pub already_managed: bool,
     pub primary_region: &'a PrimaryRegion,
     pub drag_active: Arc<AtomicBool>,
+    /// Signals the hit-test poller to exit when set to true.
+    pub stop: Arc<AtomicBool>,
 }
 
-pub fn ensure_shown<R: Runtime>(app: &AppHandle<R>, p: ShowParams<'_>) -> tauri::Result<()> {
+pub fn ensure_shown(app: &AppHandle<Wry>, p: ShowParams<'_>) -> tauri::Result<()> {
     let ShowParams {
         x,
         y,
@@ -30,6 +32,7 @@ pub fn ensure_shown<R: Runtime>(app: &AppHandle<R>, p: ShowParams<'_>) -> tauri:
         already_managed,
         primary_region,
         drag_active,
+        stop,
     } = p;
     log::info!(
         "overlay::ensure_shown span=({x},{y} {width}×{height}) already_managed={already_managed}"
@@ -87,11 +90,15 @@ pub fn ensure_shown<R: Runtime>(app: &AppHandle<R>, p: ShowParams<'_>) -> tauri:
         let tester_thread = tester.clone();
         let app_handle = app.clone();
         let win_clone = window.clone();
+        let stop_thread = Arc::clone(&stop);
         std::thread::spawn(move || {
             let _ = win_clone.set_ignore_cursor_events(true);
             let mut last_over = false;
             loop {
-                if app_handle.get_webview_window(OVERLAY_LABEL).is_none() {
+                // Exit if signalled or if the overlay window has been destroyed.
+                if stop_thread.load(Ordering::Relaxed)
+                    || app_handle.get_webview_window(OVERLAY_LABEL).is_none()
+                {
                     break;
                 }
                 if let Ok(cursor) = app_handle.cursor_position() {
@@ -123,13 +130,13 @@ pub fn ensure_shown<R: Runtime>(app: &AppHandle<R>, p: ShowParams<'_>) -> tauri:
     Ok(())
 }
 
-pub fn destroy<R: Runtime>(app: &AppHandle<R>) {
+pub fn destroy(app: &AppHandle<Wry>) {
     if let Some(window) = app.get_webview_window(OVERLAY_LABEL) {
         let _ = window.close();
     }
 }
 
-pub fn cleanup_legacy<R: Runtime>(app: &AppHandle<R>, count: usize) {
+pub fn cleanup_legacy(app: &AppHandle<Wry>, count: usize) {
     for idx in 1..=count {
         let label = format!("overlay-{idx}");
         if app.get_webview_window(&label).is_some() {

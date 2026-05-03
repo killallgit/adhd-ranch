@@ -1,6 +1,6 @@
 # Agent prompt — pick up issue 024
 
-You are implementing issue **024 — Display subsystem: coordinate bugs + module refactor** in the `adhd-ranch` Tauri desktop app at `/Users/ryan/Code/killallgit/adhd-ranch`.
+You are implementing issue **024 — Display subsystem: coordinate bugs + module refactor** in the `adhd-ranch` Tauri desktop app at the repository root.
 
 ---
 
@@ -31,7 +31,7 @@ Read these files before touching anything:
 
 ### New module tree to create
 
-```
+```text
 src-tauri/src/display/
   mod.rs        — DisplayManager (public surface; replaces OverlayManager; impl RectUpdater)
   monitor.rs    — pure types + math: LogicalMonitor, compute_span, disambiguate_names
@@ -61,6 +61,7 @@ pub fn from_tauri(index: usize, m: &tauri::Monitor) -> Self {
 `compute_span` works entirely in logical space and returns `SpanBounds { x, y, width, height }` (all `f64` logical).
 
 Window calls use `LogicalSize` / `LogicalPosition` so Tauri handles physical conversion internally:
+
 ```rust
 window.set_size(tauri::LogicalSize::new(bounds.width, bounds.height))?;
 window.set_position(tauri::LogicalPosition::new(bounds.x, bounds.y))?;
@@ -91,8 +92,8 @@ Required test cases for `compute_span`:
 
 Required test cases for `disambiguate_names`:
 
-5. Two monitors with identical names → each gets `" (x, y)"` suffix
-6. Monitors with unique names → labels unchanged
+1. Two monitors with identical names → each gets `" (x, y)"` suffix
+2. Monitors with unique names → labels unchanged
 
 ---
 

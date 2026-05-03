@@ -7,6 +7,7 @@ All notable changes to adhd-ranch. Follows [Keep a Changelog](https://keepachang
 ## [Unreleased]
 
 ### Added — 024 display subsystem (WIP, PR #27 — cross-monitor drag still broken)
+
 - `display/` module tree replaces `app/overlay_manager.rs` + `app/pig_hittest.rs`
   - `display/monitor.rs` — `LogicalMonitor`, `compute_span`, `disambiguate_names` (6 unit tests)
   - `display/overlay.rs` — window lifecycle; `ShowParams` struct; hit-test polling thread
@@ -21,6 +22,7 @@ All notable changes to adhd-ranch. Follows [Keep a Changelog](https://keepachang
 - `issues/027-confirm-delete-setting.md` — tracks adding a confirm-delete preference
 
 ### Changed — 024
+
 - Window builder uses `.inner_size().position()` instead of post-build `set_size()` — macOS WKWebView was overriding `set_size()` and resetting window to 800×600
 - `from_tauri` divides monitor size (physical) and position (logical) each by `scale_factor` → uniform logical space for `compute_span`
 - `compute_span` and `disambiguate_names` now in pure `display/monitor.rs` with tests
@@ -35,6 +37,7 @@ All notable changes to adhd-ranch. Follows [Keep a Changelog](https://keepachang
 ## [1.2.1] — 2026-05-03 — Phase 3 polish
 
 ### Added
+
 - `HITBOX_PADDING = 16` — pig hit-rect is 16px larger than sprite and centred; easier to click (018)
 - `buildHitRects(pigs, dpr): PigHitRect[]` — exported pure function for rect calculation
 - `PigDetail` add-task input — "Add task…" field at bottom of card; Enter appends task inline via `appendTask` (019)
@@ -43,6 +46,7 @@ All notable changes to adhd-ranch. Follows [Keep a Changelog](https://keepachang
 - `DRAG_THRESHOLD = 4` — pointer must move ≥ 4px for drag; otherwise treated as click → opens PigDetail
 
 ### Changed
+
 - `PigDetail` card: fully opaque background, `min-width: 340px`, `padding: 16px`, task list scrolls at `max-height: 240px`
 - `usePigMovement` returns `{ pigs, startDrag, moveDrag, endDrag }` instead of bare `PigState[]`
 - `tickPig` speed cap raised from `PIG_SPEED × 1.2` to `PIG_SPEED × 6` to allow post-toss deceleration

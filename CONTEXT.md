@@ -77,7 +77,7 @@ Steps 1–7 fully implemented. Step 8 (display spanning) partially implemented �
 4. **Clear a task.** Tap `✗` → `delete_task` Tauri command → markdown updated → pig's task list reflects change.
 5. **Add a task.** Type in "Add task…" input in PigDetail → Enter → `append_task` Tauri command → markdown updated.
 6. **Create a Focus.** *(014)* Menu bar item → "+ New Focus" → small webview form → `create_focus` → new pig spawns.
-7. **Delete a Focus.** *(015)* Menu bar item → Focus submenu → "Delete…" → native confirmation → `delete_focus` → pig disappears.
+7. **Delete a Focus.** *(015)* Menu bar item → Focus submenu → "Delete…" → `delete_focus` → pig disappears. (Optional confirmation tracked in issue `#027`.)
 8. **Configure displays.** *(017)* Tray Displays section — check/uncheck monitors. Enabled monitors share one spanning overlay window; pigs spawn on the primary display. Persists in `settings.yaml`. **Partially broken (PR #27, issue #024):** `display/` module refactor landed — coordinate math fixed, window now correctly sized, monitor names disambiguated, single-monitor fully works. Cross-monitor drag still unreliable on 270°-rotated portrait monitors: the drag_active lock helps but boundary behaviour near the monitor edge needs more work.
 
 ## Agent proposal flow (v1.3 — deferred)

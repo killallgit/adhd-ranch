@@ -12,7 +12,7 @@ Swap the placeholder 🐷 emoji in `PigSprite.tsx` for the real 4-direction × 4
 
 - **Asset placement**: drop the sprite sheet at `src/assets/pig-spritesheet.png`. Vite will bundle it and expose it as a hashed URL via `import pigSheet from '../assets/pig-spritesheet.png'`.
 - **Frame layout** (confirm with user before coding):
-  - Expected default: 4 rows × 4 columns. Row order: `down=0, left=1, right=2, up=3` (common RPG convention). Adjust if different.
+  - Default: 4 rows × 4 columns. Row order: `front=0, right=1, back=2, left=3` (matches `PigSprite.tsx` `DIRECTION_ROW` mapping).
   - Frame width = `sheet_width / 4`, frame height = `sheet_height / 4`.
 - **`PigSprite.tsx` change** (the swap comment at lines 16–26 marks the exact location):
   - Remove the `<span className="pig-emoji">` element.
