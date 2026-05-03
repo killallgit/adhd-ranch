@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Focus } from "../types/focus";
 
 export const PIG_SIZE = 48;
+export const HITBOX_PADDING = 16;
 
 const PIG_SPEED = 35; // px/s
 const EDGE_MARGIN = 60; // px from screen edge
@@ -123,6 +124,23 @@ function tickPig(
   return { ...pig, x, y, vx, vy, frameIndex, direction, lastFrameAt, nextTurnAt };
 }
 
+export interface PigHitRect {
+  x: number;
+  y: number;
+  size: number;
+}
+
+export function buildHitRects(
+  pigs: PigState[],
+  dpr: number,
+): PigHitRect[] {
+  return pigs.map((p) => ({
+    x: (p.x - HITBOX_PADDING / 2) * dpr,
+    y: (p.y - HITBOX_PADDING / 2) * dpr,
+    size: (PIG_SIZE + HITBOX_PADDING) * dpr,
+  }));
+}
+
 function syncRects(pigs: PigState[], detailOpen: boolean): void {
   const dpr = window.devicePixelRatio || 1;
   // When the detail card is open, send a full-viewport rect so the polling
@@ -130,7 +148,7 @@ function syncRects(pigs: PigState[], detailOpen: boolean): void {
   // and Escape go to the desktop instead of the overlay.
   const rects = detailOpen
     ? [{ x: 0, y: 0, size: Math.max(window.innerWidth, window.innerHeight) * dpr * 2 }]
-    : pigs.map((p) => ({ x: p.x * dpr, y: p.y * dpr, size: PIG_SIZE * dpr }));
+    : buildHitRects(pigs, dpr);
   invoke("update_pig_rects", { rects }).catch(() => {});
 }
 
