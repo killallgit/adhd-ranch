@@ -14,8 +14,8 @@ vi.mock(import("../hooks/usePigMovement"), async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...actual,
-    usePigMovement: (focuses: readonly Focus[]) =>
-      focuses.map((f) => ({
+    usePigMovement: (focuses: readonly Focus[]) => ({
+      pigs: focuses.map((f) => ({
         id: f.id,
         name: f.title,
         x: 100,
@@ -27,6 +27,10 @@ vi.mock(import("../hooks/usePigMovement"), async (importOriginal) => {
         lastFrameAt: 0,
         nextTurnAt: 9_999_999,
       })),
+      startDrag: vi.fn(),
+      moveDrag: vi.fn(),
+      endDrag: vi.fn(() => ({ wasDrag: false })),
+    }),
   };
 });
 

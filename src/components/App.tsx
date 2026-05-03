@@ -16,7 +16,7 @@ export function App({ focusReader, focusWriter }: AppProps) {
   const focusState = useFocuses(focusReader);
   const focuses = focusState.status === "ready" ? focusState.focuses : [];
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const pigs = usePigMovement(focuses, selectedId);
+  const { pigs, startDrag, moveDrag, endDrag } = usePigMovement(focuses, selectedId);
   const { screenW, screenH } = useViewport();
 
   const selectedPig = pigs.find((p) => p.id === selectedId);
@@ -51,6 +51,9 @@ export function App({ focusReader, focusWriter }: AppProps) {
           frame={pig.frameIndex}
           name={pig.name}
           onClick={() => setSelectedId(pig.id)}
+          onDragStart={(x, y) => startDrag(pig.id, x, y)}
+          onDragMove={moveDrag}
+          onDragEnd={endDrag}
         />
       ))}
       {selectedPig && selectedFocus && (
