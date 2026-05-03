@@ -7,6 +7,8 @@ use tauri::{AppHandle, Manager, Runtime, WebviewUrl, WebviewWindowBuilder};
 
 use crate::app::pig_hittest::PigHitTester;
 
+const OVERLAY_LABEL: &str = "overlay-0";
+
 #[derive(Clone)]
 pub struct MonitorInfo {
     pub name: Option<String>,
@@ -38,41 +40,58 @@ impl OverlayManager {
         }
     }
 
+    /// Resize/create the single spanning overlay to cover all enabled monitors.
+    /// One window spans all enabled displays so pigs roam freely across them.
     pub fn apply<R: Runtime>(
         &self,
         app: &AppHandle<R>,
         monitors: &[MonitorInfo],
         config: &DisplayConfig,
     ) {
-        for (idx, monitor) in monitors.iter().enumerate() {
-            let label = format!("overlay-{idx}");
-            if config.enabled_indices.contains(&idx) {
-                if let Err(e) = self.ensure_shown(app, &label, monitor) {
-                    log::error!("overlay_manager: {label} failed: {e}");
-                }
-            } else {
-                self.destroy(app, &label);
-            }
+        let enabled: Vec<&MonitorInfo> = monitors
+            .iter()
+            .enumerate()
+            .filter(|(idx, _)| config.enabled_indices.contains(idx))
+            .map(|(_, m)| m)
+            .collect();
+
+        if enabled.is_empty() {
+            self.destroy(app, OVERLAY_LABEL);
+            return;
         }
 
-        // Close stale overlay windows for indices beyond current monitor count.
-        if let Ok(mut map) = self.entries.lock() {
-            let stale: Vec<String> = map
-                .keys()
-                .filter(|label| {
-                    label
-                        .strip_prefix("overlay-")
-                        .and_then(|n| n.parse::<usize>().ok())
-                        .map(|idx| idx >= monitors.len())
-                        .unwrap_or(false)
-                })
-                .cloned()
-                .collect();
-            for label in stale {
-                if let Some(window) = app.get_webview_window(&label) {
-                    let _ = window.close();
-                }
-                map.remove(&label);
+        // Union bounding box of all enabled monitors in physical pixels.
+        let min_x = enabled.iter().map(|m| m.position.x).min().unwrap_or(0);
+        let min_y = enabled.iter().map(|m| m.position.y).min().unwrap_or(0);
+        let max_x = enabled
+            .iter()
+            .map(|m| m.position.x + m.size.width as i32)
+            .max()
+            .unwrap_or(1920);
+        let max_y = enabled
+            .iter()
+            .map(|m| m.position.y + m.size.height as i32)
+            .max()
+            .unwrap_or(1080);
+
+        let spanning = MonitorInfo {
+            name: None,
+            size: tauri::PhysicalSize::new(
+                (max_x - min_x).max(1) as u32,
+                (max_y - min_y).max(1) as u32,
+            ),
+            position: tauri::PhysicalPosition::new(min_x, min_y),
+        };
+
+        if let Err(e) = self.ensure_shown(app, OVERLAY_LABEL, &spanning) {
+            log::error!("overlay_manager: {OVERLAY_LABEL} failed: {e}");
+        }
+
+        // Clean up any legacy per-monitor windows (overlay-1, overlay-2, …).
+        for idx in 1..=monitors.len() {
+            let label = format!("overlay-{idx}");
+            if app.get_webview_window(&label).is_some() {
+                self.destroy(app, &label);
             }
         }
     }

@@ -118,8 +118,8 @@ export function usePigMovement(focuses: readonly Focus[]): PigState[] {
 
   // Sync pig list to focuses: add spawns for new, remove for deleted.
   useEffect(() => {
-    const screenW = window.screen.width;
-    const screenH = window.screen.height;
+    const screenW = window.innerWidth || window.screen.width;
+    const screenH = window.innerHeight || window.screen.height;
     const now = performance.now();
 
     setPigs((prev) => {
@@ -136,8 +136,8 @@ export function usePigMovement(focuses: readonly Focus[]): PigState[] {
       const dt = Math.min(now - lastTimeRef.current, 100);
       lastTimeRef.current = now;
 
-      const screenW = window.screen.width;
-      const screenH = window.screen.height;
+      const screenW = window.innerWidth || window.screen.width;
+      const screenH = window.innerHeight || window.screen.height;
 
       const updated = pigsRef.current.map((p) => tickPig(p, dt, now, screenW, screenH));
       pigsRef.current = updated;
