@@ -155,4 +155,5 @@ Retained. Every accepted/rejected proposal appended to `~/.adhd-ranch/decisions.
 2. **Phase 1 (done):** Custom titlebar, app menu, always-on-top, regular Mac app.
 3. **Phase 2 (done):** Transparent fullscreen window, click-through Rust polling thread, `PigSprite` placeholder, `usePigMovement`, `PigDetail` popover, tray icon + live focus list, typed errors, structured logging.
 4. **Phase 3 (in progress):** ~~New-focus creation from tray (issue #7/014)~~, ~~delete from tray (issue #8/015)~~, ~~configurable display spanning (issue #11/017)~~, real sprite sheet (issue #9/016 — PR #15, pending merge).
-5. **Phase 4 — Agent flow (v1.3):** Restore `/checkpoint` command + proposal queue UI (tray submenu or modal).
+5. **Phase 3 polish:** Larger pig hitbox (issue #16/018), PigDetail redesign — opaque, larger, inline task add (issue #17/019), drag-and-toss pig physics (issue #18/020).
+6. **Phase 4 — Agent flow (v1.3):** Restore `/checkpoint` command + proposal queue UI (tray submenu or modal).
