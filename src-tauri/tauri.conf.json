@@ -13,18 +13,6 @@
     "macOSPrivateApi": true,
     "windows": [
       {
-        "label": "overlay-0",
-        "title": "Adhd Ranch",
-        "width": 400,
-        "height": 600,
-        "minWidth": 320,
-        "minHeight": 400,
-        "decorations": false,
-        "resizable": true,
-        "transparent": true,
-        "visible": false
-      },
-      {
         "label": "new-focus",
         "url": "new-focus.html",
         "title": "New Focus",

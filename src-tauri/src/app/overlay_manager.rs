@@ -108,6 +108,9 @@ impl OverlayManager {
             .map(|map| map.contains_key(label))
             .unwrap_or(false);
 
+        // overlay-0 is no longer pre-defined in tauri.conf.json so this always
+        // takes the else branch on first call. Subsequent calls (display toggle)
+        // hit the if branch and resize the existing window.
         let window = if let Some(w) = app.get_webview_window(label) {
             w
         } else {
@@ -119,6 +122,9 @@ impl OverlayManager {
                 .build()?
         };
 
+        // set_size/set_position use physical pixels — unambiguous regardless of DPR.
+        // These run synchronously on the main thread before JS gets a chance to
+        // execute, so window.innerWidth in React reflects the correct spanning size.
         let _ = window.set_size(tauri::PhysicalSize::new(
             monitor.size.width,
             monitor.size.height,
