@@ -115,16 +115,15 @@ function tickPig(
   return { ...pig, x, y, vx, vy, frameIndex, direction, lastFrameAt, nextTurnAt };
 }
 
-function syncRects(pigs: PigState[]): void {
+function syncRects(pigs: PigState[], detailOpen: boolean): void {
   const dpr = window.devicePixelRatio || 1;
-  const rects = pigs.map((p) => ({
-    x: p.x * dpr,
-    y: p.y * dpr,
-    size: PIG_SIZE * dpr,
-  }));
-  invoke("update_pig_rects", { rects }).catch(() => {
-    // Silently ignore when running outside Tauri (e.g., browser dev)
-  });
+  // When the detail card is open, send a full-viewport rect so the polling
+  // thread never sets ignore_cursor_events=true — otherwise backdrop clicks
+  // and Escape go to the desktop instead of the overlay.
+  const rects = detailOpen
+    ? [{ x: 0, y: 0, size: Math.max(window.innerWidth, window.innerHeight) * dpr * 2 }]
+    : pigs.map((p) => ({ x: p.x * dpr, y: p.y * dpr, size: PIG_SIZE * dpr }));
+  invoke("update_pig_rects", { rects }).catch(() => {});
 }
 
 export function usePigMovement(focuses: readonly Focus[], selectedId: string | null): PigState[] {
@@ -169,7 +168,7 @@ export function usePigMovement(focuses: readonly Focus[], selectedId: string | n
 
       frameCountRef.current += 1;
       if (frameCountRef.current % RECT_UPDATE_EVERY === 0) {
-        syncRects(updated);
+        syncRects(updated, selectedIdRef.current !== null);
       }
 
       rafRef.current = requestAnimationFrame(loop);
