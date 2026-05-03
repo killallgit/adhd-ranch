@@ -124,10 +124,16 @@ function tickPig(
   return { ...pig, x, y, vx, vy, frameIndex, direction, lastFrameAt, nextTurnAt };
 }
 
+export interface PigHitRect {
+  x: number;
+  y: number;
+  size: number;
+}
+
 export function buildHitRects(
   pigs: PigState[],
   dpr: number,
-): { x: number; y: number; size: number }[] {
+): PigHitRect[] {
   return pigs.map((p) => ({
     x: (p.x - HITBOX_PADDING / 2) * dpr,
     y: (p.y - HITBOX_PADDING / 2) * dpr,
