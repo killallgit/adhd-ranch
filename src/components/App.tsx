@@ -15,9 +15,9 @@ export interface AppProps {
 export function App({ focusReader, focusWriter }: AppProps) {
   const focusState = useFocuses(focusReader);
   const focuses = focusState.status === "ready" ? focusState.focuses : [];
-  const pigs = usePigMovement(focuses);
-  const { screenW, screenH } = useViewport();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const pigs = usePigMovement(focuses, selectedId);
+  const { screenW, screenH } = useViewport();
 
   const selectedPig = pigs.find((p) => p.id === selectedId);
   const selectedFocus = focuses.find((f) => f.id === selectedId);

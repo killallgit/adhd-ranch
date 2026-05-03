@@ -59,7 +59,9 @@ function tickPig(
   now: number,
   screenW: number,
   screenH: number,
+  frozen: boolean,
 ): PigState {
+  if (frozen) return pig;
   let { x, y, vx, vy, frameIndex, lastFrameAt, nextTurnAt, direction } = pig;
 
   // Random direction change
@@ -83,9 +85,13 @@ function tickPig(
     vy = (vy / speed) * PIG_SPEED;
   }
 
-  // Update position, hard-clamp to screen
-  x = Math.max(0, Math.min(screenW - PIG_SIZE, x + vx * (dt / 1000)));
-  y = Math.max(0, Math.min(screenH - PIG_SIZE, y + vy * (dt / 1000)));
+  // Update position and reflect velocity at hard boundaries so pigs never escape.
+  x += vx * (dt / 1000);
+  y += vy * (dt / 1000);
+  if (x < 0) { x = 0; vx = Math.abs(vx); }
+  if (x > screenW - PIG_SIZE) { x = screenW - PIG_SIZE; vx = -Math.abs(vx); }
+  if (y < 0) { y = 0; vy = Math.abs(vy); }
+  if (y > screenH - PIG_SIZE) { y = screenH - PIG_SIZE; vy = -Math.abs(vy); }
 
   direction = direction4(vx, vy);
 
@@ -109,12 +115,16 @@ function syncRects(pigs: PigState[]): void {
   });
 }
 
-export function usePigMovement(focuses: readonly Focus[]): PigState[] {
+export function usePigMovement(focuses: readonly Focus[], selectedId: string | null): PigState[] {
   const [pigs, setPigs] = useState<PigState[]>([]);
   const pigsRef = useRef<PigState[]>([]);
+  const selectedIdRef = useRef<string | null>(selectedId);
   const rafRef = useRef<number>(0);
   const lastTimeRef = useRef<number>(performance.now());
   const frameCountRef = useRef<number>(0);
+
+  // Keep ref in sync so the rAF loop sees the latest value without restarting.
+  selectedIdRef.current = selectedId;
 
   // Sync pig list to focuses: add spawns for new, remove for deleted.
   useEffect(() => {
@@ -139,7 +149,9 @@ export function usePigMovement(focuses: readonly Focus[]): PigState[] {
       const screenW = window.innerWidth || window.screen.width;
       const screenH = window.innerHeight || window.screen.height;
 
-      const updated = pigsRef.current.map((p) => tickPig(p, dt, now, screenW, screenH));
+      const updated = pigsRef.current.map((p) =>
+        tickPig(p, dt, now, screenW, screenH, p.id === selectedIdRef.current),
+      );
       pigsRef.current = updated;
       setPigs(updated);
 
