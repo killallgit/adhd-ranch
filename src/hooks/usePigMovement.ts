@@ -11,6 +11,8 @@ const MIN_TURN_MS = 3000;
 const MAX_TURN_MS = 8000;
 const RECT_UPDATE_EVERY = 4; // rAF frames between pig-rect syncs to Rust
 
+export type PigDirection = "front" | "right" | "back" | "left";
+
 export interface PigState {
   id: string;
   name: string;
@@ -19,9 +21,14 @@ export interface PigState {
   vx: number;
   vy: number;
   frameIndex: number;
-  direction: "left" | "right";
+  direction: PigDirection;
   lastFrameAt: number;
   nextTurnAt: number;
+}
+
+function direction4(vx: number, vy: number): PigDirection {
+  if (Math.abs(vx) >= Math.abs(vy)) return vx >= 0 ? "right" : "left";
+  return vy >= 0 ? "front" : "back";
 }
 
 function randomTurnDelay(): number {
@@ -40,7 +47,7 @@ function initPig(focus: Focus, screenW: number, screenH: number, now: number): P
     vx,
     vy,
     frameIndex: 0,
-    direction: vx >= 0 ? "right" : "left",
+    direction: direction4(vx, vy),
     lastFrameAt: now,
     nextTurnAt: now + randomTurnDelay(),
   };
@@ -80,7 +87,7 @@ function tickPig(
   x = Math.max(0, Math.min(screenW - PIG_SIZE, x + vx * (dt / 1000)));
   y = Math.max(0, Math.min(screenH - PIG_SIZE, y + vy * (dt / 1000)));
 
-  direction = vx >= 0 ? "right" : "left";
+  direction = direction4(vx, vy);
 
   if (now - lastFrameAt >= FRAME_INTERVAL) {
     frameIndex = (frameIndex + 1) % 4;

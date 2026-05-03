@@ -401,10 +401,10 @@ body,
   user-select: none;
 }
 
-.pig-emoji {
-  font-size: 32px;
-  line-height: 1;
+.pig-sprite-frame {
+  image-rendering: pixelated;
   display: block;
+  flex-shrink: 0;
 }
 
 .pig-name {

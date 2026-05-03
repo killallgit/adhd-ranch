@@ -1,49 +1,51 @@
+import pigSheet from "../assets/pig-spritesheet.png";
+import type { PigDirection } from "../hooks/usePigMovement";
+import { PIG_SIZE } from "../hooks/usePigMovement";
+
+const SHEET_COLS = 4;
+const DIRECTION_ROW: Record<PigDirection, number> = {
+  front: 0,
+  right: 1,
+  back: 2,
+  left: 3,
+};
+
+// Bob offsets per frame (subtle vertical hop while walking).
+const BOB_OFFSETS = [0, -2, 0, -1];
+
 export interface PigSpriteProps {
   readonly x: number;
   readonly y: number;
-  readonly direction: "left" | "right";
+  readonly direction: PigDirection;
   readonly frame: number;
   readonly name: string;
   readonly onClick: () => void;
 }
 
-// Placeholder pig: emoji + name label.
-// When real sprite sheet is ready, replace the inner div with:
-//   <div
-//     className="pig-sprite-frame"
-//     style={{
-//       backgroundImage: `url(/assets/pig-spritesheet.png)`,
-//       backgroundPosition: `-${frame * FRAME_W}px -${row * FRAME_H}px`,
-//       width: FRAME_W,
-//       height: FRAME_H,
-//       imageRendering: "pixelated",
-//     }}
-//   />
-// where row = direction === "left" ? 1 : 2 (adjust to match your sheet layout).
-const BOB_OFFSETS = [0, -2, 0, -1];
-
 export function PigSprite({ x, y, direction, frame, name, onClick }: PigSpriteProps) {
   const bob = BOB_OFFSETS[frame % BOB_OFFSETS.length];
+  const col = frame % SHEET_COLS;
+  const row = DIRECTION_ROW[direction];
+  const sheetSize = PIG_SIZE * SHEET_COLS;
+
   return (
     <button
       type="button"
       className="pig-sprite"
-      style={{
-        left: x,
-        top: y + bob,
-        transform: direction === "left" ? "scaleX(-1)" : undefined,
-      }}
+      style={{ left: x, top: y + bob }}
       onClick={onClick}
     >
-      <span className="pig-emoji" aria-hidden="true">
-        🐷
-      </span>
-      <span
-        className="pig-name"
-        style={{ transform: direction === "left" ? "scaleX(-1)" : undefined }}
-      >
-        {name}
-      </span>
+      <div
+        className="pig-sprite-frame"
+        style={{
+          backgroundImage: `url(${pigSheet})`,
+          backgroundSize: `${sheetSize}px ${sheetSize}px`,
+          backgroundPosition: `-${col * PIG_SIZE}px -${row * PIG_SIZE}px`,
+          width: PIG_SIZE,
+          height: PIG_SIZE,
+        }}
+      />
+      <span className="pig-name">{name}</span>
     </button>
   );
 }
