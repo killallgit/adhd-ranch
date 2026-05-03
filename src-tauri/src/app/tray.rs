@@ -4,7 +4,9 @@ use std::sync::Arc;
 use adhd_ranch_domain::{cap_state, DisplayConfig, Focus, Settings};
 use adhd_ranch_storage::{write_settings, FocusStore};
 use tauri::image::Image;
-use tauri::menu::{IsMenuItem, Menu, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder};
+use tauri::menu::{
+    CheckMenuItemBuilder, IsMenuItem, Menu, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder,
+};
 use tauri::tray::{TrayIcon, TrayIconBuilder};
 use tauri::{AppHandle, Manager, Runtime};
 
@@ -102,37 +104,11 @@ pub fn rebuild_handler<R: Runtime>(
     })
 }
 
+/// Threshold: flat checklist in the tray root; more monitors nest under "Displays".
+const DISPLAY_SUBMENU_MIN_COUNT: usize = 4;
+
 fn build_menu<R: Runtime>(handle: &AppHandle<R>, focuses: &[Focus]) -> tauri::Result<Menu<R>> {
     let mut items: Vec<Box<dyn IsMenuItem<R>>> = Vec::new();
-
-    // Displays submenu — reads current config from managed state.
-    if let Some(monitors_state) = handle.try_state::<MonitorsState>() {
-        let enabled_indices = handle
-            .try_state::<DisplayConfigState>()
-            .and_then(|s| s.0.lock().ok().map(|c| c.enabled_indices.clone()))
-            .unwrap_or_else(|| vec![0]);
-
-        if !monitors_state.0.is_empty() {
-            let mut sub = SubmenuBuilder::new(handle, "Displays");
-            for (idx, monitor) in monitors_state.0.iter().enumerate() {
-                let check = if enabled_indices.contains(&idx) {
-                    "✓ "
-                } else {
-                    "  "
-                };
-                let name = monitor.name.as_deref().unwrap_or("Unknown Display");
-                let item = MenuItemBuilder::with_id(
-                    format!("{DISPLAY_PREFIX}{idx}"),
-                    format!("{check}{name}"),
-                )
-                .build(handle)?;
-                sub = sub.item(&item);
-            }
-            let displays_submenu = sub.build()?;
-            items.push(Box::new(displays_submenu));
-            items.push(Box::new(PredefinedMenuItem::separator(handle)?));
-        }
-    }
 
     let new_focus = MenuItemBuilder::with_id(NEW_FOCUS_ID, "+ New Focus").build(handle)?;
     items.push(Box::new(new_focus));
@@ -157,13 +133,66 @@ fn build_menu<R: Runtime>(handle: &AppHandle<R>, focuses: &[Focus]) -> tauri::Re
         }
     }
 
-    let sep = PredefinedMenuItem::separator(handle)?;
+    let has_displays = handle
+        .try_state::<MonitorsState>()
+        .map(|s| !s.0.is_empty())
+        .unwrap_or(false);
+
+    if has_displays {
+        items.push(Box::new(PredefinedMenuItem::separator(handle)?));
+        append_display_items(handle, &mut items)?;
+    }
+
+    items.push(Box::new(PredefinedMenuItem::separator(handle)?));
     let quit = MenuItemBuilder::with_id(QUIT_ID, "Quit").build(handle)?;
-    items.push(Box::new(sep));
     items.push(Box::new(quit));
 
     let item_refs: Vec<&dyn IsMenuItem<R>> = items.iter().map(|b| b.as_ref()).collect();
     Menu::with_items(handle, &item_refs)
+}
+
+fn append_display_items<R: Runtime>(
+    handle: &AppHandle<R>,
+    items: &mut Vec<Box<dyn IsMenuItem<R>>>,
+) -> tauri::Result<()> {
+    let Some(monitors_state) = handle.try_state::<MonitorsState>() else {
+        return Ok(());
+    };
+    if monitors_state.0.is_empty() {
+        return Ok(());
+    }
+
+    let enabled_indices = handle
+        .try_state::<DisplayConfigState>()
+        .and_then(|s| s.0.lock().ok().map(|c| c.enabled_indices.clone()))
+        .unwrap_or_else(|| vec![0]);
+
+    let monitors = &monitors_state.0;
+    let use_submenu = monitors.len() >= DISPLAY_SUBMENU_MIN_COUNT;
+
+    if use_submenu {
+        let mut sub = SubmenuBuilder::new(handle, "Displays");
+        for (idx, monitor) in monitors.iter().enumerate() {
+            let name = monitor.name.as_deref().unwrap_or("Unknown Display");
+            let checked = enabled_indices.contains(&idx);
+            let item = CheckMenuItemBuilder::with_id(format!("{DISPLAY_PREFIX}{idx}"), name)
+                .checked(checked)
+                .build(handle)?;
+            sub = sub.item(&item);
+        }
+        items.push(Box::new(sub.build()?));
+    } else {
+        for (idx, monitor) in monitors.iter().enumerate() {
+            let name = monitor.name.as_deref().unwrap_or("Unknown Display");
+            let checked = enabled_indices.contains(&idx);
+            let item = CheckMenuItemBuilder::with_id(format!("{DISPLAY_PREFIX}{idx}"), name)
+                .checked(checked)
+                .build(handle)?;
+            items.push(Box::new(item));
+        }
+    }
+
+    Ok(())
 }
 
 fn handle_delete<R: Runtime>(app: AppHandle<R>, focus_id: String) {

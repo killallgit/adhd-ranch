@@ -1,3 +1,6 @@
 export function useViewport() {
-  return { screenW: window.screen.width, screenH: window.screen.height };
+  return {
+    screenW: document.documentElement.clientWidth || window.screen.width,
+    screenH: document.documentElement.clientHeight || window.screen.height,
+  };
 }
