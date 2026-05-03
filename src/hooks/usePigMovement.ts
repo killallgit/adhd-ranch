@@ -42,8 +42,8 @@ function initPig(focus: Focus, screenW: number, screenH: number, now: number): P
   return {
     id: focus.id,
     name: focus.title,
-    x: EDGE_MARGIN + Math.random() * (screenW - 2 * EDGE_MARGIN - PIG_SIZE),
-    y: EDGE_MARGIN + Math.random() * (screenH - 2 * EDGE_MARGIN - PIG_SIZE),
+    x: EDGE_MARGIN + Math.random() * Math.max(0, screenW - 2 * EDGE_MARGIN - PIG_SIZE),
+    y: EDGE_MARGIN + Math.random() * Math.max(0, screenH - 2 * EDGE_MARGIN - PIG_SIZE),
     vx,
     vy,
     frameIndex: 0,
@@ -61,7 +61,15 @@ function tickPig(
   screenH: number,
   frozen: boolean,
 ): PigState {
-  if (frozen) return pig;
+  // Advance timers while frozen so nextTurnAt/lastFrameAt don't expire during
+  // the pause, preventing an immediate turn or frame jump on unfreeze.
+  if (frozen) {
+    return {
+      ...pig,
+      nextTurnAt: pig.nextTurnAt + dt,
+      lastFrameAt: pig.lastFrameAt + dt,
+    };
+  }
   let { x, y, vx, vy, frameIndex, lastFrameAt, nextTurnAt, direction } = pig;
 
   // Random direction change
