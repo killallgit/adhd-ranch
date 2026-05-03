@@ -46,6 +46,7 @@ mod tests {
                     text: format!("t{i}"),
                 })
                 .collect(),
+            timer: None,
         }
     }
 

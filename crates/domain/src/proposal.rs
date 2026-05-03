@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::timer::TimerPreset;
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProposalId(pub String);
 
@@ -7,6 +9,8 @@ pub struct ProposalId(pub String);
 pub struct NewFocus {
     pub title: String,
     pub description: String,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub timer_preset: Option<TimerPreset>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -139,6 +143,7 @@ mod tests {
             new_focus: NewFocus {
                 title: "".into(),
                 description: "x".into(),
+                timer_preset: None,
             },
         });
         assert_eq!(
@@ -181,6 +186,7 @@ mod tests {
             new_focus: NewFocus {
                 title: "T".into(),
                 description: "D".into(),
+                timer_preset: None,
             },
         });
         let json = serde_json::to_string(&original).unwrap();

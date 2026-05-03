@@ -141,6 +141,7 @@ mod tests {
             _new_focus: &NewFocus,
             _id: &str,
             _created_at: &str,
+            _timer: Option<adhd_ranch_domain::FocusTimer>,
         ) -> Result<String, FocusStoreError> {
             unimplemented!()
         }
@@ -167,6 +168,7 @@ mod tests {
                     text: format!("t{i}"),
                 })
                 .collect(),
+            timer: None,
         }
     }
 

@@ -103,6 +103,7 @@ mod tests {
                     new_focus: NewFocus {
                         title: format!("T{i}"),
                         description: String::new(),
+                        timer_preset: None,
                     },
                 },
             );

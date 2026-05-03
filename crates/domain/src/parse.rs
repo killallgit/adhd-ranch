@@ -38,6 +38,7 @@ pub fn parse_focus_md(input: &str) -> Result<Focus, ParseError> {
         description,
         created_at,
         tasks,
+        timer: None,
     })
 }
 

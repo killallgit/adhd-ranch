@@ -67,7 +67,7 @@ impl ProposalLifecycle {
             }
             ProposalKind::NewFocus { new_focus } => {
                 let slug =
-                    create_focus_in_store(&self.store, &self.clock, &self.id_gen, new_focus)?;
+                    create_focus_in_store(&self.store, &self.clock, &self.id_gen, new_focus, None)?;
                 Ok(Some(slug))
             }
             ProposalKind::Discard => Ok(None),
@@ -229,6 +229,7 @@ mod tests {
                     new_focus: NewFocus {
                         title: "Customer X bug".into(),
                         description: "ship".into(),
+                        timer_preset: None,
                     },
                 },
             ))

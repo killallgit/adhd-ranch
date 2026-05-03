@@ -7,6 +7,7 @@ pub mod pig_rect;
 pub mod proposal;
 pub mod settings;
 pub mod slug;
+pub mod timer;
 
 pub use cap_monitor::{CapTransition, OverCapMonitor};
 pub use caps::{cap_state, CapState};
@@ -17,3 +18,4 @@ pub use pig_rect::{PigRect, RectUpdater};
 pub use proposal::{NewFocus, Proposal, ProposalId, ProposalKind, ProposalValidationError};
 pub use settings::{Alerts, Caps, DisplayConfig, Settings, Widget};
 pub use slug::slugify;
+pub use timer::{growth_factor, timer_remaining_secs, FocusTimer, TimerPreset, TimerStatus};

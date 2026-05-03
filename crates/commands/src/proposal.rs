@@ -56,6 +56,7 @@ impl Commands {
                 new_focus: input.new_focus.clone().unwrap_or(NewFocus {
                     title: String::new(),
                     description: String::new(),
+                    timer_preset: None,
                 }),
             },
             "discard" => ProposalKind::Discard,

@@ -42,6 +42,7 @@ pub fn list_proposals(state: State<'_, CommandsState>) -> Result<Vec<Proposal>, 
 pub fn create_focus(
     title: String,
     description: Option<String>,
+    timer_preset: Option<adhd_ranch_domain::TimerPreset>,
     state: State<'_, CommandsState>,
 ) -> Result<CreatedFocus, CommandError> {
     state
@@ -49,6 +50,7 @@ pub fn create_focus(
         .create_focus(CreateFocusInput {
             title: title.clone(),
             description: description.unwrap_or_default(),
+            timer_preset,
         })
         .inspect(|f| log::info!("focus created: {}", f.id))
         .inspect_err(|e| log::error!("create_focus({title:?}): {e}"))

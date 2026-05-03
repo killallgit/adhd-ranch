@@ -16,6 +16,7 @@ pub use lifecycle::ProposalLifecycle;
 pub use proposal::{CreateProposalInput, CreatedProposal, DecisionOutcome, ProposalEdit};
 
 pub type Clock = Arc<dyn Fn() -> String + Send + Sync>;
+pub type ClockSecs = Arc<dyn Fn() -> i64 + Send + Sync>;
 pub type IdGen = Arc<dyn Fn() -> String + Send + Sync>;
 
 pub struct Commands {
@@ -23,6 +24,7 @@ pub struct Commands {
     pub(crate) queue: Arc<dyn ProposalQueue>,
     pub(crate) lifecycle: Arc<ProposalLifecycle>,
     pub(crate) clock: Clock,
+    pub(crate) clock_secs: ClockSecs,
     pub(crate) id_gen: IdGen,
     pub(crate) settings: Settings,
 }
@@ -33,6 +35,7 @@ impl Commands {
         queue: Arc<dyn ProposalQueue>,
         decisions: Arc<dyn DecisionLog>,
         clock: Clock,
+        clock_secs: ClockSecs,
         id_gen: IdGen,
         settings: Settings,
     ) -> Self {
@@ -48,6 +51,7 @@ impl Commands {
             queue,
             lifecycle,
             clock,
+            clock_secs,
             id_gen,
             settings,
         }
