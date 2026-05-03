@@ -1,3 +1,4 @@
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use adhd_ranch_commands::{
@@ -13,8 +14,8 @@ use adhd_ranch_domain::{PigRect, RectUpdater};
 use crate::api::Health;
 
 pub struct CommandsState(pub Arc<Commands>);
-
 pub struct PigHitState(pub Arc<dyn RectUpdater>);
+pub struct DragLockState(pub Arc<AtomicBool>);
 
 #[tauri::command]
 pub fn health() -> Health {
@@ -137,4 +138,9 @@ pub fn update_pig_rects(
     state: State<'_, PigHitState>,
 ) {
     state.0.update_rects(window.label(), rects);
+}
+
+#[tauri::command]
+pub fn set_pig_drag_active(active: bool, state: State<'_, DragLockState>) {
+    state.0.store(active, Ordering::Relaxed);
 }

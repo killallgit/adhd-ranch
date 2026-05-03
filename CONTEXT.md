@@ -69,14 +69,16 @@ created_at: 2026-04-30T12:00:00Z
 
 ## Core interaction loop (v1.2)
 
-Steps 1–6 are **implemented**.
+Steps 1–7 fully implemented. Step 8 (display spanning) partially implemented — single-monitor works; cross-monitor drag and portrait-monitor boundary behaviour still broken (PR #27, issue #024).
 
-1. **Pigs roam the screen.** One pig per Focus, wandering at ~35px/s with slow random direction changes. 4-direction pixel-art sprite sheet (016); pigs span all enabled displays as one window.
-2. **Click a pig.** Pig freezes. `PigDetail` card opens near the pig: Focus title + Task list with `✗` per Task. Overlay stays non-click-through while card is open. Click-outside or Escape closes; pig resumes.
-3. **Clear a task.** Tap `✗` → `delete_task` Tauri command → markdown updated → pig's task list reflects change.
-4. **Create a Focus.** *(014)* Menu bar item → "+ New Focus" → small webview form → `create_focus` → new pig spawns.
-5. **Delete a Focus.** *(015)* Menu bar item → Focus submenu → "Delete…" → native confirmation → `delete_focus` → pig disappears.
-6. **Configure displays.** *(017)* Tray Displays section — check/uncheck monitors. Enabled monitors share one spanning overlay window; pigs roam freely across them. Persists in `settings.yaml`.
+1. **Pigs roam the screen.** One pig per Focus, wandering at 60px/s with random direction changes; minimum velocity floor so pigs never look frozen. 4-direction pixel-art sprite sheet (016). Hit-box is 16px larger than sprite (018).
+2. **Click a pig.** Pig freezes. `PigDetail` card opens near the pig (340px, opaque dark background, 16px padding): Focus title + scrollable Task list with `✗` per Task + "Add task…" input at bottom. Enter appends a task inline. Click-outside or Escape closes; pig resumes (019).
+3. **Drag a pig.** Click-and-hold then move > 4px enters drag mode — pig follows cursor. Release sends pig flying in that direction; friction decelerates it; bounces at screen edges. Pure click (< 4px movement) still opens PigDetail (020).
+4. **Clear a task.** Tap `✗` → `delete_task` Tauri command → markdown updated → pig's task list reflects change.
+5. **Add a task.** Type in "Add task…" input in PigDetail → Enter → `append_task` Tauri command → markdown updated.
+6. **Create a Focus.** *(014)* Menu bar item → "+ New Focus" → small webview form → `create_focus` → new pig spawns.
+7. **Delete a Focus.** *(015)* Menu bar item → Focus submenu → "Delete…" → `delete_focus` → pig disappears. (Optional confirmation tracked in issue `#027`.)
+8. **Configure displays.** *(017)* Tray Displays section — check/uncheck monitors. Enabled monitors share one spanning overlay window; pigs spawn on the primary display. Persists in `settings.yaml`. **Partially broken (PR #27, issue #024):** `display/` module refactor landed — coordinate math fixed, window now correctly sized, monitor names disambiguated, single-monitor fully works. Cross-monitor drag still unreliable on 270°-rotated portrait monitors: the drag_active lock helps but boundary behaviour near the monitor edge needs more work.
 
 ## Agent proposal flow (v1.3 — deferred)
 

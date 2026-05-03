@@ -24,6 +24,7 @@ export interface PigSpriteProps {
   readonly onDragStart: (x: number, y: number) => void;
   readonly onDragMove: (x: number, y: number) => void;
   readonly onDragEnd: () => { wasDrag: boolean };
+  readonly onSetDragActive: (active: boolean) => void;
 }
 
 export function PigSprite({
@@ -36,6 +37,7 @@ export function PigSprite({
   onDragStart,
   onDragMove,
   onDragEnd,
+  onSetDragActive,
 }: PigSpriteProps) {
   const bob = BOB_OFFSETS[frame % BOB_OFFSETS.length];
   const col = frame % SHEET_COLS;
@@ -55,6 +57,7 @@ export function PigSprite({
         cursor: isDraggingRef.current ? "grabbing" : "pointer",
       }}
       onPointerDown={(e) => {
+        onSetDragActive(true);
         e.currentTarget.setPointerCapture?.(e.pointerId);
         startPosRef.current = { x: e.clientX, y: e.clientY };
         isDraggingRef.current = false;
@@ -72,11 +75,27 @@ export function PigSprite({
         }
       }}
       onPointerUp={(e) => {
+        onSetDragActive(false);
         e.currentTarget.releasePointerCapture?.(e.pointerId);
         startPosRef.current = null;
         const { wasDrag } = onDragEnd();
         isDraggingRef.current = false;
         if (!wasDrag) onClick();
+      }}
+      onPointerCancel={(e) => {
+        onSetDragActive(false);
+        e.currentTarget.releasePointerCapture?.(e.pointerId);
+        startPosRef.current = null;
+        onDragEnd();
+        isDraggingRef.current = false;
+      }}
+      onLostPointerCapture={() => {
+        if (startPosRef.current) {
+          onSetDragActive(false);
+          startPosRef.current = null;
+          onDragEnd();
+          isDraggingRef.current = false;
+        }
       }}
     >
       <div

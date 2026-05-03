@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
+import { useCallback, useEffect, useState } from "react";
 import type { FocusWriter } from "../api/focusWriter";
 import type { FocusReader } from "../api/focuses";
 import { useFocuses } from "../hooks/useFocuses";
-import { usePigMovement } from "../hooks/usePigMovement";
+import { type SpawnRegion, usePigMovement } from "../hooks/usePigMovement";
 import { useViewport } from "../hooks/useViewport";
 import { PigDetail } from "./PigDetail";
 import { PigSprite } from "./PigSprite";
@@ -16,8 +18,31 @@ export function App({ focusReader, focusWriter }: AppProps) {
   const focusState = useFocuses(focusReader);
   const focuses = focusState.status === "ready" ? focusState.focuses : [];
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const { pigs, startDrag, moveDrag, endDrag } = usePigMovement(focuses, selectedId);
+  const { pigs, startDrag, moveDrag, endDrag, gather, setRegion } = usePigMovement(
+    focuses,
+    selectedId,
+  );
   const { screenW, screenH } = useViewport();
+
+  const handleSetDragActive = useCallback((active: boolean) => {
+    invoke("set_pig_drag_active", { active }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const unlistenPromise = listen("gather-pigs", gather);
+    return () => {
+      unlistenPromise.then((unlisten) => unlisten());
+    };
+  }, [gather]);
+
+  useEffect(() => {
+    const unlistenPromise = listen<SpawnRegion>("display-region", (event) => {
+      setRegion(event.payload);
+    });
+    return () => {
+      unlistenPromise.then((unlisten) => unlisten());
+    };
+  }, [setRegion]);
 
   const selectedPig = pigs.find((p) => p.id === selectedId);
   const selectedFocus = focuses.find((f) => f.id === selectedId);
@@ -42,6 +67,25 @@ export function App({ focusReader, focusWriter }: AppProps) {
 
   return (
     <div className="overlay-root">
+      {import.meta.env.DEV && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            background: "rgba(220,0,0,0.85)",
+            color: "#fff",
+            fontSize: 11,
+            padding: "3px 8px",
+            zIndex: 9999,
+            pointerEvents: "none",
+            fontFamily: "monospace",
+          }}
+        >
+          overlay-debug | w={screenW} h={screenH} | focuses={focuses.length} pigs={pigs.length}
+        </div>
+      )}
       {pigs.map((pig) => (
         <PigSprite
           key={pig.id}
@@ -54,6 +98,7 @@ export function App({ focusReader, focusWriter }: AppProps) {
           onDragStart={(x, y) => startDrag(pig.id, x, y)}
           onDragMove={moveDrag}
           onDragEnd={endDrag}
+          onSetDragActive={handleSetDragActive}
         />
       ))}
       {selectedPig && selectedFocus && (

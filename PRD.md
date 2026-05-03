@@ -144,8 +144,8 @@ Retained. Every accepted/rejected proposal appended to `~/.adhd-ranch/decisions.
 ## Open questions / risks
 
 - **R1.** Click-through latency: 16ms Rust poll + IPC round-trip should feel transparent, but needs real-device testing.
-- **R2.** ~~NSEvent.mouseLocation coordinate space~~ — resolved. Polling thread subtracts `window.outer_position()` from cursor before hit-test; pig rects are in webview-local physical pixels.
-- **R3.** ~~Multiple monitors: pigs spawn on primary monitor only.~~ Resolved in 017 — Displays submenu, per-monitor overlay windows, persists in settings.yaml.
+- **R2.** ~~NSEvent.mouseLocation coordinate space~~ — resolved for single-monitor. `drag_active: AtomicBool` in hit-test thread prevents click-through race during drag. Cross-monitor drag still unreliable on 270°-rotated portrait setup (PR #27).
+- **R3.** ~~Multiple monitors: pigs spawn on primary monitor only.~~ 024 `display/` refactor: coordinate math fixed (logical units throughout), `compute_span` tested, window correctly sized via builder, pigs confined to primary display via `display-region` event. Cross-monitor drag and portrait-monitor boundary behaviour still rough — tracked in PR #27.
 - **R4.** Pig positions on resize: if screen resolution changes (external monitor connect/disconnect), pigs reset to safe positions.
 - **R5.** Always-on-top + fullscreen apps: at kCGFloatingWindowLevel (3), pigs disappear behind fullscreen apps. Acceptable for v1.2.
 
@@ -154,6 +154,12 @@ Retained. Every accepted/rejected proposal appended to `~/.adhd-ranch/decisions.
 1. **Phase 0 (done):** Tauri skeleton, storage, HTTP API, markdown read/write, caps, file watcher, proposals queue.
 2. **Phase 1 (done):** Custom titlebar, app menu, always-on-top, regular Mac app.
 3. **Phase 2 (done):** Transparent fullscreen window, click-through Rust polling thread, `PigSprite` placeholder, `usePigMovement`, `PigDetail` popover, tray icon + live focus list, typed errors, structured logging.
-4. **Phase 3 (in progress):** ~~New-focus creation from tray (issue #7/014)~~, ~~delete from tray (issue #8/015)~~, ~~configurable display spanning (issue #11/017)~~, real sprite sheet (issue #9/016 — PR #15, pending merge).
-5. **Phase 3 polish:** Larger pig hitbox (issue #16/018), PigDetail redesign — opaque, larger, inline task add (issue #17/019), drag-and-toss pig physics (issue #18/020).
-6. **Phase 4 — Agent flow (v1.3):** Restore `/checkpoint` command + proposal queue UI (tray submenu or modal).
+4. **Phase 3 (done):** ~~New-focus creation from tray (014)~~, ~~delete from tray (015)~~, ~~configurable display spanning (017)~~, ~~real sprite sheet (016)~~.
+5. **Phase 3 polish (done):** ~~Larger pig hitbox + `buildHitRects` (018)~~, ~~PigDetail redesign — opaque, 340px, inline task add (019)~~, ~~drag-and-toss pig physics with friction (020)~~.
+6. **Phase 3 polish (in progress):**
+   - **#024** Display subsystem refactor — `display/` module tree landed (PR #27, draft). Single-monitor fully working. Cross-monitor drag + portrait boundary still broken. **Blocks 021, 022.**
+   - **#025** Pig freeze regression fix + keep-still toggle.
+   - **#021** All-monitors default on first launch. *Blocked by 024.*
+   - **#026** Settings submenu consolidation.
+   - **#022** Wrangle pig / wrangle all. *Blocked by 024.*
+7. **Phase 4 — Agent flow (v1.3):** Restore `/checkpoint` command + proposal queue UI (tray submenu or modal).

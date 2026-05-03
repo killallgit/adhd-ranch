@@ -8,23 +8,26 @@ use tauri::menu::{
     CheckMenuItemBuilder, IsMenuItem, Menu, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder,
 };
 use tauri::tray::{TrayIcon, TrayIconBuilder};
-use tauri::{AppHandle, Manager, Runtime};
+use tauri::{AppHandle, Emitter, Manager, Wry};
 
-use super::overlay_manager::OverlayManagerState;
 use super::{DisplayConfigState, MonitorsState};
+use crate::display::DisplayManagerState;
 
 const QUIT_ID: &str = "tray-quit";
 const NO_FOCUSES_ID: &str = "tray-no-focuses";
 const NEW_FOCUS_ID: &str = "tray-new-focus";
+const GATHER_PIGS_ID: &str = "tray-gather-pigs";
 const DELETE_PREFIX: &str = "tray-delete-";
 const DISPLAY_PREFIX: &str = "tray-display-";
+#[cfg(debug_assertions)]
+const DEVTOOLS_ID: &str = "tray-devtools";
 
-pub fn setup<R: Runtime>(
-    app: &AppHandle<R>,
+pub fn setup(
+    app: &AppHandle<Wry>,
     store: Arc<dyn FocusStore>,
     settings: Settings,
     settings_path: PathBuf,
-) -> tauri::Result<TrayIcon<R>> {
+) -> tauri::Result<TrayIcon<Wry>> {
     let focuses = match store.list() {
         Ok(f) => f,
         Err(e) => {
@@ -41,7 +44,18 @@ pub fn setup<R: Runtime>(
         .show_menu_on_left_click(true)
         .on_menu_event(move |app, event| {
             let id = event.id().0.as_str();
-            if id == QUIT_ID {
+            #[cfg(debug_assertions)]
+            if id == DEVTOOLS_ID {
+                if let Some(win) = app.get_webview_window("overlay-0") {
+                    win.open_devtools();
+                }
+                return;
+            }
+            if id == GATHER_PIGS_ID {
+                if let Some(win) = app.get_webview_window("overlay-0") {
+                    let _ = win.emit("gather-pigs", ());
+                }
+            } else if id == QUIT_ID {
                 app.exit(0);
             } else if id == NEW_FOCUS_ID {
                 if let Some(win) = app.get_webview_window("new-focus") {
@@ -76,9 +90,9 @@ pub fn setup<R: Runtime>(
     Ok(tray)
 }
 
-pub fn rebuild_handler<R: Runtime>(
-    tray: TrayIcon<R>,
-    handle: AppHandle<R>,
+pub fn rebuild_handler(
+    tray: TrayIcon<Wry>,
+    handle: AppHandle<Wry>,
     store: Arc<dyn FocusStore>,
     settings: Settings,
 ) -> Box<dyn Fn() + Send + 'static> {
@@ -107,9 +121,12 @@ pub fn rebuild_handler<R: Runtime>(
 /// Threshold: flat checklist in the tray root; more monitors nest under "Displays".
 const DISPLAY_SUBMENU_MIN_COUNT: usize = 4;
 
-fn build_menu<R: Runtime>(handle: &AppHandle<R>, focuses: &[Focus]) -> tauri::Result<Menu<R>> {
-    let mut items: Vec<Box<dyn IsMenuItem<R>>> = Vec::new();
+fn build_menu(handle: &AppHandle<Wry>, focuses: &[Focus]) -> tauri::Result<Menu<Wry>> {
+    let mut items: Vec<Box<dyn IsMenuItem<Wry>>> = Vec::new();
 
+    let gather = MenuItemBuilder::with_id(GATHER_PIGS_ID, "Gather Pigs").build(handle)?;
+    items.push(Box::new(gather));
+    items.push(Box::new(PredefinedMenuItem::separator(handle)?));
     let new_focus = MenuItemBuilder::with_id(NEW_FOCUS_ID, "+ New Focus").build(handle)?;
     items.push(Box::new(new_focus));
     items.push(Box::new(PredefinedMenuItem::separator(handle)?));
@@ -143,17 +160,24 @@ fn build_menu<R: Runtime>(handle: &AppHandle<R>, focuses: &[Focus]) -> tauri::Re
         append_display_items(handle, &mut items)?;
     }
 
+    #[cfg(debug_assertions)]
+    {
+        items.push(Box::new(PredefinedMenuItem::separator(handle)?));
+        let devtools =
+            MenuItemBuilder::with_id(DEVTOOLS_ID, "Open Overlay DevTools").build(handle)?;
+        items.push(Box::new(devtools));
+    }
     items.push(Box::new(PredefinedMenuItem::separator(handle)?));
     let quit = MenuItemBuilder::with_id(QUIT_ID, "Quit").build(handle)?;
     items.push(Box::new(quit));
 
-    let item_refs: Vec<&dyn IsMenuItem<R>> = items.iter().map(|b| b.as_ref()).collect();
+    let item_refs: Vec<&dyn IsMenuItem<Wry>> = items.iter().map(|b| b.as_ref()).collect();
     Menu::with_items(handle, &item_refs)
 }
 
-fn append_display_items<R: Runtime>(
-    handle: &AppHandle<R>,
-    items: &mut Vec<Box<dyn IsMenuItem<R>>>,
+fn append_display_items(
+    handle: &AppHandle<Wry>,
+    items: &mut Vec<Box<dyn IsMenuItem<Wry>>>,
 ) -> tauri::Result<()> {
     let Some(monitors_state) = handle.try_state::<MonitorsState>() else {
         return Ok(());
@@ -173,21 +197,21 @@ fn append_display_items<R: Runtime>(
     if use_submenu {
         let mut sub = SubmenuBuilder::new(handle, "Displays");
         for (idx, monitor) in monitors.iter().enumerate() {
-            let name = monitor.name.as_deref().unwrap_or("Unknown Display");
             let checked = enabled_indices.contains(&idx);
-            let item = CheckMenuItemBuilder::with_id(format!("{DISPLAY_PREFIX}{idx}"), name)
-                .checked(checked)
-                .build(handle)?;
+            let item =
+                CheckMenuItemBuilder::with_id(format!("{DISPLAY_PREFIX}{idx}"), &monitor.label)
+                    .checked(checked)
+                    .build(handle)?;
             sub = sub.item(&item);
         }
         items.push(Box::new(sub.build()?));
     } else {
         for (idx, monitor) in monitors.iter().enumerate() {
-            let name = monitor.name.as_deref().unwrap_or("Unknown Display");
             let checked = enabled_indices.contains(&idx);
-            let item = CheckMenuItemBuilder::with_id(format!("{DISPLAY_PREFIX}{idx}"), name)
-                .checked(checked)
-                .build(handle)?;
+            let item =
+                CheckMenuItemBuilder::with_id(format!("{DISPLAY_PREFIX}{idx}"), &monitor.label)
+                    .checked(checked)
+                    .build(handle)?;
             items.push(Box::new(item));
         }
     }
@@ -195,44 +219,22 @@ fn append_display_items<R: Runtime>(
     Ok(())
 }
 
-fn handle_delete<R: Runtime>(app: AppHandle<R>, focus_id: String) {
-    use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
-
-    let title = {
-        app.try_state::<crate::ui_bridge::CommandsState>()
-            .and_then(|state| state.0.list_focuses().ok())
-            .and_then(|focuses| focuses.into_iter().find(|f| f.id.0 == focus_id))
-            .map(|f| f.title)
-            .unwrap_or_else(|| focus_id.clone())
-    };
-
-    let confirmed = app
-        .dialog()
-        .message(format!("\"{}\" will be permanently removed.", title))
-        .title("Delete Focus?")
-        .buttons(MessageDialogButtons::OkCancelCustom(
-            "Delete".to_string(),
-            "Cancel".to_string(),
-        ))
-        .blocking_show();
-
-    if confirmed {
-        if let Some(state) = app.try_state::<crate::ui_bridge::CommandsState>() {
-            if let Err(e) = state.0.delete_focus(&focus_id) {
-                log::error!("tray delete_focus({focus_id:?}): {e}");
-            }
+fn handle_delete(app: AppHandle<Wry>, focus_id: String) {
+    if let Some(state) = app.try_state::<crate::ui_bridge::CommandsState>() {
+        if let Err(e) = state.0.delete_focus(&focus_id) {
+            log::error!("tray delete_focus({focus_id:?}): {e}");
         }
     }
 }
 
-fn handle_display_toggle<R: Runtime>(app: AppHandle<R>, idx: usize, settings_path: PathBuf) {
+fn handle_display_toggle(app: AppHandle<Wry>, idx: usize, settings_path: PathBuf) {
     let Some(display_state) = app.try_state::<DisplayConfigState>() else {
         return;
     };
     let Some(monitors_state) = app.try_state::<MonitorsState>() else {
         return;
     };
-    let Some(overlay_state) = app.try_state::<OverlayManagerState>() else {
+    let Some(overlay_state) = app.try_state::<DisplayManagerState>() else {
         return;
     };
 
@@ -257,12 +259,12 @@ fn handle_display_toggle<R: Runtime>(app: AppHandle<R>, idx: usize, settings_pat
     persist_display_config(&settings_path, &new_config);
 
     // Window creation/show/close must happen on the main thread on macOS.
-    let overlay_mgr = overlay_state.0.clone();
+    let display_mgr = Arc::clone(&overlay_state.0);
     let monitors = monitors_state.0.clone();
     let config_for_main = new_config.clone();
     let app_for_main = app.clone();
     if let Err(e) = app.run_on_main_thread(move || {
-        overlay_mgr.apply(&app_for_main, &monitors, &config_for_main);
+        display_mgr.apply(&app_for_main, &monitors, &config_for_main);
     }) {
         log::error!("tray: run_on_main_thread failed: {e}");
     }
@@ -279,7 +281,7 @@ fn persist_display_config(settings_path: &PathBuf, config: &DisplayConfig) {
     }
 }
 
-fn rebuild_tray_menu<R: Runtime>(app: &AppHandle<R>) {
+fn rebuild_tray_menu(app: &AppHandle<Wry>) {
     let focuses = app
         .try_state::<crate::ui_bridge::CommandsState>()
         .and_then(|s| s.0.list_focuses().ok())

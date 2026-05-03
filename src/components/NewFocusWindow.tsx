@@ -20,7 +20,7 @@ export function NewFocusWindow({
   onCancel,
 }: NewFocusWindowProps) {
   return (
-    <form className="new-focus-form" onSubmit={onSubmit}>
+    <form className="new-focus-form new-focus-form--window" onSubmit={onSubmit}>
       <input
         type="text"
         placeholder="Title"
