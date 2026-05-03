@@ -9,7 +9,7 @@ All notable changes to adhd-ranch. Follows [Keep a Changelog](https://keepachang
 ### Added — 024 display subsystem (WIP, PR #27 — cross-monitor drag still broken)
 
 - `display/` module tree replaces `app/overlay_manager.rs` + `app/pig_hittest.rs`
-  - `display/monitor.rs` — `LogicalMonitor`, `compute_span`, `disambiguate_names` (6 unit tests)
+  - `display/monitor.rs` — `LogicalMonitor`, `compute_span`, `disambiguate_names` (7 unit tests)
   - `display/overlay.rs` — window lifecycle; `ShowParams` struct; hit-test polling thread
   - `display/mod.rs` — `DisplayManager`, `PrimaryRegion`, `drag_active: Arc<AtomicBool>`
 - `PrimaryRegion` event — Rust emits CSS offset+size of first enabled monitor on window show; React confines pig spawn to visible display
@@ -20,6 +20,18 @@ All notable changes to adhd-ranch. Follows [Keep a Changelog](https://keepachang
 - Red debug banner in overlay (dev mode): shows window size, focus count, pig count
 - Log file at `~/Library/Logs/com.adhd-ranch.app/Adhd Ranch.log`
 - `issues/027-confirm-delete-setting.md` — tracks adding a confirm-delete preference
+
+### Fixed — 024 (CR review)
+
+- `display/mod.rs`: filter enabled monitors by `LogicalMonitor.index` not enumerate position — wrong displays could be selected on toggle
+- `display/mod.rs`: introduce `DisplayService` trait; `DisplayManagerState` holds `Arc<dyn DisplayService>`; tray + overlay use concrete `Wry` runtime
+- `display/overlay.rs`: `Arc<AtomicBool>` stop flag per overlay entry — old poller thread exits before window is recreated, preventing dual-poller race on display toggle
+- `display/monitor.rs`: `compute_span_portrait_above_landscape` test added (negative-y portrait above primary)
+- `App.tsx`: Tauri listener cleanup uses Promise-chaining — prevents subscription leak when component unmounts before `listen()` resolves
+- `PigSprite.tsx`: `onLostPointerCapture` guards on `startPosRef.current` not `isDraggingRef.current` — `drag_active` clears even when capture lost before drag threshold
+- `PigSprite.tsx`: `invoke("set_pig_drag_active")` moved to `App.tsx` — component is now I/O-free per CLAUDE.md
+- `usePigMovement.ts`: `gather()` wraps into columns when pig count exceeds display height — pigs no longer fall off short displays
+- `styles.css` / `NewFocusWindow.tsx`: `.new-focus-form--window` modifier split out — `min-height: 100vh` no longer bleeds into non-window usages of the form
 
 ### Changed — 024
 
