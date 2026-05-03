@@ -99,10 +99,14 @@ impl FocusStore for MarkdownFocusStore {
                 continue;
             }
             let raw = fs::read_to_string(&focus_md)?;
-            let focus = parse_focus_md(&raw).map_err(|error| FocusStoreError::Parse {
+            let mut focus = parse_focus_md(&raw).map_err(|error| FocusStoreError::Parse {
                 path: focus_md,
                 error,
             })?;
+            // The authoritative ID is the directory name (slug), not the
+            // frontmatter uuid field. All store ops (delete, append_task, etc.)
+            // join focus_id to the root dir, so the ID must be the slug.
+            focus.id = adhd_ranch_domain::FocusId(entry.file_name().to_string_lossy().into_owned());
             out.push(focus);
         }
 
