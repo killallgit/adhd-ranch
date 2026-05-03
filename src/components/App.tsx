@@ -31,6 +31,15 @@ export function App({ focusReader, focusWriter }: AppProps) {
     }
   }
 
+  async function handleAddTask(text: string) {
+    if (!selectedFocus) return;
+    try {
+      await focusWriter.appendTask(selectedFocus.id, text);
+    } catch {
+      // focusWriter already logs the typed error
+    }
+  }
+
   return (
     <div className="overlay-root">
       {pigs.map((pig) => (
@@ -53,6 +62,7 @@ export function App({ focusReader, focusWriter }: AppProps) {
           viewportH={screenH}
           onClose={() => setSelectedId(null)}
           onClearTask={handleClearTask}
+          onAddTask={handleAddTask}
         />
       )}
     </div>

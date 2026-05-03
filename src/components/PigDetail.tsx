@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { PIG_SIZE } from "../hooks/usePigMovement";
 import type { Focus } from "../types/focus";
 
@@ -10,9 +10,10 @@ export interface PigDetailProps {
   readonly viewportH: number;
   readonly onClose: () => void;
   readonly onClearTask: (index: number) => void;
+  readonly onAddTask: (text: string) => void;
 }
 
-const CARD_W = 210;
+const CARD_W = 340;
 const CARD_OFFSET_X = PIG_SIZE + 8;
 
 export function PigDetail({
@@ -23,7 +24,10 @@ export function PigDetail({
   viewportH,
   onClose,
   onClearTask,
+  onAddTask,
 }: PigDetailProps) {
+  const [taskInput, setTaskInput] = useState("");
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -67,6 +71,18 @@ export function PigDetail({
             ))}
           </ul>
         )}
+        <input
+          className="pig-detail-add-task"
+          placeholder="Add task…"
+          value={taskInput}
+          onChange={(e) => setTaskInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && taskInput.trim()) {
+              onAddTask(taskInput.trim());
+              setTaskInput("");
+            }
+          }}
+        />
       </div>
     </>
   );

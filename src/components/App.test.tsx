@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { createFixtureFocusReader } from "../api/fixtureFocusReader";
 import type { FocusWriter } from "../api/focusWriter";
@@ -55,5 +56,22 @@ describe("App overlay", () => {
       expect(screen.getByText("Customer X bug")).toBeInTheDocument();
       expect(screen.getByText("API refactor")).toBeInTheDocument();
     });
+  });
+
+  it("add-task input calls focusWriter.appendTask with selected focus id", async () => {
+    const writer = noopFocusWriter();
+    render(<App focusReader={createFixtureFocusReader(sample)} focusWriter={writer} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Customer X bug")).toBeInTheDocument();
+    });
+
+    // Click the pig to open PigDetail
+    await userEvent.click(screen.getByText("Customer X bug"));
+
+    const input = screen.getByPlaceholderText("Add task…");
+    await userEvent.type(input, "write tests{Enter}");
+
+    expect(writer.appendTask).toHaveBeenCalledWith("a", "write tests");
   });
 });
