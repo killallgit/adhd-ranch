@@ -6,6 +6,47 @@ All notable changes to adhd-ranch. Follows [Keep a Changelog](https://keepachang
 
 ## [Unreleased]
 
+### Added — 024 display subsystem (WIP, PR #27 — cross-monitor drag still broken)
+- `display/` module tree replaces `app/overlay_manager.rs` + `app/pig_hittest.rs`
+  - `display/monitor.rs` — `LogicalMonitor`, `compute_span`, `disambiguate_names` (6 unit tests)
+  - `display/overlay.rs` — window lifecycle; `ShowParams` struct; hit-test polling thread
+  - `display/mod.rs` — `DisplayManager`, `PrimaryRegion`, `drag_active: Arc<AtomicBool>`
+- `PrimaryRegion` event — Rust emits CSS offset+size of first enabled monitor on window show; React confines pig spawn to visible display
+- `drag_active` AtomicBool — hit-test thread forces overlay interactive during JS drag, eliminating click-through race at monitor boundary
+- `set_pig_drag_active` Tauri command — JS sets on pointer-down/up so flag is live before first 16ms poll
+- "Gather Pigs" tray menu item — snaps all pigs to top-right of primary display; rescues pigs lost on secondary
+- "Open Overlay DevTools" tray item (debug builds only)
+- Red debug banner in overlay (dev mode): shows window size, focus count, pig count
+- Log file at `~/Library/Logs/com.adhd-ranch.app/Adhd Ranch.log`
+- `issues/027-confirm-delete-setting.md` — tracks adding a confirm-delete preference
+
+### Changed — 024
+- Window builder uses `.inner_size().position()` instead of post-build `set_size()` — macOS WKWebView was overriding `set_size()` and resetting window to 800×600
+- `from_tauri` divides monitor size (physical) and position (logical) each by `scale_factor` → uniform logical space for `compute_span`
+- `compute_span` and `disambiguate_names` now in pure `display/monitor.rs` with tests
+- `PIG_SPEED` raised 35 → 60 px/s; minimum velocity floor (35% of `PIG_SPEED`) so pigs never appear frozen
+- `tickPig` uses `effectiveMaxY = primaryRegion.h` when pig is in primary display x-range — prevents pigs entering the dead zone below the main display on a multi-height span
+- Drag: `startDrag` sends wide hit-rect immediately (was deferred up to 67ms); `endDrag` restores narrow rects immediately
+- `PigSprite` adds `onPointerCancel` + `onLostPointerCapture` handlers to clean up stale drag state
+- `gather()` places pigs relative to `primaryRegion` top-right instead of raw `screenW`
+- New-focus window: dark opaque background (`rgba(22,22,26,0.97)`), larger padding, readable inputs
+- Confirm-delete dialog removed from tray — deletes immediately; setting tracked in #027
+
+## [1.2.1] — 2026-05-03 — Phase 3 polish
+
+### Added
+- `HITBOX_PADDING = 16` — pig hit-rect is 16px larger than sprite and centred; easier to click (018)
+- `buildHitRects(pigs, dpr): PigHitRect[]` — exported pure function for rect calculation
+- `PigDetail` add-task input — "Add task…" field at bottom of card; Enter appends task inline via `appendTask` (019)
+- Drag-and-toss pig physics — click+drag moves pig under cursor; release sends it flying with velocity computed from last 80ms of pointer history; `FRICTION = 0.97` decelerates each frame; bounces at edges (020)
+- `computeTossVelocity(samples, windowMs, now)` — exported pure function; velocity capped at `PIG_SPEED × 6`
+- `DRAG_THRESHOLD = 4` — pointer must move ≥ 4px for drag; otherwise treated as click → opens PigDetail
+
+### Changed
+- `PigDetail` card: fully opaque background, `min-width: 340px`, `padding: 16px`, task list scrolls at `max-height: 240px`
+- `usePigMovement` returns `{ pigs, startDrag, moveDrag, endDrag }` instead of bare `PigState[]`
+- `tickPig` speed cap raised from `PIG_SPEED × 1.2` to `PIG_SPEED × 6` to allow post-toss deceleration
+
 ## [1.1.0] — 2026-05-01
 
 Regular Mac app pivot. Replaces the tray-popover model with a draggable floating window, Dock icon, and standard app menu.
