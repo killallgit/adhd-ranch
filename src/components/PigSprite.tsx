@@ -1,7 +1,12 @@
+import { invoke } from "@tauri-apps/api/core";
 import { useRef } from "react";
 import pigSheet from "../assets/pig-spritesheet.png";
 import { DRAG_THRESHOLD, PIG_SIZE } from "../hooks/usePigMovement";
 import type { PigDirection } from "../hooks/usePigMovement";
+
+function setDragActive(active: boolean) {
+  invoke("set_pig_drag_active", { active }).catch(() => {});
+}
 
 const SHEET_COLS = 4;
 const DIRECTION_ROW: Record<PigDirection, number> = {
@@ -55,6 +60,7 @@ export function PigSprite({
         cursor: isDraggingRef.current ? "grabbing" : "pointer",
       }}
       onPointerDown={(e) => {
+        setDragActive(true);
         e.currentTarget.setPointerCapture?.(e.pointerId);
         startPosRef.current = { x: e.clientX, y: e.clientY };
         isDraggingRef.current = false;
@@ -72,11 +78,27 @@ export function PigSprite({
         }
       }}
       onPointerUp={(e) => {
+        setDragActive(false);
         e.currentTarget.releasePointerCapture?.(e.pointerId);
         startPosRef.current = null;
         const { wasDrag } = onDragEnd();
         isDraggingRef.current = false;
         if (!wasDrag) onClick();
+      }}
+      onPointerCancel={(e) => {
+        setDragActive(false);
+        e.currentTarget.releasePointerCapture?.(e.pointerId);
+        startPosRef.current = null;
+        onDragEnd();
+        isDraggingRef.current = false;
+      }}
+      onLostPointerCapture={() => {
+        if (isDraggingRef.current) {
+          setDragActive(false);
+          startPosRef.current = null;
+          onDragEnd();
+          isDraggingRef.current = false;
+        }
       }}
     >
       <div

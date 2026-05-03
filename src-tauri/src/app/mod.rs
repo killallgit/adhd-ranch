@@ -1,14 +1,14 @@
 pub mod cap_notifier;
 pub mod menu;
-pub mod overlay_manager;
 pub mod paths;
-pub mod pig_hittest;
 pub mod tray;
 pub mod window_always_on_top;
 
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use crate::display::monitor::LogicalMonitor;
+use crate::display::{DisplayManager, DisplayManagerState};
 use adhd_ranch_commands::{CapEvaluator, Commands};
 use adhd_ranch_domain::{DisplayConfig, OverCapMonitor, RectUpdater, Settings};
 use adhd_ranch_http_api::{serve, ServerHandle};
@@ -16,7 +16,6 @@ use adhd_ranch_storage::{
     watch_path, DecisionLog, FocusStore, FocusWatcher, JsonlDecisionLog, JsonlProposalQueue,
     MarkdownFocusStore, ProposalQueue,
 };
-use overlay_manager::{MonitorInfo, OverlayManager, OverlayManagerState};
 use tauri::{AppHandle, Emitter, Manager};
 use time::format_description::well_known::Rfc3339;
 
@@ -26,7 +25,7 @@ use cap_notifier::TauriCapNotifier;
 pub const FOCUSES_CHANGED_EVENT: &str = "focuses-changed";
 pub const PROPOSALS_CHANGED_EVENT: &str = "proposals-changed";
 
-pub struct MonitorsState(pub Vec<MonitorInfo>);
+pub struct MonitorsState(pub Vec<LogicalMonitor>);
 pub struct DisplayConfigState(pub Arc<Mutex<DisplayConfig>>);
 
 pub fn run() {
@@ -53,6 +52,7 @@ pub fn run() {
             ui_bridge::delete_task,
             ui_bridge::get_caps,
             ui_bridge::update_pig_rects,
+            ui_bridge::set_pig_drag_active,
         ])
         .menu(move |handle| menu::build(handle, always_on_top));
 
@@ -96,20 +96,18 @@ pub fn run() {
         app.manage(ui_bridge::CommandsState(commands));
 
         // Enumerate connected monitors and store for tray + overlay management.
-        let monitor_infos: Vec<MonitorInfo> = match app.available_monitors() {
+        let mut monitor_infos: Vec<LogicalMonitor> = match app.available_monitors() {
             Ok(monitors) => monitors
                 .into_iter()
-                .map(|m| MonitorInfo {
-                    name: m.name().map(|s| s.to_string()),
-                    size: *m.size(),
-                    position: *m.position(),
-                })
+                .enumerate()
+                .map(|(idx, m)| LogicalMonitor::from_tauri(idx, &m))
                 .collect(),
             Err(e) => {
                 log::error!("setup: failed to enumerate monitors: {e}");
                 Vec::new()
             }
         };
+        crate::display::monitor::disambiguate_names(&mut monitor_infos);
 
         let display_config = settings.displays.clone();
         app.manage(MonitorsState(monitor_infos.clone()));
@@ -117,13 +115,14 @@ pub fn run() {
             display_config.clone(),
         ))));
 
-        // Overlay manager must be managed before windows are shown so invoke
+        // DisplayManager must be managed before windows are shown so invoke
         // calls from React can find PigHitState immediately.
-        let overlay_manager = OverlayManager::new();
-        let rect_updater: Arc<dyn RectUpdater> = Arc::new(overlay_manager.clone());
+        let display_manager = DisplayManager::new();
+        let rect_updater: Arc<dyn RectUpdater> = Arc::new(display_manager.clone());
         app.manage(ui_bridge::PigHitState(rect_updater));
-        app.manage(OverlayManagerState(overlay_manager.clone()));
-        overlay_manager.apply(app.handle(), &monitor_infos, &display_config);
+        app.manage(ui_bridge::DragLockState(display_manager.drag_active()));
+        app.manage(DisplayManagerState(display_manager.clone()));
+        display_manager.apply(app.handle(), &monitor_infos, &display_config);
 
         let tray_icon = tray::setup(
             app.handle(),
