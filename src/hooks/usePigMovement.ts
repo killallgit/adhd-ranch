@@ -88,10 +88,22 @@ function tickPig(
   // Update position and reflect velocity at hard boundaries so pigs never escape.
   x += vx * (dt / 1000);
   y += vy * (dt / 1000);
-  if (x < 0) { x = 0; vx = Math.abs(vx); }
-  if (x > screenW - PIG_SIZE) { x = screenW - PIG_SIZE; vx = -Math.abs(vx); }
-  if (y < 0) { y = 0; vy = Math.abs(vy); }
-  if (y > screenH - PIG_SIZE) { y = screenH - PIG_SIZE; vy = -Math.abs(vy); }
+  if (x < 0) {
+    x = 0;
+    vx = Math.abs(vx);
+  }
+  if (x > screenW - PIG_SIZE) {
+    x = screenW - PIG_SIZE;
+    vx = -Math.abs(vx);
+  }
+  if (y < 0) {
+    y = 0;
+    vy = Math.abs(vy);
+  }
+  if (y > screenH - PIG_SIZE) {
+    y = screenH - PIG_SIZE;
+    vy = -Math.abs(vy);
+  }
 
   direction = direction4(vx, vy);
 
