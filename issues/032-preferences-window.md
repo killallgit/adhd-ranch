@@ -6,18 +6,18 @@ PRD.md §FR7 (configuration)
 
 ## What to build
 
-Native Tauri webview window opened via Tray → Settings → Open Preferences… and `Cmd-,`.
+Native Tauri webview window opened via Tray "Settings…" item (no submenu) or `Cmd-,`.
+Window is created on demand, destroyed on close, recreated on next open (not pre-configured in `tauri.conf.json`).
 
 ### Sections
 
 | Section | Controls |
 |---------|---------|
 | General | Max focuses (1–10), Max tasks per focus (1–20) |
+| Displays | Per-monitor toggle (moved from tray into Preferences window) |
 | Widget | Always on Top, Confirm Before Delete |
 | Alerts | System Notifications |
-| Debug | Debug Overlay (ephemeral — emits `debug-overlay-toggle`, not persisted) |
-
-Displays stay in the tray (complex, per-monitor).
+| Debug | Debug Overlay off by default; toggled here (ephemeral — emits `debug-overlay-toggle`, not persisted) |
 
 ### Backend
 
@@ -39,23 +39,23 @@ Displays stay in the tray (complex, per-monitor).
 
 ### Tray + menu
 
-- `tray.rs` — "Open Preferences…" item at top of Settings submenu
+- `tray.rs` — single "Settings…" item (no submenu) that opens Preferences window on demand
 - `menu.rs` — "Preferences…" with `Cmd-,` in app menu
-- `tauri.conf.json` — `settings` window entry
 - `vite.config.ts` — `settings` Rollup input
 
 ## Completion promise
 
-`Cmd-,` or Tray → Settings → Open Preferences opens a window where all non-display settings are editable. Changes persist immediately.
+`Cmd-,` or Tray "Settings…" opens a Preferences window where all settings (including display toggles) are editable. Changes persist immediately. Window is ephemeral — destroyed on close.
 
 ## Acceptance criteria
 
 - [ ] `Cmd-,` opens Preferences window
-- [ ] Tray → Settings → Open Preferences… opens Preferences window
-- [ ] All four sections render with correct current values
+- [ ] Tray "Settings…" (single item, no submenu) opens Preferences window
+- [ ] All sections render with correct current values, including Displays (per-monitor toggles)
 - [ ] Changing caps, widget, or alerts persists to `settings.yaml` immediately
 - [ ] `always_on_top` change takes effect on overlay windows without restart
-- [ ] Debug overlay toggle emits `debug-overlay-toggle` and is ephemeral
+- [ ] Debug overlay is off by default; toggle emits `debug-overlay-toggle` and is ephemeral
+- [ ] Closing Preferences destroys the window; reopening recreates it
 - [ ] `task check` green
 
 ## Blocked by

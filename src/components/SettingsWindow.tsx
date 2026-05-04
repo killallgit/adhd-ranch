@@ -165,7 +165,7 @@ export function SettingsWindow({
         <h2 className="settings-section-title">Debug</h2>
         <ToggleRow label="Debug Overlay" checked={debugOverlay} onChange={onSetDebugOverlay} />
         {import.meta.env.DEV && (
-          <ToggleRow label="DevTools" checked={devtoolsOpen} onChange={onToggleDevtools} />
+          <ToggleRow label="DevTools" checked={devtoolsOpen} onChange={() => onToggleDevtools()} />
         )}
       </section>
     </div>

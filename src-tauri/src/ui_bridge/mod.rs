@@ -184,8 +184,9 @@ pub fn update_settings(
 
     if settings.displays != old_displays {
         if let Some(display_state) = app.try_state::<crate::app::DisplayConfigState>() {
-            if let Ok(mut config) = display_state.0.lock() {
-                *config = settings.displays.clone();
+            match display_state.0.lock() {
+                Ok(mut config) => *config = settings.displays.clone(),
+                Err(e) => log::error!("update_settings: display config lock poisoned: {e}"),
             }
         }
         if let Some(overlay_state) = app.try_state::<crate::display::DisplayManagerState>() {
@@ -236,9 +237,8 @@ pub fn get_debug_overlay(state: State<'_, DebugOverlayState>) -> bool {
 
 #[tauri::command]
 pub fn set_debug_overlay(enabled: bool, app: AppHandle<Wry>, state: State<'_, DebugOverlayState>) {
-    if let Ok(mut v) = state.0.lock() {
-        *v = enabled;
-    }
+    let Ok(mut v) = state.0.lock() else { return };
+    *v = enabled;
     let _ = app.emit("debug-overlay-toggle", enabled);
 }
 
