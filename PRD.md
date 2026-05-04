@@ -76,6 +76,7 @@ Unchanged. Each Focus is a directory under `~/.adhd-ranch/focuses/<slug>/` conta
 - Sprite: real pixel-art sprite sheet when assets are ready (4 directions × 4 frames in one PNG); placeholder CSS/SVG pig until then.
 - Clicking a pig opens `PigDetail` popover near the pig (edge-clamped): Focus title + task list + `✗` per task.
 - `PigDetail` closes on click-outside.
+- **Timer growth (028 — domain + creation done; 030 — visual pending):** If a Focus has a `FocusTimer`, its pig grows from 1× to 3× sprite size linearly over the timer window. Pigs without a timer stay at 1×. Expired pigs show a distinct visual style. `growth_factor(elapsed, duration) → f32` is a pure domain function.
 
 ### FR4 — Menu bar item
 
@@ -111,7 +112,11 @@ alerts:
   system_notifications: true
 widget:
   always_on_top: true
+notifications:
+  timer_expired: true   # per-source toggle; extensible via NotificationSource trait (029 pending)
 ```
+
+Timer presets available at Focus creation: No timer / 2m / 4m / 8m / 16m / 32m / Custom (free integer minutes).
 
 ### FR8 — Audit log
 

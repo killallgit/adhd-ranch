@@ -6,6 +6,19 @@ All notable changes to adhd-ranch. Follows [Keep a Changelog](https://keepachang
 
 ## [Unreleased]
 
+### Added — 028 focus timer: domain types + full-stack creation (PR #32)
+
+- `crates/domain/src/timer.rs` — pure domain: `FocusTimer`, `TimerPreset` (2/4/8/16/32m + Custom), `TimerStatus`, `timer_remaining_secs()`, `growth_factor()`
+- `Focus.timer: Option<FocusTimer>` — timer persisted as `timer.json` sidecar alongside `focus.md`; loaded on `list()`
+- `NewFocus.timer_preset: Option<TimerPreset>` — preset carried through creation path
+- `Commands` gains injected `ClockSecs` for deterministic `started_at` in tests
+- `ProposalLifecycle` also gains `ClockSecs`; builds `FocusTimer` when accepting `NewFocus` proposals with a preset
+- `ServerDeps.clock_secs` exposed for API test determinism
+- `NewFocusForm` — timer dropdown (No timer / 2m / 4m / 8m / 16m / 32m / Custom); Custom shows number input
+- `src/types/timer.ts` — `TimerPreset`, `FocusTimer`, `TimerStatus` TypeScript types
+- `focusWriter.ts` — `createFocus` accepts and forwards `timer_preset`
+- `create_focus` atomic: rollback (remove focus dir) if `timer.json` write fails after `focus.md` committed
+
 ### Added — 024 display subsystem (WIP, PR #27 — cross-monitor drag still broken)
 
 - `display/` module tree replaces `app/overlay_manager.rs` + `app/pig_hittest.rs`
