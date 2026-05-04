@@ -1,5 +1,5 @@
-import { listen } from "@tauri-apps/api/event";
 import { useEffect, useState } from "react";
+import { subscribeDebugOverlay } from "../api/debugOverlay";
 
 function getTopOffset(): number {
   if (typeof navigator === "undefined") return 0;
@@ -8,15 +8,18 @@ function getTopOffset(): number {
 
 const TOP_OFFSET = getTopOffset();
 
-export function useDebugOverlay() {
+export interface DebugOverlayState {
+  visible: boolean;
+  topOffset: number;
+}
+
+export function useDebugOverlay(): DebugOverlayState {
   const [visible, setVisible] = useState(import.meta.env.DEV);
 
   useEffect(() => {
-    const unlisten = listen<boolean>("debug-overlay-toggle", (e) => {
-      setVisible(e.payload);
-    });
+    const unsub = subscribeDebugOverlay(setVisible);
     return () => {
-      unlisten.then((f) => f());
+      unsub.then((f) => f());
     };
   }, []);
 
