@@ -14,7 +14,7 @@ export interface DebugOverlayState {
 }
 
 export function useDebugOverlay(): DebugOverlayState {
-  const [visible, setVisible] = useState(import.meta.env.DEV);
+  const [visible, setVisible] = useState(false);
 
   useEffect(() => {
     const unsub = subscribeDebugOverlay(setVisible);

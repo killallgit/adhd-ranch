@@ -7,11 +7,18 @@ use tauri::{AppHandle, Manager, Runtime};
 pub const SHOW_RANCH_ID: &str = "show-ranch";
 pub const CLOSE_WINDOW_ID: &str = "close-window";
 pub const SHOW_DEBUG_OVERLAY_ID: &str = "show-debug-overlay";
+pub const OPEN_PREFS_ID: &str = "open-preferences";
 const MAIN_WINDOW: &str = "overlay-0";
 
 pub fn build<R: Runtime>(handle: &AppHandle<R>) -> tauri::Result<Menu<R>> {
+    let prefs_item = MenuItemBuilder::with_id(OPEN_PREFS_ID, "Preferences…")
+        .accelerator("CmdOrCtrl+,")
+        .build(handle)?;
+
     let app_submenu = SubmenuBuilder::new(handle, "Adhd Ranch")
         .item(&PredefinedMenuItem::about(handle, None, None)?)
+        .separator()
+        .item(&prefs_item)
         .separator()
         .item(&PredefinedMenuItem::quit(handle, None)?)
         .build()?;
@@ -70,6 +77,9 @@ pub fn handle_event<R: Runtime>(app: &AppHandle<R>, event: MenuEvent) {
             }
         }
         SHOW_DEBUG_OVERLAY_ID => toggle_debug_overlay(app),
+        OPEN_PREFS_ID => {
+            super::open_settings_window(app);
+        }
         _ => {}
     }
 }

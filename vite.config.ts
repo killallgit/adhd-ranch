@@ -17,6 +17,7 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, "index.html"),
         newFocus: resolve(__dirname, "new-focus.html"),
+        settings: resolve(__dirname, "settings.html"),
       },
     },
   },

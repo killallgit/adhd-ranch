@@ -16,7 +16,7 @@ use adhd_ranch_storage::{
     watch_path, DecisionLog, FocusStore, FocusWatcher, JsonlDecisionLog, JsonlProposalQueue,
     MarkdownFocusStore, ProposalQueue,
 };
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 use time::format_description::well_known::Rfc3339;
 
 use crate::ui_bridge;
@@ -28,6 +28,8 @@ pub const PROPOSALS_CHANGED_EVENT: &str = "proposals-changed";
 pub struct MonitorsState(pub Vec<LogicalMonitor>);
 pub struct DisplayConfigState(pub Arc<Mutex<DisplayConfig>>);
 pub struct SettingsState(pub Arc<Mutex<Settings>>);
+pub struct SettingsPathState(pub std::path::PathBuf);
+pub struct DebugOverlayState(pub Arc<Mutex<bool>>);
 
 pub fn run() {
     let settings_path = paths::settings_file().expect("settings path");
@@ -51,6 +53,13 @@ pub fn run() {
             ui_bridge::get_caps,
             ui_bridge::update_pig_rects,
             ui_bridge::set_pig_drag_active,
+            ui_bridge::get_settings,
+            ui_bridge::update_settings,
+            ui_bridge::get_monitors,
+            ui_bridge::get_debug_overlay,
+            ui_bridge::set_debug_overlay,
+            ui_bridge::toggle_devtools,
+            ui_bridge::get_devtools_open,
         ])
         .menu(menu::build);
 
@@ -112,6 +121,8 @@ pub fn run() {
             display_config.clone(),
         ))));
         app.manage(SettingsState(Arc::new(Mutex::new(settings.clone()))));
+        app.manage(SettingsPathState(settings_path.clone()));
+        app.manage(DebugOverlayState(Arc::new(Mutex::new(false))));
 
         // DisplayManager must be managed before windows are shown so invoke
         // calls from React can find PigHitState immediately.
@@ -123,12 +134,7 @@ pub fn run() {
         app.manage(DisplayManagerState(Arc::clone(&display_svc)));
         display_svc.apply(app.handle(), &monitor_infos, &display_config);
 
-        let tray_icon = tray::setup(
-            app.handle(),
-            store.clone(),
-            settings.clone(),
-            settings_path.clone(),
-        )?;
+        let tray_icon = tray::setup(app.handle(), store.clone(), settings.clone())?;
 
         let focuses_watcher = install_change_handlers(
             &focuses_root,
@@ -185,6 +191,30 @@ fn now_rfc3339() -> String {
 
 fn now_unix_secs() -> i64 {
     time::OffsetDateTime::now_utc().unix_timestamp()
+}
+
+pub fn open_settings_window<R: tauri::Runtime>(app: &AppHandle<R>) {
+    if let Some(win) = app.get_webview_window("settings") {
+        if win.is_visible().unwrap_or(false) {
+            let _ = win.set_focus();
+            return;
+        }
+        // Label still registered but window is closed — destroy to free it
+        let _ = win.destroy();
+    }
+    match WebviewWindowBuilder::new(app, "settings", WebviewUrl::App("settings.html".into()))
+        .title("Preferences")
+        .inner_size(380.0, 300.0)
+        .min_inner_size(380.0, 100.0)
+        .decorations(true)
+        .resizable(false)
+        .build()
+    {
+        Ok(win) => {
+            let _ = win.show();
+        }
+        Err(e) => log::error!("open_settings_window: {e}"),
+    }
 }
 
 fn load_settings(path: &std::path::Path) -> Settings {
