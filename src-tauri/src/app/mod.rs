@@ -33,8 +33,6 @@ pub fn run() {
     let settings_path = paths::settings_file().expect("settings path");
     let settings = load_settings(&settings_path);
 
-    let event_settings_path = settings_path.clone();
-
     let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_log::Builder::new().build())
         .plugin(tauri_plugin_notification::init())
@@ -56,9 +54,7 @@ pub fn run() {
         ])
         .menu(menu::build);
 
-    builder = builder.on_menu_event(move |app, event| {
-        menu::handle_event(app, event, &event_settings_path);
-    });
+    builder = builder.on_menu_event(menu::handle_event);
 
     builder = builder.setup(move |app| {
         let focuses_root = paths::focuses_root()?;

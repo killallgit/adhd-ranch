@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use tauri::menu::{
     CheckMenuItemBuilder, Menu, MenuEvent, MenuItemBuilder, MenuItemKind, PredefinedMenuItem,
     SubmenuBuilder,
@@ -58,7 +56,7 @@ pub fn build<R: Runtime>(handle: &AppHandle<R>) -> tauri::Result<Menu<R>> {
     )
 }
 
-pub fn handle_event<R: Runtime>(app: &AppHandle<R>, event: MenuEvent, _settings_path: &PathBuf) {
+pub fn handle_event<R: Runtime>(app: &AppHandle<R>, event: MenuEvent) {
     match event.id().0.as_str() {
         CLOSE_WINDOW_ID => {
             if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
