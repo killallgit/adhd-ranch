@@ -21,7 +21,7 @@ describe("NewFocusForm", () => {
     expect(onCreate).not.toHaveBeenCalled();
   });
 
-  it("calls onCreate with trimmed title and description", async () => {
+  it("calls onCreate with trimmed title, description, and null timer by default", async () => {
     const onCreate = vi.fn().mockResolvedValue(undefined);
     render(<NewFocusForm onCreate={onCreate} />);
     fireEvent.click(screen.getByTestId("new-focus-toggle"));
@@ -36,6 +36,60 @@ describe("NewFocusForm", () => {
       expect(onCreate).toHaveBeenCalledWith({
         title: "Customer X bug",
         description: "ship",
+        timer_preset: null,
+      });
+    });
+  });
+
+  it("passes selected preset to onCreate", async () => {
+    const onCreate = vi.fn().mockResolvedValue(undefined);
+    render(<NewFocusForm onCreate={onCreate} />);
+    fireEvent.click(screen.getByTestId("new-focus-toggle"));
+    fireEvent.change(screen.getByLabelText("new focus title"), {
+      target: { value: "Timer focus" },
+    });
+    fireEvent.change(screen.getByTestId("timer-preset-select"), {
+      target: { value: "Eight" },
+    });
+    fireEvent.click(screen.getByText("Create"));
+    await waitFor(() => {
+      expect(onCreate).toHaveBeenCalledWith({
+        title: "Timer focus",
+        description: "",
+        timer_preset: "Eight",
+      });
+    });
+  });
+
+  it("shows custom input when custom preset selected", () => {
+    render(<NewFocusForm onCreate={() => Promise.resolve()} />);
+    fireEvent.click(screen.getByTestId("new-focus-toggle"));
+    expect(screen.queryByTestId("custom-timer-input")).not.toBeInTheDocument();
+    fireEvent.change(screen.getByTestId("timer-preset-select"), {
+      target: { value: "custom" },
+    });
+    expect(screen.getByTestId("custom-timer-input")).toBeInTheDocument();
+  });
+
+  it("passes Custom preset with minutes to onCreate", async () => {
+    const onCreate = vi.fn().mockResolvedValue(undefined);
+    render(<NewFocusForm onCreate={onCreate} />);
+    fireEvent.click(screen.getByTestId("new-focus-toggle"));
+    fireEvent.change(screen.getByLabelText("new focus title"), {
+      target: { value: "Custom timer" },
+    });
+    fireEvent.change(screen.getByTestId("timer-preset-select"), {
+      target: { value: "custom" },
+    });
+    fireEvent.change(screen.getByTestId("custom-timer-input"), {
+      target: { value: "45" },
+    });
+    fireEvent.click(screen.getByText("Create"));
+    await waitFor(() => {
+      expect(onCreate).toHaveBeenCalledWith({
+        title: "Custom timer",
+        description: "",
+        timer_preset: { Custom: 45 },
       });
     });
   });

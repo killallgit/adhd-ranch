@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::timer::FocusTimer;
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct FocusId(pub String);
 
@@ -16,6 +18,8 @@ pub struct Focus {
     pub description: String,
     pub created_at: String,
     pub tasks: Vec<Task>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub timer: Option<FocusTimer>,
 }
 
 #[cfg(test)]
@@ -33,6 +37,7 @@ mod tests {
                 id: "abc:0".into(),
                 text: "step one".into(),
             }],
+            timer: None,
         };
         let json = serde_json::to_string(&f).expect("serialize");
         let back: Focus = serde_json::from_str(&json).expect("deserialize");

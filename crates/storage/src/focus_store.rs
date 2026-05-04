@@ -2,7 +2,7 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
-use adhd_ranch_domain::{parse_focus_md, slugify, Focus, NewFocus, ParseError};
+use adhd_ranch_domain::{parse_focus_md, slugify, Focus, FocusTimer, NewFocus, ParseError};
 
 use crate::atomic::atomic_write;
 
@@ -46,6 +46,7 @@ pub trait FocusStore: Send + Sync {
         new_focus: &NewFocus,
         id: &str,
         created_at: &str,
+        timer: Option<FocusTimer>,
     ) -> Result<String, FocusStoreError>;
     fn delete_focus(&self, focus_id: &str) -> Result<(), FocusStoreError>;
     fn append_task(&self, focus_id: &str, text: &str) -> Result<(), FocusStoreError>;
@@ -107,6 +108,14 @@ impl FocusStore for MarkdownFocusStore {
             // frontmatter uuid field. All store ops (delete, append_task, etc.)
             // join focus_id to the root dir, so the ID must be the slug.
             focus.id = adhd_ranch_domain::FocusId(entry.file_name().to_string_lossy().into_owned());
+            let timer_path = entry.path().join("timer.json");
+            if timer_path.is_file() {
+                let raw = fs::read_to_string(&timer_path)?;
+                focus.timer = Some(
+                    serde_json::from_str(&raw)
+                        .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?,
+                );
+            }
             out.push(focus);
         }
 
@@ -123,6 +132,7 @@ impl FocusStore for MarkdownFocusStore {
         new_focus: &NewFocus,
         id: &str,
         created_at: &str,
+        timer: Option<FocusTimer>,
     ) -> Result<String, FocusStoreError> {
         let slug = slugify(&new_focus.title);
         let dir = self.root.join(&slug);
@@ -137,6 +147,15 @@ impl FocusStore for MarkdownFocusStore {
             description = new_focus.description,
         );
         atomic_write(&dir.join("focus.md"), body.as_bytes())?;
+
+        if let Some(t) = timer {
+            let json = serde_json::to_vec(&t).map_err(io::Error::other)?;
+            if let Err(err) = atomic_write(&dir.join("timer.json"), &json) {
+                let _ = fs::remove_dir_all(&dir);
+                return Err(err.into());
+            }
+        }
+
         Ok(slug)
     }
 
@@ -344,9 +363,11 @@ mod tests {
                 &NewFocus {
                     title: "Customer X bug".into(),
                     description: "ship it".into(),
+                    timer_preset: None,
                 },
                 "id-1",
                 "2026-04-30T12:00:00Z",
+                None,
             )
             .unwrap();
         assert_eq!(slug, "customer-x-bug");
@@ -366,9 +387,11 @@ mod tests {
                 &NewFocus {
                     title: "Customer X bug".into(),
                     description: "".into(),
+                    timer_preset: None,
                 },
                 "id-2",
                 "2026-04-30T12:00:00Z",
+                None,
             )
             .unwrap_err();
         assert!(matches!(err, FocusStoreError::AlreadyExists(slug) if slug == "customer-x-bug"));

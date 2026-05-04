@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use adhd_ranch_commands::{Clock, CommandError, Commands, IdGen};
+use adhd_ranch_commands::{Clock, ClockSecs, CommandError, Commands, IdGen};
 use adhd_ranch_domain::Settings;
 use adhd_ranch_storage::{DecisionLog, FocusStore, ProposalQueue};
 use axum::http::StatusCode;
@@ -23,6 +23,7 @@ pub struct FocusCatalogEntry {
 #[derive(Clone, Default)]
 pub struct ServerDeps {
     pub clock: Option<Clock>,
+    pub clock_secs: Option<ClockSecs>,
     pub id_gen: Option<IdGen>,
     pub settings: Option<Settings>,
 }
@@ -47,13 +48,14 @@ pub fn router_with(
     deps: ServerDeps,
 ) -> Router {
     let clock: Clock = deps.clock.unwrap_or_else(|| Arc::new(now_rfc3339));
+    let clock_secs: ClockSecs = deps.clock_secs.unwrap_or_else(|| Arc::new(now_unix_secs));
     let id_gen: IdGen = deps
         .id_gen
         .unwrap_or_else(|| Arc::new(|| uuid::Uuid::now_v7().to_string()));
     let settings = deps.settings.unwrap_or_default();
 
     let commands = Arc::new(Commands::new(
-        store, queue, decisions, clock, id_gen, settings,
+        store, queue, decisions, clock, clock_secs, id_gen, settings,
     ));
     let state = AppState { commands };
 
@@ -68,6 +70,10 @@ fn now_rfc3339() -> String {
     time::OffsetDateTime::now_utc()
         .format(&Rfc3339)
         .unwrap_or_else(|_| String::new())
+}
+
+fn now_unix_secs() -> i64 {
+    time::OffsetDateTime::now_utc().unix_timestamp()
 }
 
 #[derive(Debug)]

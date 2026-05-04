@@ -80,6 +80,7 @@ pub fn run() {
             queue.clone(),
             decision_log.clone(),
             Arc::new(now_rfc3339),
+            Arc::new(now_unix_secs),
             Arc::new(|| uuid::Uuid::now_v7().to_string()),
             settings.clone(),
         ));
@@ -183,6 +184,10 @@ fn now_rfc3339() -> String {
     time::OffsetDateTime::now_utc()
         .format(&Rfc3339)
         .unwrap_or_default()
+}
+
+fn now_unix_secs() -> i64 {
+    time::OffsetDateTime::now_utc().unix_timestamp()
 }
 
 fn load_settings(path: &std::path::Path) -> Settings {
