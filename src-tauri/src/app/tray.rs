@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use adhd_ranch_domain::{cap_state, DisplayConfig, Focus, Settings};
+use adhd_ranch_domain::{cap_state, Focus, Settings, Widget};
 use adhd_ranch_storage::{write_settings, FocusStore};
 use tauri::image::Image;
 use tauri::menu::{
@@ -10,7 +10,7 @@ use tauri::menu::{
 use tauri::tray::{TrayIcon, TrayIconBuilder};
 use tauri::{AppHandle, Emitter, Manager, Wry};
 
-use super::{DisplayConfigState, MonitorsState};
+use super::{DisplayConfigState, MonitorsState, SettingsState};
 use crate::display::DisplayManagerState;
 
 const QUIT_ID: &str = "tray-quit";
@@ -19,6 +19,8 @@ const NEW_FOCUS_ID: &str = "tray-new-focus";
 const GATHER_PIGS_ID: &str = "tray-gather-pigs";
 const DELETE_PREFIX: &str = "tray-delete-";
 const DISPLAY_PREFIX: &str = "tray-display-";
+const TRAY_ALWAYS_ON_TOP_ID: &str = "tray-always-on-top";
+const TRAY_CONFIRM_DELETE_ID: &str = "tray-confirm-delete";
 #[cfg(debug_assertions)]
 const DEVTOOLS_ID: &str = "tray-devtools";
 
@@ -62,6 +64,14 @@ pub fn setup(
                     let _ = win.show();
                     let _ = win.set_focus();
                 }
+            } else if id == TRAY_ALWAYS_ON_TOP_ID {
+                let app_handle = app.clone();
+                let path = settings_path_for_handler.clone();
+                std::thread::spawn(move || handle_always_on_top_toggle(app_handle, path));
+            } else if id == TRAY_CONFIRM_DELETE_ID {
+                let app_handle = app.clone();
+                let path = settings_path_for_handler.clone();
+                std::thread::spawn(move || handle_confirm_delete_toggle(app_handle, path));
             } else if let Some(focus_id) = id.strip_prefix(DELETE_PREFIX) {
                 let focus_id = focus_id.to_string();
                 let app_handle = app.clone();
@@ -118,10 +128,15 @@ pub fn rebuild_handler(
     })
 }
 
-/// Threshold: flat checklist in the tray root; more monitors nest under "Displays".
+/// Threshold: more monitors nest under a "Displays" submenu inside Settings.
 const DISPLAY_SUBMENU_MIN_COUNT: usize = 4;
 
 fn build_menu(handle: &AppHandle<Wry>, focuses: &[Focus]) -> tauri::Result<Menu<Wry>> {
+    let widget = handle
+        .try_state::<SettingsState>()
+        .and_then(|s| s.0.lock().ok().map(|s| s.widget))
+        .unwrap_or_default();
+
     let mut items: Vec<Box<dyn IsMenuItem<Wry>>> = Vec::new();
 
     let gather = MenuItemBuilder::with_id(GATHER_PIGS_ID, "Gather Pigs").build(handle)?;
@@ -150,15 +165,8 @@ fn build_menu(handle: &AppHandle<Wry>, focuses: &[Focus]) -> tauri::Result<Menu<
         }
     }
 
-    let has_displays = handle
-        .try_state::<MonitorsState>()
-        .map(|s| !s.0.is_empty())
-        .unwrap_or(false);
-
-    if has_displays {
-        items.push(Box::new(PredefinedMenuItem::separator(handle)?));
-        append_display_items(handle, &mut items)?;
-    }
+    items.push(Box::new(PredefinedMenuItem::separator(handle)?));
+    items.push(Box::new(build_settings_submenu(handle, &widget)?));
 
     #[cfg(debug_assertions)]
     {
@@ -175,15 +183,42 @@ fn build_menu(handle: &AppHandle<Wry>, focuses: &[Focus]) -> tauri::Result<Menu<
     Menu::with_items(handle, &item_refs)
 }
 
-fn append_display_items(
+fn build_settings_submenu(
     handle: &AppHandle<Wry>,
-    items: &mut Vec<Box<dyn IsMenuItem<Wry>>>,
-) -> tauri::Result<()> {
+    widget: &Widget,
+) -> tauri::Result<impl IsMenuItem<Wry>> {
+    let always_on_top = CheckMenuItemBuilder::with_id(TRAY_ALWAYS_ON_TOP_ID, "Always on Top")
+        .checked(widget.always_on_top)
+        .build(handle)?;
+    let confirm_delete =
+        CheckMenuItemBuilder::with_id(TRAY_CONFIRM_DELETE_ID, "Confirm Before Delete")
+            .checked(widget.confirm_delete)
+            .build(handle)?;
+
+    let window_sub = SubmenuBuilder::new(handle, "Window")
+        .item(&always_on_top)
+        .item(&confirm_delete)
+        .build()?;
+
+    let display_items = build_display_setting_items(handle)?;
+
+    let mut settings_sub = SubmenuBuilder::new(handle, "Settings").item(&window_sub);
+
+    for di in &display_items {
+        settings_sub = settings_sub.item(di.as_ref());
+    }
+
+    settings_sub.build()
+}
+
+fn build_display_setting_items(
+    handle: &AppHandle<Wry>,
+) -> tauri::Result<Vec<Box<dyn IsMenuItem<Wry>>>> {
     let Some(monitors_state) = handle.try_state::<MonitorsState>() else {
-        return Ok(());
+        return Ok(Vec::new());
     };
     if monitors_state.0.is_empty() {
-        return Ok(());
+        return Ok(Vec::new());
     }
 
     let enabled_indices = handle
@@ -192,19 +227,19 @@ fn append_display_items(
         .unwrap_or_else(|| vec![0]);
 
     let monitors = &monitors_state.0;
-    let use_submenu = monitors.len() >= DISPLAY_SUBMENU_MIN_COUNT;
+    let mut out: Vec<Box<dyn IsMenuItem<Wry>>> = Vec::new();
 
-    if use_submenu {
-        let mut sub = SubmenuBuilder::new(handle, "Displays");
+    if monitors.len() >= DISPLAY_SUBMENU_MIN_COUNT {
+        let mut display_sub = SubmenuBuilder::new(handle, "Displays");
         for (idx, monitor) in monitors.iter().enumerate() {
             let checked = enabled_indices.contains(&idx);
             let item =
                 CheckMenuItemBuilder::with_id(format!("{DISPLAY_PREFIX}{idx}"), &monitor.label)
                     .checked(checked)
                     .build(handle)?;
-            sub = sub.item(&item);
+            display_sub = display_sub.item(&item);
         }
-        items.push(Box::new(sub.build()?));
+        out.push(Box::new(display_sub.build()?));
     } else {
         for (idx, monitor) in monitors.iter().enumerate() {
             let checked = enabled_indices.contains(&idx);
@@ -212,14 +247,79 @@ fn append_display_items(
                 CheckMenuItemBuilder::with_id(format!("{DISPLAY_PREFIX}{idx}"), &monitor.label)
                     .checked(checked)
                     .build(handle)?;
-            items.push(Box::new(item));
+            out.push(Box::new(item));
         }
     }
 
-    Ok(())
+    Ok(out)
+}
+
+fn handle_always_on_top_toggle(app: AppHandle<Wry>, settings_path: PathBuf) {
+    let new_val = {
+        let Some(state) = app.try_state::<SettingsState>() else {
+            return;
+        };
+        let Ok(mut s) = state.0.lock() else { return };
+        s.widget.always_on_top = !s.widget.always_on_top;
+        let v = s.widget.always_on_top;
+        // Persist under lock so the applied value and persisted value are always in sync.
+        if let Err(e) = write_settings(&settings_path, &s) {
+            log::error!("tray: failed to persist settings: {e}");
+        }
+        v
+    };
+
+    if let Some(win) = app.get_webview_window("overlay-0") {
+        super::window_always_on_top::apply(&win, new_val);
+    }
+
+    rebuild_tray_menu(&app);
+}
+
+fn handle_confirm_delete_toggle(app: AppHandle<Wry>, settings_path: PathBuf) {
+    {
+        let Some(state) = app.try_state::<SettingsState>() else {
+            return;
+        };
+        let Ok(mut s) = state.0.lock() else { return };
+        s.widget.confirm_delete = !s.widget.confirm_delete;
+    }
+
+    persist_settings(&app, &settings_path);
+    rebuild_tray_menu(&app);
 }
 
 fn handle_delete(app: AppHandle<Wry>, focus_id: String) {
+    let confirm = app
+        .try_state::<SettingsState>()
+        .and_then(|s| s.0.lock().ok().map(|s| s.widget.confirm_delete))
+        .unwrap_or(true);
+
+    if confirm {
+        use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
+        let title = app
+            .try_state::<crate::ui_bridge::CommandsState>()
+            .and_then(|s| {
+                s.0.list_focuses()
+                    .ok()
+                    .and_then(|fs| fs.into_iter().find(|f| f.id.0 == focus_id))
+                    .map(|f| f.title)
+            })
+            .unwrap_or_else(|| "this focus".to_string());
+
+        let confirmed = app
+            .dialog()
+            .message(format!("Delete \"{title}\"? This cannot be undone."))
+            .title("Delete Focus")
+            .kind(MessageDialogKind::Warning)
+            .buttons(MessageDialogButtons::OkCancel)
+            .blocking_show();
+
+        if !confirmed {
+            return;
+        }
+    }
+
     if let Some(state) = app.try_state::<crate::ui_bridge::CommandsState>() {
         if let Err(e) = state.0.delete_focus(&focus_id) {
             log::error!("tray delete_focus({focus_id:?}): {e}");
@@ -238,7 +338,6 @@ fn handle_display_toggle(app: AppHandle<Wry>, idx: usize, settings_path: PathBuf
         return;
     };
 
-    // Ignore out-of-bounds indices (e.g., stale config entries).
     if idx >= monitors_state.0.len() {
         return;
     }
@@ -256,9 +355,15 @@ fn handle_display_toggle(app: AppHandle<Wry>, idx: usize, settings_path: PathBuf
         config.clone()
     };
 
-    persist_display_config(&settings_path, &new_config);
+    // Sync DisplayConfig change into SettingsState so persist_settings writes the full config.
+    if let Some(state) = app.try_state::<SettingsState>() {
+        if let Ok(mut s) = state.0.lock() {
+            s.displays = new_config.clone();
+        }
+    }
 
-    // Window creation/show/close must happen on the main thread on macOS.
+    persist_settings(&app, &settings_path);
+
     let display_mgr = Arc::clone(&overlay_state.0);
     let monitors = monitors_state.0.clone();
     let config_for_main = new_config.clone();
@@ -272,12 +377,13 @@ fn handle_display_toggle(app: AppHandle<Wry>, idx: usize, settings_path: PathBuf
     rebuild_tray_menu(&app);
 }
 
-fn persist_display_config(settings_path: &PathBuf, config: &DisplayConfig) {
-    let raw = std::fs::read_to_string(settings_path).unwrap_or_default();
-    let mut settings = Settings::parse_yaml(&raw);
-    settings.displays = config.clone();
-    if let Err(e) = write_settings(settings_path, &settings) {
-        log::error!("tray: failed to persist display config: {e}");
+fn persist_settings(app: &AppHandle<Wry>, settings_path: &std::path::Path) {
+    let Some(state) = app.try_state::<SettingsState>() else {
+        return;
+    };
+    let Ok(s) = state.0.lock() else { return };
+    if let Err(e) = write_settings(settings_path, &s) {
+        log::error!("tray: failed to persist settings: {e}");
     }
 }
 

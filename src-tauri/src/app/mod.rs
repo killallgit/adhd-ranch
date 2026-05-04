@@ -27,13 +27,11 @@ pub const PROPOSALS_CHANGED_EVENT: &str = "proposals-changed";
 
 pub struct MonitorsState(pub Vec<LogicalMonitor>);
 pub struct DisplayConfigState(pub Arc<Mutex<DisplayConfig>>);
+pub struct SettingsState(pub Arc<Mutex<Settings>>);
 
 pub fn run() {
     let settings_path = paths::settings_file().expect("settings path");
     let settings = load_settings(&settings_path);
-
-    let event_settings_path = settings_path.clone();
-    let always_on_top = settings.widget.always_on_top;
 
     let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_log::Builder::new().build())
@@ -54,11 +52,9 @@ pub fn run() {
             ui_bridge::update_pig_rects,
             ui_bridge::set_pig_drag_active,
         ])
-        .menu(move |handle| menu::build(handle, always_on_top));
+        .menu(menu::build);
 
-    builder = builder.on_menu_event(move |app, event| {
-        menu::handle_event(app, event, &event_settings_path);
-    });
+    builder = builder.on_menu_event(menu::handle_event);
 
     builder = builder.setup(move |app| {
         let focuses_root = paths::focuses_root()?;
@@ -115,6 +111,7 @@ pub fn run() {
         app.manage(DisplayConfigState(Arc::new(Mutex::new(
             display_config.clone(),
         ))));
+        app.manage(SettingsState(Arc::new(Mutex::new(settings.clone()))));
 
         // DisplayManager must be managed before windows are shown so invoke
         // calls from React can find PigHitState immediately.
