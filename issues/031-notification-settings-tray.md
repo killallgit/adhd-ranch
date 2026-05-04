@@ -10,7 +10,7 @@ Expose per-source notification toggles in the tray menu, using the `Notification
 
 ### Tray structure
 
-```
+```text
 Settings
   ├── Displays          (existing)
   ├── Window

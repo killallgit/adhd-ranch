@@ -25,7 +25,7 @@ pub struct FocusTimer {
 pub fn timer_remaining_secs(timer: &FocusTimer, now_secs: i64) -> Option<u64>
 // Returns None when expired, Some(remaining) while running.
 
-pub fn pig_scale(elapsed_secs: u64, duration_secs: u64) -> f32
+pub fn growth_factor(elapsed_secs: u64, duration_secs: u64) -> f32
 // Returns 1.0..=3.0 clamped. Linear interpolation over full timer window.
 ```
 

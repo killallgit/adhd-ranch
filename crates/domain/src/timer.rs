@@ -24,7 +24,7 @@ impl TimerPreset {
             Self::Eight => 480,
             Self::Sixteen => 960,
             Self::ThirtyTwo => 1920,
-            Self::Custom(mins) => mins * 60,
+            Self::Custom(mins) => mins.saturating_mul(60),
         }
     }
 }
@@ -37,7 +37,11 @@ pub struct FocusTimer {
 }
 
 /// Returns seconds remaining, or None if the timer has expired.
+/// Short-circuits on explicit Expired status regardless of clock.
 pub fn timer_remaining_secs(timer: &FocusTimer, now_secs: i64) -> Option<u64> {
+    if matches!(timer.status, TimerStatus::Expired) {
+        return None;
+    }
     let elapsed = (now_secs - timer.started_at).max(0) as u64;
     if elapsed >= timer.duration_secs {
         None
@@ -90,6 +94,22 @@ mod tests {
     fn remaining_past_expiry_is_none() {
         let t = running_timer(120, 1000);
         assert_eq!(timer_remaining_secs(&t, 2000), None);
+    }
+
+    #[test]
+    fn remaining_returns_none_when_status_expired_regardless_of_clock() {
+        let t = FocusTimer {
+            duration_secs: 120,
+            started_at: 1000,
+            status: TimerStatus::Expired,
+        };
+        // Clock says there's still 60s left, but status is Expired — must return None.
+        assert_eq!(timer_remaining_secs(&t, 1060), None);
+    }
+
+    #[test]
+    fn custom_preset_saturates_on_overflow() {
+        assert_eq!(TimerPreset::Custom(u64::MAX).duration_secs(), u64::MAX);
     }
 
     #[test]

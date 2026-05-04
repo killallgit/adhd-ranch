@@ -11,10 +11,12 @@ Visual feedback for timer state: pigs grow as their timer runs down, show a dist
 ### Pig scale growth
 
 - `src/hooks/usePigScale.ts` — pure function hook:
+
   ```ts
   export function usePigScale(startedAt: number | null, durationSecs: number | null): number
   // Returns 1.0 if no timer. Otherwise pig_scale(elapsed, duration) clamped 1.0–3.0.
   ```
+
 - Pig component multiplies `PIG_SIZE` by scale each render frame
 - Scale recomputed from `Date.now()` each rAF tick — no new `PigState` fields
 

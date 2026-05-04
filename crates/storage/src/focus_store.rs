@@ -110,9 +110,11 @@ impl FocusStore for MarkdownFocusStore {
             focus.id = adhd_ranch_domain::FocusId(entry.file_name().to_string_lossy().into_owned());
             let timer_path = entry.path().join("timer.json");
             if timer_path.is_file() {
-                if let Ok(raw) = fs::read_to_string(&timer_path) {
-                    focus.timer = serde_json::from_str(&raw).ok();
-                }
+                let raw = fs::read_to_string(&timer_path)?;
+                focus.timer = Some(
+                    serde_json::from_str(&raw)
+                        .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?,
+                );
             }
             out.push(focus);
         }
@@ -148,7 +150,10 @@ impl FocusStore for MarkdownFocusStore {
 
         if let Some(t) = timer {
             let json = serde_json::to_vec(&t).map_err(io::Error::other)?;
-            atomic_write(&dir.join("timer.json"), &json)?;
+            if let Err(err) = atomic_write(&dir.join("timer.json"), &json) {
+                let _ = fs::remove_dir_all(&dir);
+                return Err(err.into());
+            }
         }
 
         Ok(slug)

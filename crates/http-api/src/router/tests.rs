@@ -58,6 +58,7 @@ fn make_app(dir: &std::path::Path) -> Harness {
         decisions,
         ServerDeps {
             clock: Some(fixed_clock("2026-04-30T12:00:00Z")),
+            clock_secs: Some(std::sync::Arc::new(|| 1_700_000_000)),
             id_gen: Some(fixed_id("p-test")),
             settings: None,
         },

@@ -1,18 +1,21 @@
 use std::sync::Arc;
 
-use adhd_ranch_domain::{Decision, DecisionKind, Proposal, ProposalId, ProposalKind};
+use adhd_ranch_domain::{
+    Decision, DecisionKind, FocusTimer, Proposal, ProposalId, ProposalKind, TimerStatus,
+};
 use adhd_ranch_storage::{DecisionLog, FocusStore, ProposalQueue};
 
 use crate::error::CommandError;
 use crate::focus::create_focus_in_store;
 use crate::proposal::{DecisionOutcome, ProposalEdit};
-use crate::{Clock, IdGen};
+use crate::{Clock, ClockSecs, IdGen};
 
 pub struct ProposalLifecycle {
     store: Arc<dyn FocusStore>,
     queue: Arc<dyn ProposalQueue>,
     decisions: Arc<dyn DecisionLog>,
     clock: Clock,
+    clock_secs: ClockSecs,
     id_gen: IdGen,
 }
 
@@ -22,6 +25,7 @@ impl ProposalLifecycle {
         queue: Arc<dyn ProposalQueue>,
         decisions: Arc<dyn DecisionLog>,
         clock: Clock,
+        clock_secs: ClockSecs,
         id_gen: IdGen,
     ) -> Self {
         Self {
@@ -29,6 +33,7 @@ impl ProposalLifecycle {
             queue,
             decisions,
             clock,
+            clock_secs,
             id_gen,
         }
     }
@@ -66,8 +71,18 @@ impl ProposalLifecycle {
                 Ok(Some(target_focus_id.clone()))
             }
             ProposalKind::NewFocus { new_focus } => {
-                let slug =
-                    create_focus_in_store(&self.store, &self.clock, &self.id_gen, new_focus, None)?;
+                let timer = new_focus.timer_preset.as_ref().map(|preset| FocusTimer {
+                    duration_secs: preset.duration_secs(),
+                    started_at: (self.clock_secs)(),
+                    status: TimerStatus::Running,
+                });
+                let slug = create_focus_in_store(
+                    &self.store,
+                    &self.clock,
+                    &self.id_gen,
+                    new_focus,
+                    timer,
+                )?;
                 Ok(Some(slug))
             }
             ProposalKind::Discard => Ok(None),
@@ -161,9 +176,11 @@ mod tests {
         let decisions: Arc<dyn DecisionLog> =
             Arc::new(JsonlDecisionLog::new(decisions_path.clone()));
         let clock: Clock = Arc::new(|| "2026-04-30T12:00:00Z".to_string());
+        let clock_secs: crate::ClockSecs = Arc::new(|| 1_700_000_000);
         let id_gen: IdGen = Arc::new(|| "id-fixed".to_string());
 
-        let lifecycle = ProposalLifecycle::new(store, queue.clone(), decisions, clock, id_gen);
+        let lifecycle =
+            ProposalLifecycle::new(store, queue.clone(), decisions, clock, clock_secs, id_gen);
         Harness {
             _dir: dir,
             focuses_root,

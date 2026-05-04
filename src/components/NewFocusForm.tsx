@@ -61,7 +61,10 @@ export function NewFocusForm({ onCreate }: NewFocusFormProps) {
       setError("title is required");
       return;
     }
-    if (timerSelect === "custom" && (customMinutes < 1 || !Number.isFinite(customMinutes))) {
+    if (
+      timerSelect === "custom" &&
+      (customMinutes < 1 || !Number.isFinite(customMinutes) || !Number.isInteger(customMinutes))
+    ) {
       setError("custom timer must be at least 1 minute");
       return;
     }

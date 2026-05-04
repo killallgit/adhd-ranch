@@ -44,6 +44,7 @@ impl Commands {
             queue.clone(),
             decisions,
             clock.clone(),
+            clock_secs.clone(),
             id_gen.clone(),
         ));
         Self {

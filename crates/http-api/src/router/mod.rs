@@ -23,6 +23,7 @@ pub struct FocusCatalogEntry {
 #[derive(Clone, Default)]
 pub struct ServerDeps {
     pub clock: Option<Clock>,
+    pub clock_secs: Option<ClockSecs>,
     pub id_gen: Option<IdGen>,
     pub settings: Option<Settings>,
 }
@@ -47,7 +48,7 @@ pub fn router_with(
     deps: ServerDeps,
 ) -> Router {
     let clock: Clock = deps.clock.unwrap_or_else(|| Arc::new(now_rfc3339));
-    let clock_secs: ClockSecs = Arc::new(now_unix_secs);
+    let clock_secs: ClockSecs = deps.clock_secs.unwrap_or_else(|| Arc::new(now_unix_secs));
     let id_gen: IdGen = deps
         .id_gen
         .unwrap_or_else(|| Arc::new(|| uuid::Uuid::now_v7().to_string()));
