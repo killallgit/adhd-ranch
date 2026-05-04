@@ -526,3 +526,69 @@ body,
 .pig-detail-add-task:focus {
   border-color: rgba(255, 255, 255, 0.3);
 }
+
+.settings-window {
+  display: flex;
+  flex-direction: column;
+  background: #16161a;
+  color: #f5f5f7;
+  padding: 12px 16px 16px;
+  box-sizing: border-box;
+}
+
+.settings-section {
+  margin-bottom: 12px;
+}
+
+.settings-section:last-child {
+  margin-bottom: 0;
+}
+
+.settings-section-title {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  opacity: 0.4;
+  margin: 0 0 4px;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+}
+
+.settings-row:last-child {
+  border-bottom: none;
+}
+
+.settings-row-label {
+  font-size: 12px;
+}
+
+.settings-toggle {
+  cursor: pointer;
+  width: 14px;
+  height: 14px;
+  accent-color: #636ae8;
+}
+
+.settings-number {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 5px;
+  color: #f5f5f7;
+  font-size: 12px;
+  padding: 2px 5px;
+  width: 48px;
+  text-align: right;
+  outline: none;
+}
+
+.settings-number:focus {
+  border-color: rgba(255, 255, 255, 0.4);
+}
