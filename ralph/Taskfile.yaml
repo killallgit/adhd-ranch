@@ -1,0 +1,54 @@
+version: "3"
+
+# Ralph — AFK coding agent task interface.
+#
+# Include this in your project's root Taskfile.yaml:
+#
+#   includes:
+#     ralph:
+#       taskfile: ralph/Taskfile.yaml
+#       dir: '{{.ROOT_DIR}}'
+#
+# Then: task ralph (run), task ralph:dry, task ralph:status, task ralph:init
+
+vars:
+  RALPH_MODEL: '{{.RALPH_MODEL | default "claude-opus-4-7"}}'
+  RALPH_MAX_ITER: '{{.RALPH_MAX_ITER | default "60"}}'
+
+tasks:
+  default:
+    desc: "Run Ralph AFK agent until all plan items are done"
+    cmds:
+      - ralph/ralph.sh --model {{.RALPH_MODEL}} --max-iterations {{.RALPH_MAX_ITER}}
+
+  dry:
+    desc: "Dry run — show what Ralph would do without calling claude"
+    cmds:
+      - ralph/ralph.sh --dry-run --max-iterations 3
+
+  status:
+    desc: "Print current plan"
+    cmds:
+      - cat ralph/PLAN.md
+
+  init:
+    desc: "Bootstrap .ralph/ for this project (run once)"
+    cmds:
+      - ralph/init.sh
+
+  reset:
+    desc: "Reset an issue back to queued. Usage: task ralph:reset -- 033"
+    cmds:
+      - |
+        python3 - "ralph/PLAN.md" "{{.CLI_ARGS}}" status queued <<'PYEOF'
+        import sys, re
+        path, num, field, value = sys.argv[1:]
+        text = open(path).read()
+        new = re.sub(
+            rf'(^## {re.escape(num)}\n(?:.*\n)*?)status: \S+',
+            rf'\g<1>status: {value}',
+            text, flags=re.MULTILINE
+        )
+        open(path, 'w').write(new)
+        print(f"Reset issue {num} to {value}")
+        PYEOF

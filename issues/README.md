@@ -2,6 +2,15 @@
 
 Each issue is a self-contained vertical slice an AFK coding agent ("ralph") can grab, finish, and merge without supervision.
 
+## Priority queue
+
+Complete these before picking up any other open issue. All are unblocked and independent — grab any order.
+
+- [ ] [033 — Extract pig/drag IPC into api/ layer](033-pig-ipc-api-layer.md)
+- [ ] [034 — Move Focus/Task invariants into domain](034-focus-invariants-in-domain.md)
+- [ ] [035 — Unit tests for MarkdownFocusStore](035-focus-store-unit-tests.md)
+- [ ] [036 — Generate TypeScript types from Rust via ts-rs](036-ts-types-from-rust.md)
+
 ## How to pick up an issue
 
 1. Pick the lowest-numbered open issue whose **Blocked by** entries are all merged to `main`.
