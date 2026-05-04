@@ -263,7 +263,7 @@ fn handle_always_on_top_toggle(app: AppHandle<Wry>, settings_path: PathBuf) {
         s.widget.always_on_top = !s.widget.always_on_top;
         let v = s.widget.always_on_top;
         // Persist under lock so the applied value and persisted value are always in sync.
-        if let Err(e) = write_settings(&settings_path, &*s) {
+        if let Err(e) = write_settings(&settings_path, &s) {
             log::error!("tray: failed to persist settings: {e}");
         }
         v
@@ -377,12 +377,12 @@ fn handle_display_toggle(app: AppHandle<Wry>, idx: usize, settings_path: PathBuf
     rebuild_tray_menu(&app);
 }
 
-fn persist_settings(app: &AppHandle<Wry>, settings_path: &PathBuf) {
+fn persist_settings(app: &AppHandle<Wry>, settings_path: &std::path::Path) {
     let Some(state) = app.try_state::<SettingsState>() else {
         return;
     };
     let Ok(s) = state.0.lock() else { return };
-    if let Err(e) = write_settings(settings_path, &*s) {
+    if let Err(e) = write_settings(settings_path, &s) {
         log::error!("tray: failed to persist settings: {e}");
     }
 }

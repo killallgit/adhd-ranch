@@ -54,7 +54,7 @@ pub fn run() {
             ui_bridge::update_pig_rects,
             ui_bridge::set_pig_drag_active,
         ])
-        .menu(|handle| menu::build(handle));
+        .menu(menu::build);
 
     builder = builder.on_menu_event(move |app, event| {
         menu::handle_event(app, event, &event_settings_path);
