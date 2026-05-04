@@ -3,9 +3,19 @@ use serde::{Deserialize, Serialize};
 pub const DEFAULT_MAX_FOCUSES: usize = 5;
 pub const DEFAULT_MAX_TASKS_PER_FOCUS: usize = 7;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Widget {
     pub always_on_top: bool,
+    pub confirm_delete: bool,
+}
+
+impl Default for Widget {
+    fn default() -> Self {
+        Self {
+            always_on_top: false,
+            confirm_delete: true,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -67,11 +77,12 @@ impl Settings {
             .map(|i| i.to_string())
             .collect();
         format!(
-            "caps:\n  max_focuses: {}\n  max_tasks_per_focus: {}\nalerts:\n  system_notifications: {}\nwidget:\n  always_on_top: {}\ndisplays:\n  enabled: {}\n",
+            "caps:\n  max_focuses: {}\n  max_tasks_per_focus: {}\nalerts:\n  system_notifications: {}\nwidget:\n  always_on_top: {}\n  confirm_delete: {}\ndisplays:\n  enabled: {}\n",
             self.caps.max_focuses,
             self.caps.max_tasks_per_focus,
             self.alerts.system_notifications,
             self.widget.always_on_top,
+            self.widget.confirm_delete,
             enabled.join(","),
         )
     }
@@ -122,6 +133,11 @@ impl Settings {
                 ("widget", "always_on_top") => {
                     if let Some(b) = parse_bool(value) {
                         settings.widget.always_on_top = b;
+                    }
+                }
+                ("widget", "confirm_delete") => {
+                    if let Some(b) = parse_bool(value) {
+                        settings.widget.confirm_delete = b;
                     }
                 }
                 ("displays", "enabled") => {
@@ -215,6 +231,18 @@ mod tests {
     }
 
     #[test]
+    fn confirm_delete_defaults_true() {
+        let s = Settings::parse_yaml("");
+        assert!(s.widget.confirm_delete);
+    }
+
+    #[test]
+    fn parses_confirm_delete_false() {
+        let s = Settings::parse_yaml("widget:\n  confirm_delete: false\n");
+        assert!(!s.widget.confirm_delete);
+    }
+
+    #[test]
     fn to_yaml_round_trips() {
         let s = Settings {
             caps: Caps {
@@ -226,6 +254,7 @@ mod tests {
             },
             widget: Widget {
                 always_on_top: true,
+                confirm_delete: false,
             },
             displays: DisplayConfig {
                 enabled_indices: vec![0, 2],

@@ -23,6 +23,16 @@ export function App({ focusReader, focusWriter }: AppProps) {
     selectedId,
   );
   const { screenW, screenH } = useViewport();
+  const [showDebug, setShowDebug] = useState(import.meta.env.DEV);
+
+  useEffect(() => {
+    const unlisten = listen<boolean>("debug-overlay-toggle", (e) => {
+      setShowDebug(e.payload);
+    });
+    return () => {
+      unlisten.then((f) => f());
+    };
+  }, []);
 
   const handleSetDragActive = useCallback((active: boolean) => {
     invoke("set_pig_drag_active", { active }).catch(() => {});
@@ -67,11 +77,11 @@ export function App({ focusReader, focusWriter }: AppProps) {
 
   return (
     <div className="overlay-root">
-      {import.meta.env.DEV && (
+      {showDebug && (
         <div
           style={{
             position: "fixed",
-            top: 0,
+            top: 28,
             left: 0,
             right: 0,
             background: "rgba(220,0,0,0.85)",

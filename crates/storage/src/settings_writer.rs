@@ -30,6 +30,7 @@ mod tests {
             },
             widget: Widget {
                 always_on_top: true,
+                confirm_delete: true,
             },
             displays: DisplayConfig::default(),
         };
@@ -52,6 +53,7 @@ mod tests {
             },
             widget: Widget {
                 always_on_top: false,
+                confirm_delete: true,
             },
             displays: DisplayConfig {
                 enabled_indices: vec![0, 2],
