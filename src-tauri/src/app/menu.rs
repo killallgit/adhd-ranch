@@ -41,9 +41,10 @@ pub fn build<R: Runtime>(handle: &AppHandle<R>) -> tauri::Result<Menu<R>> {
 
     #[cfg(debug_assertions)]
     {
-        let debug_overlay = CheckMenuItemBuilder::with_id(SHOW_DEBUG_OVERLAY_ID, "Show Debug Overlay")
-            .checked(true)
-            .build(handle)?;
+        let debug_overlay =
+            CheckMenuItemBuilder::with_id(SHOW_DEBUG_OVERLAY_ID, "Show Debug Overlay")
+                .checked(true)
+                .build(handle)?;
         window_sub = window_sub.item(&debug_overlay).separator();
     }
 
