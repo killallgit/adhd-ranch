@@ -197,13 +197,12 @@ fn build_settings_submenu(
 
     let window_sub = SubmenuBuilder::new(handle, "Window")
         .item(&always_on_top)
+        .item(&confirm_delete)
         .build()?;
 
     let display_items = build_display_setting_items(handle)?;
 
-    let mut settings_sub = SubmenuBuilder::new(handle, "Settings")
-        .item(&window_sub)
-        .item(&confirm_delete);
+    let mut settings_sub = SubmenuBuilder::new(handle, "Settings").item(&window_sub);
 
     for di in &display_items {
         settings_sub = settings_sub.item(di.as_ref());
@@ -262,10 +261,13 @@ fn handle_always_on_top_toggle(app: AppHandle<Wry>, settings_path: PathBuf) {
         };
         let Ok(mut s) = state.0.lock() else { return };
         s.widget.always_on_top = !s.widget.always_on_top;
-        s.widget.always_on_top
+        let v = s.widget.always_on_top;
+        // Persist under lock so the applied value and persisted value are always in sync.
+        if let Err(e) = write_settings(&settings_path, &*s) {
+            log::error!("tray: failed to persist settings: {e}");
+        }
+        v
     };
-
-    persist_settings(&app, &settings_path);
 
     if let Some(win) = app.get_webview_window("overlay-0") {
         super::window_always_on_top::apply(&win, new_val);

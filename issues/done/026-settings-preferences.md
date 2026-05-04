@@ -14,7 +14,7 @@ Settings are accumulating across tray submenus and hardcoded constants (displays
 
 Add a top-level **Settings** item to the tray menu. Move existing settings under it:
 
-```
+```text
 Settings
   ├── Displays       (existing submenu, moved here)
   └── Window

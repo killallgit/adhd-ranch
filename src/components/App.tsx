@@ -3,6 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { useCallback, useEffect, useState } from "react";
 import type { FocusWriter } from "../api/focusWriter";
 import type { FocusReader } from "../api/focuses";
+import { useDebugOverlay } from "../hooks/useDebugOverlay";
 import { useFocuses } from "../hooks/useFocuses";
 import { type SpawnRegion, usePigMovement } from "../hooks/usePigMovement";
 import { useViewport } from "../hooks/useViewport";
@@ -23,16 +24,7 @@ export function App({ focusReader, focusWriter }: AppProps) {
     selectedId,
   );
   const { screenW, screenH } = useViewport();
-  const [showDebug, setShowDebug] = useState(import.meta.env.DEV);
-
-  useEffect(() => {
-    const unlisten = listen<boolean>("debug-overlay-toggle", (e) => {
-      setShowDebug(e.payload);
-    });
-    return () => {
-      unlisten.then((f) => f());
-    };
-  }, []);
+  const { visible: showDebug, topOffset: debugTopOffset } = useDebugOverlay();
 
   const handleSetDragActive = useCallback((active: boolean) => {
     invoke("set_pig_drag_active", { active }).catch(() => {});
@@ -81,7 +73,7 @@ export function App({ focusReader, focusWriter }: AppProps) {
         <div
           style={{
             position: "fixed",
-            top: 28,
+            top: debugTopOffset,
             left: 0,
             right: 0,
             background: "rgba(220,0,0,0.85)",

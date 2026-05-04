@@ -11,9 +11,11 @@ Pigs can drift to edges or off-screen (especially in multi-monitor setups). No w
 ## What to build
 
 ### Wrangle (per-pig)
+
 Tray → [Focus name] submenu → **Wrangle** — moves the pig to the centre of the primary screen. Pig resumes wandering from that position.
 
 ### Wrangle All
+
 Top-level tray item: **Wrangle All** — moves all pigs to a visible cluster on the primary screen. Fan them out slightly from centre (e.g. spread by index × 80px) so they're not stacked.
 
 Both actions update the pig's `(x, y)` state in the frontend via a Tauri event or command.
