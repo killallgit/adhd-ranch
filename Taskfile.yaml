@@ -37,6 +37,13 @@ tasks:
     cmds:
       - task: gen-types
       - git diff --exit-code -- src/types/generated
+      - |
+        untracked=$(git ls-files --others --exclude-standard -- src/types/generated)
+        if [ -n "$untracked" ]; then
+          echo "Untracked generated files (commit them):" >&2
+          echo "$untracked" >&2
+          exit 1
+        fi
 
   test:web:
     desc: Run frontend tests
