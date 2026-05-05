@@ -111,10 +111,11 @@ impl FocusStore for MarkdownFocusStore {
             let timer_path = entry.path().join("timer.json");
             if timer_path.is_file() {
                 let raw = fs::read_to_string(&timer_path)?;
-                focus.timer = Some(
-                    serde_json::from_str(&raw)
-                        .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?,
-                );
+                // A corrupted timer.json must not take down list() — the focus
+                // itself is still readable and useful. Surface as `timer: None`
+                // so the UI degrades gracefully; user can fix the sidecar by
+                // recreating the focus.
+                focus.timer = serde_json::from_str(&raw).ok();
             }
             out.push(focus);
         }
@@ -404,5 +405,197 @@ mod tests {
         let store = MarkdownFocusStore::new(dir.path());
         let err = store.delete_focus("missing").unwrap_err();
         assert!(matches!(err, FocusStoreError::NotFound(_)));
+    }
+
+    // Issue 035: direct unit-test coverage for the create/list/delete/task
+    // mutation cycle and timer sidecar edge cases. Names mirror the spec's
+    // acceptance table; each test exercises only public store API.
+
+    #[test]
+    fn create_then_list_roundtrip() {
+        let dir = TempDir::new().unwrap();
+        let store = MarkdownFocusStore::new(dir.path());
+
+        let slug = store
+            .create_focus(
+                &NewFocus {
+                    title: "Customer X bug".into(),
+                    description: "ship it".into(),
+                    timer_preset: None,
+                },
+                "id-1",
+                "2026-04-30T12:00:00Z",
+                None,
+            )
+            .unwrap();
+
+        let focuses = store.list().unwrap();
+
+        assert_eq!(focuses.len(), 1);
+        let f = &focuses[0];
+        assert_eq!(f.id, adhd_ranch_domain::FocusId(slug));
+        assert_eq!(f.title, "Customer X bug");
+        assert_eq!(f.description, "ship it");
+        assert_eq!(f.created_at, "2026-04-30T12:00:00Z");
+        assert!(f.timer.is_none());
+    }
+
+    #[test]
+    fn list_with_timer_sidecar() {
+        let dir = TempDir::new().unwrap();
+        let store = MarkdownFocusStore::new(dir.path());
+        let timer = FocusTimer {
+            duration_secs: 240,
+            started_at: 1_700_000_000,
+            status: adhd_ranch_domain::TimerStatus::Running,
+        };
+
+        store
+            .create_focus(
+                &NewFocus {
+                    title: "With timer".into(),
+                    description: "".into(),
+                    timer_preset: None,
+                },
+                "id-1",
+                "2026-04-30T12:00:00Z",
+                Some(timer.clone()),
+            )
+            .unwrap();
+
+        let focuses = store.list().unwrap();
+        assert_eq!(focuses.len(), 1);
+        assert_eq!(focuses[0].timer, Some(timer));
+    }
+
+    #[test]
+    fn list_without_timer_sidecar() {
+        let dir = TempDir::new().unwrap();
+        let store = MarkdownFocusStore::new(dir.path());
+
+        store
+            .create_focus(
+                &NewFocus {
+                    title: "No timer".into(),
+                    description: "".into(),
+                    timer_preset: None,
+                },
+                "id-1",
+                "2026-04-30T12:00:00Z",
+                None,
+            )
+            .unwrap();
+
+        let focuses = store.list().unwrap();
+        assert_eq!(focuses.len(), 1);
+        assert!(focuses[0].timer.is_none());
+    }
+
+    #[test]
+    fn delete_removes_directory() {
+        let dir = TempDir::new().unwrap();
+        let store = MarkdownFocusStore::new(dir.path());
+        let slug = store
+            .create_focus(
+                &NewFocus {
+                    title: "Bye".into(),
+                    description: "".into(),
+                    timer_preset: None,
+                },
+                "id-1",
+                "2026-04-30T12:00:00Z",
+                None,
+            )
+            .unwrap();
+        assert!(dir.path().join(&slug).is_dir());
+
+        store.delete_focus(&slug).unwrap();
+
+        assert!(!dir.path().join(&slug).exists());
+    }
+
+    #[test]
+    fn delete_nonexistent_returns_err() {
+        let dir = TempDir::new().unwrap();
+        let store = MarkdownFocusStore::new(dir.path());
+        let err = store.delete_focus("ghost").unwrap_err();
+        assert!(matches!(err, FocusStoreError::NotFound(slug) if slug == "ghost"));
+    }
+
+    #[test]
+    fn corrupted_timer_json_degrades_gracefully() {
+        let dir = TempDir::new().unwrap();
+        let store = MarkdownFocusStore::new(dir.path());
+        let slug = store
+            .create_focus(
+                &NewFocus {
+                    title: "Broken timer".into(),
+                    description: "".into(),
+                    timer_preset: None,
+                },
+                "id-1",
+                "2026-04-30T12:00:00Z",
+                None,
+            )
+            .unwrap();
+        let timer_path = dir.path().join(&slug).join("timer.json");
+        fs::write(&timer_path, b"{ this is not valid json").unwrap();
+
+        let focuses = store.list().unwrap();
+
+        assert_eq!(focuses.len(), 1);
+        assert_eq!(focuses[0].title, "Broken timer");
+        assert!(focuses[0].timer.is_none());
+    }
+
+    #[test]
+    fn append_task_persists() {
+        let dir = TempDir::new().unwrap();
+        let store = MarkdownFocusStore::new(dir.path());
+        let slug = store
+            .create_focus(
+                &NewFocus {
+                    title: "Has tasks".into(),
+                    description: "".into(),
+                    timer_preset: None,
+                },
+                "id-1",
+                "2026-04-30T12:00:00Z",
+                None,
+            )
+            .unwrap();
+
+        store.append_task(&slug, "first thing").unwrap();
+
+        let focuses = store.list().unwrap();
+        assert_eq!(focuses.len(), 1);
+        assert_eq!(focuses[0].tasks.len(), 1);
+        assert_eq!(focuses[0].tasks[0].text, "first thing");
+    }
+
+    #[test]
+    fn delete_task_persists() {
+        let dir = TempDir::new().unwrap();
+        let store = MarkdownFocusStore::new(dir.path());
+        let slug = store
+            .create_focus(
+                &NewFocus {
+                    title: "Two tasks".into(),
+                    description: "".into(),
+                    timer_preset: None,
+                },
+                "id-1",
+                "2026-04-30T12:00:00Z",
+                None,
+            )
+            .unwrap();
+        store.append_task(&slug, "keep me").unwrap();
+        store.append_task(&slug, "remove me").unwrap();
+
+        store.delete_task(&slug, 1).unwrap();
+
+        let focuses = store.list().unwrap();
+        assert_eq!(focuses[0].tasks.len(), 1);
+        assert_eq!(focuses[0].tasks[0].text, "keep me");
     }
 }
