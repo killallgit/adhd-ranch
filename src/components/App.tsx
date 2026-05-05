@@ -1,11 +1,10 @@
-import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
 import { useCallback, useEffect, useState } from "react";
 import type { FocusWriter } from "../api/focusWriter";
 import type { FocusReader } from "../api/focuses";
+import { setPigDragActive, subscribeDisplayRegion, subscribeGatherPigs } from "../api/pig";
 import { useDebugOverlay } from "../hooks/useDebugOverlay";
 import { useFocuses } from "../hooks/useFocuses";
-import { type SpawnRegion, usePigMovement } from "../hooks/usePigMovement";
+import { usePigMovement } from "../hooks/usePigMovement";
 import { useViewport } from "../hooks/useViewport";
 import { PigDetail } from "./PigDetail";
 import { PigSprite } from "./PigSprite";
@@ -27,22 +26,22 @@ export function App({ focusReader, focusWriter }: AppProps) {
   const { visible: showDebug, topOffset: debugTopOffset } = useDebugOverlay();
 
   const handleSetDragActive = useCallback((active: boolean) => {
-    invoke("set_pig_drag_active", { active }).catch(() => {});
+    setPigDragActive(active).catch(() => {});
   }, []);
 
   useEffect(() => {
-    const unlistenPromise = listen("gather-pigs", gather);
+    // If subscribe rejects, fall back to a no-op unsubscribe so cleanup never throws
+    // an unhandled rejection during React strict-mode unmounts.
+    const unsubPromise = subscribeGatherPigs(gather).catch(() => () => {});
     return () => {
-      unlistenPromise.then((unlisten) => unlisten());
+      unsubPromise.then((unsub) => unsub());
     };
   }, [gather]);
 
   useEffect(() => {
-    const unlistenPromise = listen<SpawnRegion>("display-region", (event) => {
-      setRegion(event.payload);
-    });
+    const unsubPromise = subscribeDisplayRegion(setRegion).catch(() => () => {});
     return () => {
-      unlistenPromise.then((unlisten) => unlisten());
+      unsubPromise.then((unsub) => unsub());
     };
   }, [setRegion]);
 
