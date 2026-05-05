@@ -6,9 +6,9 @@ export function useConfirmDelete(initial = true): boolean {
 
   useEffect(() => {
     getSettings()
-      .then((s) => setConfirmDelete(s?.widget?.confirm_delete ?? true))
+      .then((s) => setConfirmDelete(s?.widget?.confirm_delete ?? initial))
       .catch(console.error);
-  }, []);
+  }, [initial]);
 
   return confirmDelete;
 }

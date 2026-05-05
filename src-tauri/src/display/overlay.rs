@@ -55,27 +55,31 @@ pub fn ensure_shown(app: &AppHandle<Wry>, p: ShowParams<'_>) -> tauri::Result<()
             x,
             y
         );
-        WebviewWindowBuilder::new(app, OVERLAY_LABEL, WebviewUrl::App(Default::default()))
+        let w = WebviewWindowBuilder::new(app, OVERLAY_LABEL, WebviewUrl::App(Default::default()))
             .decorations(false)
             .transparent(true)
             .resizable(false)
             .visible(false)
             .inner_size(width, height)
             .position(x, y)
-            .build()?
+            .build()?;
+
+        // macOS demotes NSWindow level across key/resign-key transitions when
+        // the window is not an NSPanel. The popover's text inputs make the
+        // overlay key on click; re-apply on every focus event so the overlay
+        // stays floating. Registered only on first creation — ensure_shown is
+        // re-invoked on display config changes and would otherwise stack.
+        let win_evt = w.clone();
+        w.on_window_event(move |event| {
+            if let tauri::WindowEvent::Focused(_) = event {
+                crate::app::window_always_on_top::apply(&win_evt, true);
+            }
+        });
+
+        w
     };
 
     crate::app::window_always_on_top::apply(&window, true);
-
-    // macOS demotes NSWindow level across key/resign-key transitions when the
-    // window is not an NSPanel. The popover's text inputs make the overlay key
-    // on click; re-apply on every focus event so the overlay stays floating.
-    let win_evt = window.clone();
-    window.on_window_event(move |event| {
-        if let tauri::WindowEvent::Focused(_) = event {
-            crate::app::window_always_on_top::apply(&win_evt, true);
-        }
-    });
 
     let show_result = window.show();
     log::info!("overlay: show={show_result:?}");
