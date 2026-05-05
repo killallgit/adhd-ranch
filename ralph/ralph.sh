@@ -20,14 +20,14 @@ DRY_RUN=false
 
 mkdir -p "$LOGS_DIR"
 LOG_FILE="${LOGS_DIR}/$(date +%Y%m%d-%H%M%S).log"
-ln -sf "$LOG_FILE" "${LOGS_DIR}/latest.log"
+ln -sf "$(basename "$LOG_FILE")" "${LOGS_DIR}/latest.log"
 
-# All output goes to stdout AND log file
-exec > >(tee -a "$LOG_FILE") 2>&1
+log() {
+  echo "[ralph] $*"
+  echo "[ralph] $*" >> "$LOG_FILE"
+}
 
-log() { echo "[ralph] $*"; }
-
-log "Log: $LOG_FILE  (tail -f ralph/logs/latest.log)"
+log "Logging to ralph/logs/latest.log  (tail -f ralph/logs/latest.log)"
 
 # ── Plan helpers (all via python3 — awk range patterns unreliable on macOS) ──
 
@@ -198,7 +198,7 @@ while [[ $iter -lt $MAX_ITERATIONS ]]; do
 
   ITER_LOG="${LOGS_DIR}/iter-${iter}.log"
   log "Agent output → tail -f ralph/logs/iter-${iter}.log"
-  claude -p --dangerously-skip-permissions < "$PROMPT" 2>&1 | tee "$ITER_LOG" || true
+  claude -p --dangerously-skip-permissions < "$PROMPT" 2>&1 | tee "$ITER_LOG" | tee -a "$LOG_FILE" || true
 
   grep -qF "<promise>RALPH DONE</promise>" "$ITER_LOG" && { log "Done."; exit 0; }
 
