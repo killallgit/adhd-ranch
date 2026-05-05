@@ -183,6 +183,16 @@ async fn patch_task_toggles_done() {
     assert_eq!(resp.status(), StatusCode::NO_CONTENT);
     let content = std::fs::read_to_string(h.focuses_root.join("f1/focus.md")).unwrap();
     assert!(content.contains("- [x] one"));
+
+    let resp = patch_json(
+        &h.app,
+        "/focuses/f1/tasks/0",
+        serde_json::json!({"done": false}),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::NO_CONTENT);
+    let content = std::fs::read_to_string(h.focuses_root.join("f1/focus.md")).unwrap();
+    assert!(content.contains("- [ ] one"));
 }
 
 #[tokio::test]

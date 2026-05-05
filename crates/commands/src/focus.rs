@@ -249,7 +249,8 @@ mod tests {
         commands.append_task(&created.id, "thing").unwrap();
         commands.toggle_task(&created.id, 0, true).unwrap();
         commands.toggle_task(&created.id, 0, false).unwrap();
-        // Round trip succeeds without error; observable result is no panic.
+        let focuses = commands.list_focuses().unwrap();
+        assert!(!focuses[0].tasks[0].done);
     }
 
     #[test]
