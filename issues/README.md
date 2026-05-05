@@ -6,7 +6,7 @@ Each issue is a self-contained vertical slice an AFK coding agent ("ralph") can 
 
 Complete these before picking up any other open issue. All are unblocked and independent — grab any order.
 
-- [ ] [036 — Generate TypeScript types from Rust via ts-rs](036-ts-types-from-rust.md)
+_Queue empty — pick from open GitHub issues._
 
 ## How to pick up an issue
 
