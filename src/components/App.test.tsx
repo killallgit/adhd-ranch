@@ -34,8 +34,7 @@ vi.mock(import("../hooks/usePigMovement"), async (importOriginal) => {
       startDrag: vi.fn(),
       moveDrag: vi.fn(),
       endDrag: vi.fn(() => ({ wasDrag: false })),
-      gather: vi.fn(),
-      setRegion: vi.fn(),
+      setDragActive: vi.fn(),
     }),
   };
 });

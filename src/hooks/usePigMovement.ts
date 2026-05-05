@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { updatePigRects } from "../api/pig";
+import {
+  setPigDragActive,
+  subscribeDisplayRegion,
+  subscribeGatherPigs,
+  updatePigRects,
+} from "../api/pig";
 import type { Focus } from "../types/focus";
 import type { PigHitRect, SpawnRegion } from "../types/pig";
 
@@ -68,8 +73,7 @@ export interface PigMovementResult {
   startDrag: (pigId: string, x: number, y: number) => void;
   moveDrag: (x: number, y: number) => void;
   endDrag: () => { wasDrag: boolean };
-  gather: () => void;
-  setRegion: (r: SpawnRegion) => void;
+  setDragActive: (active: boolean) => void;
 }
 
 function direction4(vx: number, vy: number): PigDirection {
@@ -241,6 +245,10 @@ export function usePigMovement(
     regionRef.current = r;
   }, []);
 
+  const setDragActive = useCallback((active: boolean) => {
+    setPigDragActive(active).catch(() => {});
+  }, []);
+
   const startDrag = useCallback((pigId: string, x: number, y: number) => {
     dragIdRef.current = pigId;
     dragStartRef.current = { x, y };
@@ -331,6 +339,22 @@ export function usePigMovement(
     });
   }, [focuses]);
 
+  // Subscribe to gather-pigs / display-region events from Rust.
+  // Fall back to a no-op unsubscribe if subscribe rejects so cleanup never throws.
+  useEffect(() => {
+    const unsubPromise = subscribeGatherPigs(gather).catch(() => () => {});
+    return () => {
+      unsubPromise.then((unsub) => unsub());
+    };
+  }, [gather]);
+
+  useEffect(() => {
+    const unsubPromise = subscribeDisplayRegion(setRegion).catch(() => () => {});
+    return () => {
+      unsubPromise.then((unsub) => unsub());
+    };
+  }, [setRegion]);
+
   // rAF movement loop
   useEffect(() => {
     const loop = (now: number) => {
@@ -362,5 +386,5 @@ export function usePigMovement(
     return () => cancelAnimationFrame(rafRef.current);
   }, []);
 
-  return { pigs, startDrag, moveDrag, endDrag, gather, setRegion };
+  return { pigs, startDrag, moveDrag, endDrag, setDragActive };
 }

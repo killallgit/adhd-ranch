@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import type { FocusWriter } from "../api/focusWriter";
 import type { FocusReader } from "../api/focuses";
-import { setPigDragActive, subscribeDisplayRegion, subscribeGatherPigs } from "../api/pig";
 import { useDebugOverlay } from "../hooks/useDebugOverlay";
 import { useFocuses } from "../hooks/useFocuses";
 import { usePigMovement } from "../hooks/usePigMovement";
@@ -18,32 +17,9 @@ export function App({ focusReader, focusWriter }: AppProps) {
   const focusState = useFocuses(focusReader);
   const focuses = focusState.status === "ready" ? focusState.focuses : [];
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const { pigs, startDrag, moveDrag, endDrag, gather, setRegion } = usePigMovement(
-    focuses,
-    selectedId,
-  );
+  const { pigs, startDrag, moveDrag, endDrag, setDragActive } = usePigMovement(focuses, selectedId);
   const { screenW, screenH } = useViewport();
   const { visible: showDebug, topOffset: debugTopOffset } = useDebugOverlay();
-
-  const handleSetDragActive = useCallback((active: boolean) => {
-    setPigDragActive(active).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    // If subscribe rejects, fall back to a no-op unsubscribe so cleanup never throws
-    // an unhandled rejection during React strict-mode unmounts.
-    const unsubPromise = subscribeGatherPigs(gather).catch(() => () => {});
-    return () => {
-      unsubPromise.then((unsub) => unsub());
-    };
-  }, [gather]);
-
-  useEffect(() => {
-    const unsubPromise = subscribeDisplayRegion(setRegion).catch(() => () => {});
-    return () => {
-      unsubPromise.then((unsub) => unsub());
-    };
-  }, [setRegion]);
 
   const selectedPig = pigs.find((p) => p.id === selectedId);
   const selectedFocus = focuses.find((f) => f.id === selectedId);
@@ -99,7 +75,7 @@ export function App({ focusReader, focusWriter }: AppProps) {
           onDragStart={(x, y) => startDrag(pig.id, x, y)}
           onDragMove={moveDrag}
           onDragEnd={endDrag}
-          onSetDragActive={handleSetDragActive}
+          onSetDragActive={setDragActive}
         />
       ))}
       {selectedPig && selectedFocus && (
