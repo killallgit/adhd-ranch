@@ -6,7 +6,16 @@ Each issue is a self-contained vertical slice an AFK coding agent ("ralph") can 
 
 Complete these before picking up any other open issue. All are unblocked and independent — grab any order.
 
-_Queue empty — pick from open GitHub issues._
+- [029](029-timer-expiry-and-notification-interface.md) — Timer expiry + NotificationSource interface (GH #29)
+- [030](030-pig-growth-expired-visual-tray-list.md) — Pig scale growth + expired visual + tray list (GH #30)
+- [031](031-notification-settings-tray.md) — Notification settings in tray (GH #31) — **blocked by 029**
+
+### Icebox (deferred)
+
+Multi-monitor work paused. Files moved to `issues/icebox/`; GitHub issues carry the `icebox` label.
+
+- [icebox/021](icebox/021-all-monitors-default.md) — All monitors enabled by default (GH #19)
+- [icebox/022](icebox/022-wrangle.md) — Wrangle pig + wrangle all (GH #23)
 
 ## How to pick up an issue
 
