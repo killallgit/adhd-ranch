@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+use crate::error::DomainError;
 use crate::timer::TimerPreset;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -11,6 +12,23 @@ pub struct NewFocus {
     pub description: String,
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub timer_preset: Option<TimerPreset>,
+}
+
+impl NewFocus {
+    pub fn new(
+        title: impl Into<String>,
+        description: impl Into<String>,
+    ) -> Result<Self, DomainError> {
+        let title = title.into();
+        if title.trim().is_empty() {
+            return Err(DomainError::EmptyTitle);
+        }
+        Ok(Self {
+            title,
+            description: description.into(),
+            timer_preset: None,
+        })
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -165,6 +183,30 @@ mod tests {
         assert_eq!(
             p.validate().unwrap_err(),
             ProposalValidationError::EmptySummary
+        );
+    }
+
+    #[test]
+    fn new_focus_new_accepts_valid_title() {
+        let nf = NewFocus::new("Ship it", "the bug").unwrap();
+        assert_eq!(nf.title, "Ship it");
+        assert_eq!(nf.description, "the bug");
+        assert_eq!(nf.timer_preset, None);
+    }
+
+    #[test]
+    fn new_focus_new_rejects_empty_title() {
+        assert_eq!(
+            NewFocus::new("", "desc").unwrap_err(),
+            DomainError::EmptyTitle
+        );
+    }
+
+    #[test]
+    fn new_focus_new_rejects_whitespace_title() {
+        assert_eq!(
+            NewFocus::new("   ", "desc").unwrap_err(),
+            DomainError::EmptyTitle
         );
     }
 

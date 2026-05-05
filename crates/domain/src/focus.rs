@@ -1,6 +1,24 @@
 use serde::{Deserialize, Serialize};
 
+use crate::error::DomainError;
 use crate::timer::FocusTimer;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TaskText(String);
+
+impl TaskText {
+    pub fn new(text: impl Into<String>) -> Result<Self, DomainError> {
+        let text = text.into();
+        if text.trim().is_empty() {
+            return Err(DomainError::EmptyTaskText);
+        }
+        Ok(Self(text))
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct FocusId(pub String);
@@ -25,6 +43,25 @@ pub struct Focus {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn task_text_new_preserves_input() {
+        let t = TaskText::new("ship it").unwrap();
+        assert_eq!(t.as_str(), "ship it");
+    }
+
+    #[test]
+    fn task_text_new_rejects_empty() {
+        assert_eq!(TaskText::new("").unwrap_err(), DomainError::EmptyTaskText);
+    }
+
+    #[test]
+    fn task_text_new_rejects_whitespace() {
+        assert_eq!(
+            TaskText::new("   ").unwrap_err(),
+            DomainError::EmptyTaskText
+        );
+    }
 
     #[test]
     fn focus_round_trips_via_serde() {
