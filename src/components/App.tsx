@@ -1,11 +1,9 @@
-import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import type { FocusWriter } from "../api/focusWriter";
 import type { FocusReader } from "../api/focuses";
 import { useDebugOverlay } from "../hooks/useDebugOverlay";
 import { useFocuses } from "../hooks/useFocuses";
-import { type SpawnRegion, usePigMovement } from "../hooks/usePigMovement";
+import { usePigMovement } from "../hooks/usePigMovement";
 import { useViewport } from "../hooks/useViewport";
 import { PigDetail } from "./PigDetail";
 import { PigSprite } from "./PigSprite";
@@ -19,32 +17,9 @@ export function App({ focusReader, focusWriter }: AppProps) {
   const focusState = useFocuses(focusReader);
   const focuses = focusState.status === "ready" ? focusState.focuses : [];
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const { pigs, startDrag, moveDrag, endDrag, gather, setRegion } = usePigMovement(
-    focuses,
-    selectedId,
-  );
+  const { pigs, startDrag, moveDrag, endDrag, setDragActive } = usePigMovement(focuses, selectedId);
   const { screenW, screenH } = useViewport();
   const { visible: showDebug, topOffset: debugTopOffset } = useDebugOverlay();
-
-  const handleSetDragActive = useCallback((active: boolean) => {
-    invoke("set_pig_drag_active", { active }).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    const unlistenPromise = listen("gather-pigs", gather);
-    return () => {
-      unlistenPromise.then((unlisten) => unlisten());
-    };
-  }, [gather]);
-
-  useEffect(() => {
-    const unlistenPromise = listen<SpawnRegion>("display-region", (event) => {
-      setRegion(event.payload);
-    });
-    return () => {
-      unlistenPromise.then((unlisten) => unlisten());
-    };
-  }, [setRegion]);
 
   const selectedPig = pigs.find((p) => p.id === selectedId);
   const selectedFocus = focuses.find((f) => f.id === selectedId);
@@ -100,7 +75,7 @@ export function App({ focusReader, focusWriter }: AppProps) {
           onDragStart={(x, y) => startDrag(pig.id, x, y)}
           onDragMove={moveDrag}
           onDragEnd={endDrag}
-          onSetDragActive={handleSetDragActive}
+          onSetDragActive={setDragActive}
         />
       ))}
       {selectedPig && selectedFocus && (

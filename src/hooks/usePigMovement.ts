@@ -1,6 +1,14 @@
-import { invoke } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  setPigDragActive,
+  subscribeDisplayRegion,
+  subscribeGatherPigs,
+  updatePigRects,
+} from "../api/pig";
 import type { Focus } from "../types/focus";
+import type { PigHitRect, SpawnRegion } from "../types/pig";
+
+export type { PigHitRect, SpawnRegion };
 
 export const PIG_SIZE = 48;
 export const HITBOX_PADDING = 16;
@@ -12,12 +20,6 @@ export const PIG_SPEED = 60; // px/s — fast enough to look alive across large 
 const MIN_SPEED_FRAC = 0.35; // friction floor: never drop below this fraction of PIG_SPEED
 const EDGE_MARGIN = 60; // px from screen edge
 
-export interface SpawnRegion {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
 const FRAME_INTERVAL = 150; // ms per animation frame
 const MIN_TURN_MS = 3000;
 const MAX_TURN_MS = 8000;
@@ -71,8 +73,7 @@ export interface PigMovementResult {
   startDrag: (pigId: string, x: number, y: number) => void;
   moveDrag: (x: number, y: number) => void;
   endDrag: () => { wasDrag: boolean };
-  gather: () => void;
-  setRegion: (r: SpawnRegion) => void;
+  setDragActive: (active: boolean) => void;
 }
 
 function direction4(vx: number, vy: number): PigDirection {
@@ -196,12 +197,6 @@ function tickPig(
   return { ...pig, x, y, vx, vy, frameIndex, direction, lastFrameAt, nextTurnAt };
 }
 
-export interface PigHitRect {
-  x: number;
-  y: number;
-  size: number;
-}
-
 export function buildHitRects(pigs: PigState[], dpr: number): PigHitRect[] {
   return pigs.map((p) => ({
     x: (p.x - HITBOX_PADDING / 2) * dpr,
@@ -216,7 +211,7 @@ function syncRects(pigs: PigState[], wide: boolean): void {
   const rects = wide
     ? [{ x: 0, y: 0, size: Math.max(window.innerWidth, window.innerHeight) * dpr * 2 }]
     : buildHitRects(pigs, dpr);
-  invoke("update_pig_rects", { rects }).catch(() => {});
+  updatePigRects(rects).catch(() => {});
 }
 
 function defaultRegion(): SpawnRegion {
@@ -248,6 +243,10 @@ export function usePigMovement(
 
   const setRegion = useCallback((r: SpawnRegion) => {
     regionRef.current = r;
+  }, []);
+
+  const setDragActive = useCallback((active: boolean) => {
+    setPigDragActive(active).catch(() => {});
   }, []);
 
   const startDrag = useCallback((pigId: string, x: number, y: number) => {
@@ -340,6 +339,22 @@ export function usePigMovement(
     });
   }, [focuses]);
 
+  // Subscribe to gather-pigs / display-region events from Rust.
+  // Fall back to a no-op unsubscribe if subscribe rejects so cleanup never throws.
+  useEffect(() => {
+    const unsubPromise = subscribeGatherPigs(gather).catch(() => () => {});
+    return () => {
+      unsubPromise.then((unsub) => unsub());
+    };
+  }, [gather]);
+
+  useEffect(() => {
+    const unsubPromise = subscribeDisplayRegion(setRegion).catch(() => () => {});
+    return () => {
+      unsubPromise.then((unsub) => unsub());
+    };
+  }, [setRegion]);
+
   // rAF movement loop
   useEffect(() => {
     const loop = (now: number) => {
@@ -371,5 +386,5 @@ export function usePigMovement(
     return () => cancelAnimationFrame(rafRef.current);
   }, []);
 
-  return { pigs, startDrag, moveDrag, endDrag, gather, setRegion };
+  return { pigs, startDrag, moveDrag, endDrag, setDragActive };
 }
