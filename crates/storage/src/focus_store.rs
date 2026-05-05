@@ -418,11 +418,7 @@ mod tests {
 
         let slug = store
             .create_focus(
-                &NewFocus {
-                    title: "Customer X bug".into(),
-                    description: "ship it".into(),
-                    timer_preset: None,
-                },
+                &NewFocus::new("Customer X bug", "ship it").unwrap(),
                 "id-1",
                 "2026-04-30T12:00:00Z",
                 None,
@@ -452,11 +448,7 @@ mod tests {
 
         store
             .create_focus(
-                &NewFocus {
-                    title: "With timer".into(),
-                    description: "".into(),
-                    timer_preset: None,
-                },
+                &NewFocus::new("With timer", "").unwrap(),
                 "id-1",
                 "2026-04-30T12:00:00Z",
                 Some(timer.clone()),
@@ -475,11 +467,7 @@ mod tests {
 
         store
             .create_focus(
-                &NewFocus {
-                    title: "No timer".into(),
-                    description: "".into(),
-                    timer_preset: None,
-                },
+                &NewFocus::new("No timer", "").unwrap(),
                 "id-1",
                 "2026-04-30T12:00:00Z",
                 None,
@@ -497,11 +485,7 @@ mod tests {
         let store = MarkdownFocusStore::new(dir.path());
         let slug = store
             .create_focus(
-                &NewFocus {
-                    title: "Bye".into(),
-                    description: "".into(),
-                    timer_preset: None,
-                },
+                &NewFocus::new("Bye", "").unwrap(),
                 "id-1",
                 "2026-04-30T12:00:00Z",
                 None,
@@ -528,11 +512,7 @@ mod tests {
         let store = MarkdownFocusStore::new(dir.path());
         let slug = store
             .create_focus(
-                &NewFocus {
-                    title: "Broken timer".into(),
-                    description: "".into(),
-                    timer_preset: None,
-                },
+                &NewFocus::new("Broken timer", "").unwrap(),
                 "id-1",
                 "2026-04-30T12:00:00Z",
                 None,
@@ -554,11 +534,7 @@ mod tests {
         let store = MarkdownFocusStore::new(dir.path());
         let slug = store
             .create_focus(
-                &NewFocus {
-                    title: "Has tasks".into(),
-                    description: "".into(),
-                    timer_preset: None,
-                },
+                &NewFocus::new("Has tasks", "").unwrap(),
                 "id-1",
                 "2026-04-30T12:00:00Z",
                 None,
@@ -579,11 +555,7 @@ mod tests {
         let store = MarkdownFocusStore::new(dir.path());
         let slug = store
             .create_focus(
-                &NewFocus {
-                    title: "Two tasks".into(),
-                    description: "".into(),
-                    timer_preset: None,
-                },
+                &NewFocus::new("Two tasks", "").unwrap(),
                 "id-1",
                 "2026-04-30T12:00:00Z",
                 None,
