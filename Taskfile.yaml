@@ -27,6 +27,17 @@ tasks:
     cmds:
       - cargo test -p adhd-ranch-domain -p adhd-ranch-storage -p adhd-ranch-commands -p adhd-ranch-http-api --all-targets
 
+  gen-types:
+    desc: Regenerate src/types/generated/*.ts from Rust domain via ts-rs
+    cmds:
+      - cargo test -p adhd-ranch-domain --features export-ts --quiet
+
+  gen-types:check:
+    desc: Fail if generated TS types are out of sync with Rust domain
+    cmds:
+      - task: gen-types
+      - git diff --exit-code -- src/types/generated
+
   test:web:
     desc: Run frontend tests
     deps: [install]
@@ -72,11 +83,12 @@ tasks:
       - npm run fmt
 
   check:
-    desc: PR gate — lint + typecheck + tests
+    desc: PR gate — lint + typecheck + tests + ts-rs drift check
     cmds:
       - task: lint
       - task: typecheck
       - task: test
+      - task: gen-types:check
 
   build:web:
     desc: Build frontend bundle

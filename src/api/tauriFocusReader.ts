@@ -18,6 +18,7 @@ function fromRust(raw: RustFocus): Focus {
     id: raw.id,
     title: raw.title,
     description: raw.description,
+    created_at: raw.created_at,
     tasks: raw.tasks.map((t) => ({ id: t.id, text: t.text, done: t.done ?? false })),
   };
 }

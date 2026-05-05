@@ -40,8 +40,8 @@ vi.mock(import("../hooks/usePigMovement"), async (importOriginal) => {
 });
 
 const sample: Focus[] = [
-  { id: "a", title: "Customer X bug", description: "", tasks: [] },
-  { id: "b", title: "API refactor", description: "", tasks: [] },
+  { id: "a", title: "Customer X bug", description: "", created_at: "", tasks: [] },
+  { id: "b", title: "API refactor", description: "", created_at: "", tasks: [] },
 ];
 
 function noopFocusWriter(): FocusWriter {

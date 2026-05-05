@@ -7,6 +7,7 @@ const focus: Focus = {
   id: "f1",
   title: "Customer X bug",
   description: "",
+  created_at: "",
   tasks: [{ id: "t1", text: "ship", done: false }],
 };
 

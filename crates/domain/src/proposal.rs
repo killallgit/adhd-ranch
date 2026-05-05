@@ -4,9 +4,13 @@ use crate::error::DomainError;
 use crate::timer::TimerPreset;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "export-ts", derive(ts_rs::TS))]
+#[cfg_attr(feature = "export-ts", ts(export))]
 pub struct ProposalId(pub String);
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "export-ts", derive(ts_rs::TS))]
+#[cfg_attr(feature = "export-ts", ts(export))]
 pub struct NewFocus {
     title: String,
     description: String,
@@ -67,6 +71,8 @@ impl<'de> Deserialize<'de> for NewFocus {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
+#[cfg_attr(feature = "export-ts", derive(ts_rs::TS))]
+#[cfg_attr(feature = "export-ts", ts(export))]
 pub enum ProposalKind {
     AddTask {
         target_focus_id: String,
@@ -79,6 +85,8 @@ pub enum ProposalKind {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "export-ts", derive(ts_rs::TS))]
+#[cfg_attr(feature = "export-ts", ts(export))]
 pub struct Proposal {
     pub id: ProposalId,
     #[serde(flatten)]

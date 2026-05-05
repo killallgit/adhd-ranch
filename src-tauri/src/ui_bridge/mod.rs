@@ -250,11 +250,7 @@ pub fn update_settings(
     Ok(())
 }
 
-#[derive(serde::Serialize)]
-pub struct MonitorInfo {
-    pub idx: usize,
-    pub label: String,
-}
+use adhd_ranch_domain::MonitorInfo;
 
 #[tauri::command]
 pub fn get_monitors(app: AppHandle<Wry>) -> Vec<MonitorInfo> {

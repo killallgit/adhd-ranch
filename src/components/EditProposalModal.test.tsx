@@ -5,8 +5,8 @@ import type { Proposal } from "../types/proposal";
 import { EditProposalModal } from "./EditProposalModal";
 
 const focuses: Focus[] = [
-  { id: "f1", title: "Customer X bug", description: "", tasks: [] },
-  { id: "f2", title: "API refactor", description: "", tasks: [] },
+  { id: "f1", title: "Customer X bug", description: "", created_at: "", tasks: [] },
+  { id: "f2", title: "API refactor", description: "", created_at: "", tasks: [] },
 ];
 
 const addTaskProposal: Proposal = {
