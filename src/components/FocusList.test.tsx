@@ -8,6 +8,7 @@ const sample: Focus[] = [
     id: "a",
     title: "Customer X bug",
     description: "",
+    created_at: "",
     tasks: [
       { id: "t1", text: "ship the fix", done: false },
       { id: "t2", text: "verify on staging", done: false },
@@ -17,6 +18,7 @@ const sample: Focus[] = [
     id: "b",
     title: "API refactor",
     description: "",
+    created_at: "",
     tasks: [{ id: "t3", text: "extract pipeline", done: false }],
   },
 ];

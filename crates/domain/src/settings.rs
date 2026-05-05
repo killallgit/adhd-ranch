@@ -4,6 +4,8 @@ pub const DEFAULT_MAX_FOCUSES: usize = 5;
 pub const DEFAULT_MAX_TASKS_PER_FOCUS: usize = 7;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "export-ts", derive(ts_rs::TS))]
+#[cfg_attr(feature = "export-ts", ts(export))]
 pub struct Widget {
     pub always_on_top: bool,
     pub confirm_delete: bool,
@@ -19,6 +21,8 @@ impl Default for Widget {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "export-ts", derive(ts_rs::TS))]
+#[cfg_attr(feature = "export-ts", ts(export))]
 pub struct Caps {
     pub max_focuses: usize,
     pub max_tasks_per_focus: usize,
@@ -34,6 +38,8 @@ impl Default for Caps {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "export-ts", derive(ts_rs::TS))]
+#[cfg_attr(feature = "export-ts", ts(export))]
 pub struct Alerts {
     pub system_notifications: bool,
 }
@@ -48,6 +54,8 @@ impl Default for Alerts {
 
 /// Which monitor indices have an active overlay window. Default: primary only (index 0).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "export-ts", derive(ts_rs::TS))]
+#[cfg_attr(feature = "export-ts", ts(export))]
 pub struct DisplayConfig {
     pub enabled_indices: Vec<usize>,
 }
@@ -61,6 +69,8 @@ impl Default for DisplayConfig {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "export-ts", derive(ts_rs::TS))]
+#[cfg_attr(feature = "export-ts", ts(export))]
 pub struct Settings {
     pub caps: Caps,
     pub alerts: Alerts,

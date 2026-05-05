@@ -39,7 +39,7 @@ describe("useAppState", () => {
   });
 
   it("becomes ready when both focuses and proposals resolve", async () => {
-    const focuses: Focus[] = [{ id: "a", title: "A", description: "", tasks: [] }];
+    const focuses: Focus[] = [{ id: "a", title: "A", description: "", created_at: "", tasks: [] }];
     const proposals: Proposal[] = [];
     const { result } = renderHook(() =>
       useAppState({

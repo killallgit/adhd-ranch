@@ -5,7 +5,9 @@ import type { Focus } from "../types/focus";
 import type { Proposal } from "../types/proposal";
 import { PendingTray } from "./PendingTray";
 
-const focuses: Focus[] = [{ id: "f1", title: "Customer X bug", description: "", tasks: [] }];
+const focuses: Focus[] = [
+  { id: "f1", title: "Customer X bug", description: "", created_at: "", tasks: [] },
+];
 
 const addTaskProposal: Proposal = {
   id: "p1",

@@ -1,14 +1,10 @@
-export type TimerPresetVariant = "Two" | "Four" | "Eight" | "Sixteen" | "ThirtyTwo";
+import type { TimerPreset } from "./generated/TimerPreset";
 
-export type TimerPreset = TimerPresetVariant | { Custom: number }; // minutes
+export type { FocusTimer } from "./generated/FocusTimer";
+export type { TimerPreset } from "./generated/TimerPreset";
+export type { TimerStatus } from "./generated/TimerStatus";
 
-export type TimerStatus = "Running" | "Expired";
-
-export interface FocusTimer {
-  readonly duration_secs: number;
-  readonly started_at: number;
-  readonly status: TimerStatus;
-}
+export type TimerPresetVariant = Exclude<TimerPreset, { Custom: number }>;
 
 export const PRESET_OPTIONS: Array<{ label: string; value: TimerPreset | null }> = [
   { label: "No timer", value: null },
@@ -17,5 +13,5 @@ export const PRESET_OPTIONS: Array<{ label: string; value: TimerPreset | null }>
   { label: "8m", value: "Eight" },
   { label: "16m", value: "Sixteen" },
   { label: "32m", value: "ThirtyTwo" },
-  { label: "Custom", value: null }, // placeholder — custom uses number input
+  { label: "Custom", value: null },
 ];

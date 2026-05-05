@@ -1,12 +1,3 @@
-export interface Task {
-  readonly id: string;
-  readonly text: string;
-  readonly done: boolean;
-}
-
-export interface Focus {
-  readonly id: string;
-  readonly title: string;
-  readonly description: string;
-  readonly tasks: readonly Task[];
-}
+export type { Focus } from "./generated/Focus";
+export type { FocusId } from "./generated/FocusId";
+export type { Task } from "./generated/Task";

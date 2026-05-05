@@ -8,6 +8,7 @@ const baseFocus: Focus = {
   id: "pig-a",
   title: "Ship it",
   description: "",
+  created_at: "",
   tasks: [],
 };
 
@@ -96,6 +97,7 @@ describe("PigDetail task editing", () => {
     id: "pig-a",
     title: "Ship it",
     description: "",
+    created_at: "",
     tasks: [
       { id: "t1", text: "alpha", done: false },
       { id: "t2", text: "beta", done: true },

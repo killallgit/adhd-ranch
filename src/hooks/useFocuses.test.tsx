@@ -7,7 +7,9 @@ import { useFocuses } from "./useFocuses";
 
 describe("useFocuses", () => {
   it("transitions loading → ready with focuses", async () => {
-    const reader = createFixtureFocusReader([{ id: "a", title: "A", description: "", tasks: [] }]);
+    const reader = createFixtureFocusReader([
+      { id: "a", title: "A", description: "", created_at: "", tasks: [] },
+    ]);
     const { result } = renderHook(() => useFocuses(reader));
     expect(result.current.status).toBe("loading");
     await waitFor(() => {
@@ -22,10 +24,10 @@ describe("useFocuses", () => {
   it("re-fetches when subscribe callback fires", async () => {
     let callCount = 0;
     let trigger: (() => void) | null = null;
-    const focusesA: Focus[] = [{ id: "a", title: "A", description: "", tasks: [] }];
+    const focusesA: Focus[] = [{ id: "a", title: "A", description: "", created_at: "", tasks: [] }];
     const focusesB: Focus[] = [
-      { id: "a", title: "A", description: "", tasks: [] },
-      { id: "b", title: "B", description: "", tasks: [] },
+      { id: "a", title: "A", description: "", created_at: "", tasks: [] },
+      { id: "b", title: "B", description: "", created_at: "", tasks: [] },
     ];
     const reader: FocusReader = {
       list: () => {
