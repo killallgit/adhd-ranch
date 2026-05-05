@@ -6,6 +6,40 @@ All notable changes to adhd-ranch. Follows [Keep a Changelog](https://keepachang
 
 ## [Unreleased]
 
+### Added — 034 focus/task invariants in domain (PR #40, in flight)
+
+- `crates/domain/src/error.rs` — new `DomainError` enum: `EmptyTitle`, `EmptyTaskText`
+- `NewFocus::new(title, description) -> Result<Self, DomainError>` validated constructor
+- `crates/domain/src/focus.rs` — `TaskText` newtype with validated `new` + `as_str`
+- `From<DomainError> for CommandError` — maps to `BadRequest`
+- Command-handler regression tests assert blank input → `BadRequest`
+
+### Changed — 034
+
+- `Commands::create_focus` and `Commands::append_task` no longer carry their own `trim().is_empty()` guards; they call `NewFocus::new` and `TaskText::new` instead
+- Focus title and task text invariants now enforced once in `crates/domain/`
+
+### Added — 035 unit tests for `MarkdownFocusStore` (PR #41, in flight)
+
+- 8 direct unit tests in `crates/storage/src/focus_store.rs`: create/list roundtrip, timer sidecar present/absent, delete + delete-of-unknown, corrupted `timer.json`, append/delete task persistence
+- Storage seam now independently trusted without going through `Commands`
+
+### Changed — 035
+
+- `MarkdownFocusStore::list()` degrades to `timer: None` when `timer.json` is corrupted instead of failing the whole load — UI keeps showing the focus, user can recreate the timer
+
+### Changed — 033 pig/drag IPC moved into `api/` layer (PR #39, in flight)
+
+- `src/api/pig.ts` — new typed wrappers: `setPigDragActive`, `updatePigRects`, `subscribeGatherPigs`, `subscribeDisplayRegion`
+- `src/types/pig.ts` — shared `SpawnRegion`, `PigHitRect` (api/ no longer depends on hooks/)
+- `src/components/App.tsx` and `src/hooks/usePigMovement.ts` no longer import `@tauri-apps/api/core` or `@tauri-apps/api/event`; both go through `src/api/pig.ts`
+- Subscription effects wrap a no-op fallback so cleanup cannot raise an unhandled rejection on strict-mode unmount
+
+### Fixed
+
+- `Taskfile.yaml` — drop stale `ralph/` include (left dangling by `dabed05 remove ralph dir`); `task check` runs again
+- `issues/` — archive pre-merge drafts of 013/016/018/019/020 and move 032 into `issues/done/` (PR #42)
+
 ### Added — 028 focus timer: domain types + full-stack creation (PR #32)
 
 - `crates/domain/src/timer.rs` — pure domain: `FocusTimer`, `TimerPreset` (2/4/8/16/32m + Custom), `TimerStatus`, `timer_remaining_secs()`, `growth_factor()`

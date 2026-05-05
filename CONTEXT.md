@@ -30,6 +30,14 @@ An optional countdown attached to a Focus at creation time. Stores `duration_sec
 
 A named duration choice offered at Focus creation: 2m, 4m, 8m, 16m, 32m, or Custom (free integer minutes). Maps to `duration_secs` in `FocusTimer`.
 
+### TaskText
+
+Newtype wrapper around a non-empty `String`. Construct via `TaskText::new(text)` — returns `DomainError::EmptyTaskText` for blank input. The only way `Commands::append_task` passes text into the storage layer.
+
+### DomainError
+
+Errors raised by validated domain constructors (`NewFocus::new`, `TaskText::new`). Variants: `EmptyTitle`, `EmptyTaskText`. Maps to `CommandError::BadRequest` at the commands layer. Domain owns the invariants; the commands layer owns the protocol mapping.
+
 ## Persistence
 
 Focus = a self-contained directory under `~/.adhd-ranch/focuses/<slug>/`:
