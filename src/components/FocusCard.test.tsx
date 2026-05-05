@@ -7,7 +7,7 @@ const focus: Focus = {
   id: "f1",
   title: "Customer X bug",
   description: "",
-  tasks: [{ id: "t1", text: "ship" }],
+  tasks: [{ id: "t1", text: "ship", done: false }],
 };
 
 describe("FocusCard", () => {

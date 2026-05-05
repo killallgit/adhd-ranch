@@ -1,6 +1,7 @@
 export interface Task {
   readonly id: string;
   readonly text: string;
+  readonly done: boolean;
 }
 
 export interface Focus {

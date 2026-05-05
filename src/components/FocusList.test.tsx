@@ -9,15 +9,15 @@ const sample: Focus[] = [
     title: "Customer X bug",
     description: "",
     tasks: [
-      { id: "t1", text: "ship the fix" },
-      { id: "t2", text: "verify on staging" },
+      { id: "t1", text: "ship the fix", done: false },
+      { id: "t2", text: "verify on staging", done: false },
     ],
   },
   {
     id: "b",
     title: "API refactor",
     description: "",
-    tasks: [{ id: "t3", text: "extract pipeline" }],
+    tasks: [{ id: "t3", text: "extract pipeline", done: false }],
   },
 ];
 

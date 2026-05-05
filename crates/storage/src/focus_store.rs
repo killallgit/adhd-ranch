@@ -49,8 +49,11 @@ pub trait FocusStore: Send + Sync {
         timer: Option<FocusTimer>,
     ) -> Result<String, FocusStoreError>;
     fn delete_focus(&self, focus_id: &str) -> Result<(), FocusStoreError>;
+    fn rename_focus(&self, focus_id: &str, title: &str) -> Result<(), FocusStoreError>;
     fn append_task(&self, focus_id: &str, text: &str) -> Result<(), FocusStoreError>;
     fn delete_task(&self, focus_id: &str, index: usize) -> Result<(), FocusStoreError>;
+    fn update_task(&self, focus_id: &str, index: usize, text: &str) -> Result<(), FocusStoreError>;
+    fn toggle_task(&self, focus_id: &str, index: usize, done: bool) -> Result<(), FocusStoreError>;
 }
 
 pub struct MarkdownFocusStore {
@@ -169,6 +172,46 @@ impl FocusStore for MarkdownFocusStore {
         Ok(())
     }
 
+    fn rename_focus(&self, focus_id: &str, title: &str) -> Result<(), FocusStoreError> {
+        let current = self.read_focus(focus_id)?;
+        let mut out = String::with_capacity(current.len());
+        let mut in_frontmatter = false;
+        let mut closed_frontmatter = false;
+        let mut replaced = false;
+        let trailing_newline = current.ends_with('\n');
+        for (line_idx, line) in current.lines().enumerate() {
+            if line_idx == 0 && line == "---" {
+                in_frontmatter = true;
+                out.push_str(line);
+                out.push('\n');
+                continue;
+            }
+            if in_frontmatter && !closed_frontmatter && line == "---" {
+                closed_frontmatter = true;
+                out.push_str(line);
+                out.push('\n');
+                continue;
+            }
+            if in_frontmatter && !closed_frontmatter && !replaced {
+                if let Some((key, _)) = line.split_once(':') {
+                    if key.trim() == "title" {
+                        out.push_str(&format!("title: {title}"));
+                        out.push('\n');
+                        replaced = true;
+                        continue;
+                    }
+                }
+            }
+            out.push_str(line);
+            out.push('\n');
+        }
+        if !trailing_newline {
+            out.pop();
+        }
+        atomic_write(&self.focus_md(focus_id), out.as_bytes())?;
+        Ok(())
+    }
+
     fn append_task(&self, focus_id: &str, text: &str) -> Result<(), FocusStoreError> {
         let mut next = self.read_focus(focus_id)?;
         if !next.ends_with('\n') {
@@ -213,6 +256,81 @@ impl FocusStore for MarkdownFocusStore {
         atomic_write(&self.focus_md(focus_id), out.as_bytes())?;
         Ok(())
     }
+
+    fn update_task(&self, focus_id: &str, index: usize, text: &str) -> Result<(), FocusStoreError> {
+        rewrite_task_line(self, focus_id, index, |line| {
+            let leading_ws: String = line.chars().take_while(|c| c.is_whitespace()).collect();
+            let body = line.trim_start();
+            let (marker, _rest) = if let Some(rest) = body.strip_prefix("- [ ]") {
+                ("- [ ]", rest)
+            } else if let Some(rest) = body.strip_prefix("- [x]") {
+                ("- [x]", rest)
+            } else {
+                return line.to_string();
+            };
+            format!("{leading_ws}{marker} {text}", text = text.trim())
+        })
+    }
+
+    fn toggle_task(&self, focus_id: &str, index: usize, done: bool) -> Result<(), FocusStoreError> {
+        rewrite_task_line(self, focus_id, index, |line| {
+            let leading_ws: String = line.chars().take_while(|c| c.is_whitespace()).collect();
+            let body = line.trim_start();
+            let new_marker = if done { "- [x]" } else { "- [ ]" };
+            let rest = if let Some(rest) = body.strip_prefix("- [ ]") {
+                rest
+            } else if let Some(rest) = body.strip_prefix("- [x]") {
+                rest
+            } else {
+                return line.to_string();
+            };
+            format!("{leading_ws}{new_marker}{rest}")
+        })
+    }
+}
+
+fn rewrite_task_line<F>(
+    store: &MarkdownFocusStore,
+    focus_id: &str,
+    index: usize,
+    transform: F,
+) -> Result<(), FocusStoreError>
+where
+    F: FnOnce(&str) -> String,
+{
+    let current = store.read_focus(focus_id)?;
+    let mut bullet_indices: Vec<usize> = Vec::new();
+    for (line_idx, line) in current.lines().enumerate() {
+        let trimmed = line.trim_start();
+        if trimmed.starts_with("- [ ]") || trimmed.starts_with("- [x]") {
+            bullet_indices.push(line_idx);
+        }
+    }
+    let target =
+        *bullet_indices
+            .get(index)
+            .ok_or_else(|| FocusStoreError::TaskIndexOutOfRange {
+                focus_id: focus_id.to_string(),
+                index,
+            })?;
+
+    let mut out = String::with_capacity(current.len());
+    let trailing_newline = current.ends_with('\n');
+    let mut transform = Some(transform);
+    for (line_idx, line) in current.lines().enumerate() {
+        if line_idx == target {
+            let f = transform.take().unwrap();
+            out.push_str(&f(line));
+        } else {
+            out.push_str(line);
+        }
+        out.push('\n');
+    }
+    if !trailing_newline {
+        out.pop();
+    }
+    atomic_write(&store.focus_md(focus_id), out.as_bytes())?;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -388,6 +506,101 @@ mod tests {
             )
             .unwrap_err();
         assert!(matches!(err, FocusStoreError::AlreadyExists(slug) if slug == "customer-x-bug"));
+    }
+
+    #[test]
+    fn toggle_task_marks_done() {
+        let dir = TempDir::new().unwrap();
+        write_focus(dir.path(), "a", &focus_md("a", &["one", "two"]));
+        let store = MarkdownFocusStore::new(dir.path());
+
+        store.toggle_task("a", 0, true).unwrap();
+
+        let content = fs::read_to_string(dir.path().join("a/focus.md")).unwrap();
+        assert!(content.contains("- [x] one"));
+        assert!(content.contains("- [ ] two"));
+    }
+
+    #[test]
+    fn toggle_task_marks_undone() {
+        let dir = TempDir::new().unwrap();
+        let body = "---\nid: a\ntitle: A\ndescription:\ncreated_at: 2026-04-30T12:00:00Z\n---\n- [x] done\n";
+        write_focus(dir.path(), "a", body);
+        let store = MarkdownFocusStore::new(dir.path());
+
+        store.toggle_task("a", 0, false).unwrap();
+
+        let content = fs::read_to_string(dir.path().join("a/focus.md")).unwrap();
+        assert!(content.contains("- [ ] done"));
+        assert!(!content.contains("- [x] done"));
+    }
+
+    #[test]
+    fn toggle_task_errors_on_index_out_of_range() {
+        let dir = TempDir::new().unwrap();
+        write_focus(dir.path(), "a", &focus_md("a", &["only"]));
+        let store = MarkdownFocusStore::new(dir.path());
+        let err = store.toggle_task("a", 9, true).unwrap_err();
+        assert!(matches!(
+            err,
+            FocusStoreError::TaskIndexOutOfRange { index: 9, .. }
+        ));
+    }
+
+    #[test]
+    fn update_task_replaces_text_preserving_state() {
+        let dir = TempDir::new().unwrap();
+        let body = "---\nid: a\ntitle: A\ndescription:\ncreated_at: 2026-04-30T12:00:00Z\n---\n- [ ] one\n- [x] two\n- [ ] three\n";
+        write_focus(dir.path(), "a", body);
+        let store = MarkdownFocusStore::new(dir.path());
+
+        store.update_task("a", 1, "TWO RENAMED").unwrap();
+
+        let content = fs::read_to_string(dir.path().join("a/focus.md")).unwrap();
+        assert!(content.contains("- [ ] one"));
+        assert!(content.contains("- [x] TWO RENAMED"));
+        assert!(content.contains("- [ ] three"));
+        assert!(!content.contains("- [x] two"));
+    }
+
+    #[test]
+    fn update_task_errors_on_index_out_of_range() {
+        let dir = TempDir::new().unwrap();
+        write_focus(dir.path(), "a", &focus_md("a", &["one"]));
+        let store = MarkdownFocusStore::new(dir.path());
+        let err = store.update_task("a", 5, "x").unwrap_err();
+        assert!(matches!(
+            err,
+            FocusStoreError::TaskIndexOutOfRange { index: 5, .. }
+        ));
+    }
+
+    #[test]
+    fn rename_focus_updates_only_title() {
+        let dir = TempDir::new().unwrap();
+        write_focus(
+            dir.path(),
+            "a",
+            &fixture("a", "Old Title", "2026-04-30T12:00:00Z", &["one", "two"]),
+        );
+        let store = MarkdownFocusStore::new(dir.path());
+
+        store.rename_focus("a", "New Title").unwrap();
+
+        let focuses = store.list().unwrap();
+        assert_eq!(focuses.len(), 1);
+        assert_eq!(focuses[0].title, "New Title");
+        assert_eq!(focuses[0].id, adhd_ranch_domain::FocusId("a".into()));
+        assert_eq!(focuses[0].tasks.len(), 2);
+        assert!(dir.path().join("a/focus.md").is_file());
+    }
+
+    #[test]
+    fn rename_focus_errors_on_missing() {
+        let dir = TempDir::new().unwrap();
+        let store = MarkdownFocusStore::new(dir.path());
+        let err = store.rename_focus("ghost", "x").unwrap_err();
+        assert!(matches!(err, FocusStoreError::NotFound(slug) if slug == "ghost"));
     }
 
     #[test]

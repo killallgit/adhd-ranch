@@ -98,6 +98,93 @@ async fn post_empty(app: &Router, uri: &str) -> axum::http::Response<Body> {
         .unwrap()
 }
 
+async fn patch_json(
+    app: &Router,
+    uri: &str,
+    body: serde_json::Value,
+) -> axum::http::Response<Body> {
+    app.clone()
+        .oneshot(
+            Request::builder()
+                .method("PATCH")
+                .uri(uri)
+                .header("content-type", "application/json")
+                .body(Body::from(body.to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap()
+}
+
+#[tokio::test]
+async fn patch_focus_renames_title() {
+    let dir = TempDir::new().unwrap();
+    let h = make_app(dir.path());
+    write_focus(
+        &h.focuses_root,
+        "f1",
+        &focus_md("f1", "Old", "x", "2026-04-30T12:00:00Z"),
+    );
+    let resp = patch_json(&h.app, "/focuses/f1", serde_json::json!({"title": "New"})).await;
+    assert_eq!(resp.status(), StatusCode::NO_CONTENT);
+    let content = std::fs::read_to_string(h.focuses_root.join("f1/focus.md")).unwrap();
+    assert!(content.contains("title: New"));
+    assert!(!content.contains("title: Old"));
+}
+
+#[tokio::test]
+async fn patch_focus_blank_title_returns_400() {
+    let dir = TempDir::new().unwrap();
+    let h = make_app(dir.path());
+    write_focus(
+        &h.focuses_root,
+        "f1",
+        &focus_md("f1", "Old", "x", "2026-04-30T12:00:00Z"),
+    );
+    let resp = patch_json(&h.app, "/focuses/f1", serde_json::json!({"title": "  "})).await;
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn patch_task_updates_text() {
+    let dir = TempDir::new().unwrap();
+    let h = make_app(dir.path());
+    write_focus(
+        &h.focuses_root,
+        "f1",
+        &focus_md("f1", "T", "x", "2026-04-30T12:00:00Z"),
+    );
+    let resp = patch_json(
+        &h.app,
+        "/focuses/f1/tasks/0",
+        serde_json::json!({"text": "rewrote"}),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::NO_CONTENT);
+    let content = std::fs::read_to_string(h.focuses_root.join("f1/focus.md")).unwrap();
+    assert!(content.contains("- [ ] rewrote"));
+}
+
+#[tokio::test]
+async fn patch_task_toggles_done() {
+    let dir = TempDir::new().unwrap();
+    let h = make_app(dir.path());
+    write_focus(
+        &h.focuses_root,
+        "f1",
+        &focus_md("f1", "T", "x", "2026-04-30T12:00:00Z"),
+    );
+    let resp = patch_json(
+        &h.app,
+        "/focuses/f1/tasks/0",
+        serde_json::json!({"done": true}),
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::NO_CONTENT);
+    let content = std::fs::read_to_string(h.focuses_root.join("f1/focus.md")).unwrap();
+    assert!(content.contains("- [x] one"));
+}
+
 #[tokio::test]
 async fn health_returns_ok() {
     let dir = TempDir::new().unwrap();

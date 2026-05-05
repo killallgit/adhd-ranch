@@ -67,6 +67,38 @@ impl Commands {
         Ok(())
     }
 
+    pub fn rename_focus(&self, focus_id: &str, title: &str) -> Result<(), CommandError> {
+        let trimmed = title.trim();
+        if trimmed.is_empty() {
+            return Err(CommandError::from(
+                adhd_ranch_domain::DomainError::EmptyTitle,
+            ));
+        }
+        self.store.rename_focus(focus_id, trimmed)?;
+        Ok(())
+    }
+
+    pub fn update_task(
+        &self,
+        focus_id: &str,
+        index: usize,
+        text: &str,
+    ) -> Result<(), CommandError> {
+        let text = TaskText::new(text)?;
+        self.store.update_task(focus_id, index, text.as_str())?;
+        Ok(())
+    }
+
+    pub fn toggle_task(
+        &self,
+        focus_id: &str,
+        index: usize,
+        done: bool,
+    ) -> Result<(), CommandError> {
+        self.store.toggle_task(focus_id, index, done)?;
+        Ok(())
+    }
+
     pub fn caps(&self) -> Caps {
         self.settings.caps
     }
@@ -142,6 +174,82 @@ mod tests {
             .unwrap();
         let err = commands.append_task(&created.id, "   ").unwrap_err();
         assert!(matches!(err, CommandError::BadRequest(_)));
+    }
+
+    #[test]
+    fn rename_focus_updates_title() {
+        let (commands, _dir) = build_commands(0);
+        let created = commands
+            .create_focus(CreateFocusInput {
+                title: "Old".into(),
+                description: String::new(),
+                timer_preset: None,
+            })
+            .unwrap();
+        commands.rename_focus(&created.id, "New").unwrap();
+        let focuses = commands.list_focuses().unwrap();
+        assert_eq!(focuses[0].title, "New");
+    }
+
+    #[test]
+    fn rename_focus_blank_title_returns_bad_request() {
+        let (commands, _dir) = build_commands(0);
+        let created = commands
+            .create_focus(CreateFocusInput {
+                title: "Real".into(),
+                description: String::new(),
+                timer_preset: None,
+            })
+            .unwrap();
+        let err = commands.rename_focus(&created.id, "   ").unwrap_err();
+        assert!(matches!(err, CommandError::BadRequest(_)));
+    }
+
+    #[test]
+    fn update_task_blank_text_returns_bad_request() {
+        let (commands, _dir) = build_commands(0);
+        let created = commands
+            .create_focus(CreateFocusInput {
+                title: "Has tasks".into(),
+                description: String::new(),
+                timer_preset: None,
+            })
+            .unwrap();
+        commands.append_task(&created.id, "first").unwrap();
+        let err = commands.update_task(&created.id, 0, "  ").unwrap_err();
+        assert!(matches!(err, CommandError::BadRequest(_)));
+    }
+
+    #[test]
+    fn update_task_replaces_text() {
+        let (commands, _dir) = build_commands(0);
+        let created = commands
+            .create_focus(CreateFocusInput {
+                title: "Has tasks".into(),
+                description: String::new(),
+                timer_preset: None,
+            })
+            .unwrap();
+        commands.append_task(&created.id, "old").unwrap();
+        commands.update_task(&created.id, 0, "new").unwrap();
+        let focuses = commands.list_focuses().unwrap();
+        assert_eq!(focuses[0].tasks[0].text, "new");
+    }
+
+    #[test]
+    fn toggle_task_round_trip() {
+        let (commands, _dir) = build_commands(0);
+        let created = commands
+            .create_focus(CreateFocusInput {
+                title: "Has tasks".into(),
+                description: String::new(),
+                timer_preset: None,
+            })
+            .unwrap();
+        commands.append_task(&created.id, "thing").unwrap();
+        commands.toggle_task(&created.id, 0, true).unwrap();
+        commands.toggle_task(&created.id, 0, false).unwrap();
+        // Round trip succeeds without error; observable result is no panic.
     }
 
     #[test]

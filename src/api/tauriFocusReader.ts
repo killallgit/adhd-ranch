@@ -8,7 +8,7 @@ interface RustFocus {
   readonly title: string;
   readonly description: string;
   readonly created_at: string;
-  readonly tasks: readonly { id: string; text: string }[];
+  readonly tasks: readonly { id: string; text: string; done?: boolean }[];
 }
 
 const FOCUSES_CHANGED = "focuses-changed";
@@ -18,7 +18,7 @@ function fromRust(raw: RustFocus): Focus {
     id: raw.id,
     title: raw.title,
     description: raw.description,
-    tasks: raw.tasks.map((t) => ({ id: t.id, text: t.text })),
+    tasks: raw.tasks.map((t) => ({ id: t.id, text: t.text, done: t.done ?? false })),
   };
 }
 

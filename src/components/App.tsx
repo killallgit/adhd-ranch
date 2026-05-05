@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FocusWriter } from "../api/focusWriter";
 import type { FocusReader } from "../api/focuses";
+import { getSettings } from "../api/settings";
 import { useDebugOverlay } from "../hooks/useDebugOverlay";
 import { useFocuses } from "../hooks/useFocuses";
 import { usePigMovement } from "../hooks/usePigMovement";
@@ -17,9 +18,16 @@ export function App({ focusReader, focusWriter }: AppProps) {
   const focusState = useFocuses(focusReader);
   const focuses = focusState.status === "ready" ? focusState.focuses : [];
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(true);
   const { pigs, startDrag, moveDrag, endDrag, setDragActive } = usePigMovement(focuses, selectedId);
   const { screenW, screenH } = useViewport();
   const { visible: showDebug, topOffset: debugTopOffset } = useDebugOverlay();
+
+  useEffect(() => {
+    getSettings()
+      .then((s) => setConfirmDelete(s?.widget?.confirm_delete ?? true))
+      .catch(console.error);
+  }, []);
 
   const selectedPig = pigs.find((p) => p.id === selectedId);
   const selectedFocus = focuses.find((f) => f.id === selectedId);
@@ -37,6 +45,38 @@ export function App({ focusReader, focusWriter }: AppProps) {
     if (!selectedFocus) return;
     try {
       await focusWriter.appendTask(selectedFocus.id, text);
+    } catch {
+      // focusWriter already logs the typed error
+    }
+  }
+
+  async function handleRenameFocus(focusId: string, title: string) {
+    try {
+      await focusWriter.renameFocus(focusId, title);
+    } catch {
+      // focusWriter already logs the typed error
+    }
+  }
+
+  async function handleUpdateTask(focusId: string, index: number, text: string) {
+    try {
+      await focusWriter.updateTask(focusId, index, text);
+    } catch {
+      // focusWriter already logs the typed error
+    }
+  }
+
+  async function handleToggleTask(focusId: string, index: number, done: boolean) {
+    try {
+      await focusWriter.toggleTask(focusId, index, done);
+    } catch {
+      // focusWriter already logs the typed error
+    }
+  }
+
+  async function handleDeleteFocus(focusId: string) {
+    try {
+      await focusWriter.deleteFocus(focusId);
     } catch {
       // focusWriter already logs the typed error
     }
@@ -85,9 +125,14 @@ export function App({ focusReader, focusWriter }: AppProps) {
           pigY={selectedPig.y}
           viewportW={screenW}
           viewportH={screenH}
+          confirmDelete={confirmDelete}
           onClose={() => setSelectedId(null)}
           onClearTask={handleClearTask}
           onAddTask={handleAddTask}
+          onRenameFocus={handleRenameFocus}
+          onUpdateTask={handleUpdateTask}
+          onToggleTask={handleToggleTask}
+          onDeleteFocus={handleDeleteFocus}
         />
       )}
     </div>

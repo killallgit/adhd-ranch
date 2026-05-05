@@ -44,6 +44,7 @@ mod tests {
                 .map(|i| Task {
                     id: format!("{id}:{i}"),
                     text: format!("t{i}"),
+                    done: false,
                 })
                 .collect(),
             timer: None,

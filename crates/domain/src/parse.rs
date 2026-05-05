@@ -87,19 +87,24 @@ fn parse_tasks(body: &str, focus_id: &str) -> Vec<Task> {
     body.lines()
         .filter_map(|line| {
             let line = line.trim_start();
-            let rest = line
-                .strip_prefix("- [ ]")
-                .or_else(|| line.strip_prefix("- [x]"))?;
+            let (done, rest) = if let Some(rest) = line.strip_prefix("- [x]") {
+                (true, rest)
+            } else if let Some(rest) = line.strip_prefix("- [ ]") {
+                (false, rest)
+            } else {
+                return None;
+            };
             let text = rest.trim().to_string();
             if text.is_empty() {
                 return None;
             }
-            Some(text)
+            Some((done, text))
         })
         .enumerate()
-        .map(|(index, text)| Task {
+        .map(|(index, (done, text))| Task {
             id: format!("{focus_id}:{index}"),
             text,
+            done,
         })
         .collect()
 }

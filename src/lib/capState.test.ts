@@ -9,7 +9,11 @@ function makeFocus(id: string, taskCount: number): Focus {
     id,
     title: id,
     description: "",
-    tasks: Array.from({ length: taskCount }, (_, i) => ({ id: `${id}:${i}`, text: `t${i}` })),
+    tasks: Array.from({ length: taskCount }, (_, i) => ({
+      id: `${id}:${i}`,
+      text: `t${i}`,
+      done: false,
+    })),
   };
 }
 
