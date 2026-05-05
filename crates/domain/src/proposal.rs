@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::error::DomainError;
 use crate::timer::TimerPreset;
@@ -6,12 +6,12 @@ use crate::timer::TimerPreset;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProposalId(pub String);
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct NewFocus {
-    pub title: String,
-    pub description: String,
+    title: String,
+    description: String,
     #[serde(skip_serializing_if = "Option::is_none", default)]
-    pub timer_preset: Option<TimerPreset>,
+    timer_preset: Option<TimerPreset>,
 }
 
 impl NewFocus {
@@ -28,6 +28,40 @@ impl NewFocus {
             description: description.into(),
             timer_preset: None,
         })
+    }
+
+    pub fn title(&self) -> &str {
+        &self.title
+    }
+
+    pub fn description(&self) -> &str {
+        &self.description
+    }
+
+    pub fn timer_preset(&self) -> Option<&TimerPreset> {
+        self.timer_preset.as_ref()
+    }
+
+    #[must_use]
+    pub fn with_timer_preset(mut self, timer_preset: Option<TimerPreset>) -> Self {
+        self.timer_preset = timer_preset;
+        self
+    }
+}
+
+impl<'de> Deserialize<'de> for NewFocus {
+    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        struct Raw {
+            title: String,
+            #[serde(default)]
+            description: String,
+            #[serde(default)]
+            timer_preset: Option<TimerPreset>,
+        }
+        let raw = Raw::deserialize(d)?;
+        let nf = NewFocus::new(raw.title, raw.description).map_err(serde::de::Error::custom)?;
+        Ok(nf.with_timer_preset(raw.timer_preset))
     }
 }
 
@@ -98,7 +132,7 @@ impl Proposal {
                 }
             }
             ProposalKind::NewFocus { new_focus } => {
-                if new_focus.title.trim().is_empty() {
+                if new_focus.title().trim().is_empty() {
                     return Err(ProposalValidationError::NewFocusEmptyTitle);
                 }
             }

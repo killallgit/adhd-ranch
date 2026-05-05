@@ -53,11 +53,10 @@ impl Commands {
                 task_text: input.task_text.clone().unwrap_or_default(),
             },
             "new_focus" => ProposalKind::NewFocus {
-                new_focus: input.new_focus.clone().unwrap_or(NewFocus {
-                    title: String::new(),
-                    description: String::new(),
-                    timer_preset: None,
-                }),
+                new_focus: input
+                    .new_focus
+                    .clone()
+                    .ok_or_else(|| CommandError::BadRequest("new_focus required".into()))?,
             },
             "discard" => ProposalKind::Discard,
             other => {

@@ -44,8 +44,8 @@ impl Commands {
             started_at: (self.clock_secs)(),
             status: TimerStatus::Running,
         });
-        let mut new_focus = NewFocus::new(input.title, input.description)?;
-        new_focus.timer_preset = input.timer_preset;
+        let new_focus =
+            NewFocus::new(input.title, input.description)?.with_timer_preset(input.timer_preset);
         let slug =
             create_focus_in_store(&self.store, &self.clock, &self.id_gen, &new_focus, timer)?;
         Ok(CreatedFocus { id: slug })
