@@ -27,6 +27,8 @@ pub struct FocusId(pub String);
 pub struct Task {
     pub id: String,
     pub text: String,
+    #[serde(default)]
+    pub done: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -73,6 +75,7 @@ mod tests {
             tasks: vec![Task {
                 id: "abc:0".into(),
                 text: "step one".into(),
+                done: false,
             }],
             timer: None,
         };

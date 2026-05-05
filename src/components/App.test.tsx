@@ -48,8 +48,11 @@ function noopFocusWriter(): FocusWriter {
   return {
     createFocus: vi.fn().mockResolvedValue({ id: "any" }),
     deleteFocus: vi.fn().mockResolvedValue(undefined),
+    renameFocus: vi.fn().mockResolvedValue(undefined),
     appendTask: vi.fn().mockResolvedValue(undefined),
     deleteTask: vi.fn().mockResolvedValue(undefined),
+    updateTask: vi.fn().mockResolvedValue(undefined),
+    toggleTask: vi.fn().mockResolvedValue(undefined),
   };
 }
 

@@ -9,8 +9,11 @@ export interface FocusWriter {
     timer_preset?: TimerPreset | null;
   }): Promise<{ id: string }>;
   deleteFocus(focusId: string): Promise<void>;
+  renameFocus(focusId: string, title: string): Promise<void>;
   appendTask(focusId: string, text: string): Promise<void>;
   deleteTask(focusId: string, index: number): Promise<void>;
+  updateTask(focusId: string, index: number, text: string): Promise<void>;
+  toggleTask(focusId: string, index: number, done: boolean): Promise<void>;
 }
 
 function logErr(op: string) {
@@ -37,6 +40,15 @@ export function createTauriFocusWriter(): FocusWriter {
     },
     deleteTask(focusId: string, index: number) {
       return invoke<void>("delete_task", { focusId, index }).catch(logErr("delete_task"));
+    },
+    renameFocus(focusId: string, title: string) {
+      return invoke<void>("rename_focus", { focusId, title }).catch(logErr("rename_focus"));
+    },
+    updateTask(focusId: string, index: number, text: string) {
+      return invoke<void>("update_task", { focusId, index, text }).catch(logErr("update_task"));
+    },
+    toggleTask(focusId: string, index: number, done: boolean) {
+      return invoke<void>("toggle_task", { focusId, index, done }).catch(logErr("toggle_task"));
     },
   };
 }

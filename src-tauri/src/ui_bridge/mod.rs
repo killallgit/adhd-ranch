@@ -94,6 +94,47 @@ pub fn delete_task(
 }
 
 #[tauri::command]
+pub fn rename_focus(
+    focus_id: String,
+    title: String,
+    state: State<'_, CommandsState>,
+) -> Result<(), CommandError> {
+    state
+        .0
+        .rename_focus(&focus_id, &title)
+        .inspect(|_| log::info!("focus renamed: {focus_id}"))
+        .inspect_err(|e| log::error!("rename_focus({focus_id:?}): {e}"))
+}
+
+#[tauri::command]
+pub fn update_task(
+    focus_id: String,
+    index: usize,
+    text: String,
+    state: State<'_, CommandsState>,
+) -> Result<(), CommandError> {
+    state
+        .0
+        .update_task(&focus_id, index, &text)
+        .inspect(|_| log::info!("task {index} updated in {focus_id}"))
+        .inspect_err(|e| log::error!("update_task({focus_id:?}, {index}): {e}"))
+}
+
+#[tauri::command]
+pub fn toggle_task(
+    focus_id: String,
+    index: usize,
+    done: bool,
+    state: State<'_, CommandsState>,
+) -> Result<(), CommandError> {
+    state
+        .0
+        .toggle_task(&focus_id, index, done)
+        .inspect(|_| log::info!("task {index} in {focus_id} toggled to {done}"))
+        .inspect_err(|e| log::error!("toggle_task({focus_id:?}, {index}, {done}): {e}"))
+}
+
+#[tauri::command]
 pub fn get_caps(state: State<'_, CommandsState>) -> Caps {
     state.0.caps()
 }

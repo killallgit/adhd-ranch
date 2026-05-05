@@ -11,9 +11,12 @@ use super::{ApiError, AppState, FocusCatalogEntry};
 pub(super) fn routes() -> Router<AppState> {
     Router::new()
         .route("/focuses", get(list).post(create))
-        .route("/focuses/:id", delete(delete_focus))
+        .route("/focuses/:id", delete(delete_focus).patch(rename_focus))
         .route("/focuses/:id/tasks", post(append_task))
-        .route("/focuses/:id/tasks/:idx", delete(delete_task))
+        .route(
+            "/focuses/:id/tasks/:idx",
+            delete(delete_task).patch(patch_task),
+        )
 }
 
 async fn list(State(state): State<AppState>) -> Result<Json<Vec<FocusCatalogEntry>>, ApiError> {
@@ -70,5 +73,50 @@ async fn delete_task(
         .commands
         .delete_task(&id, idx)
         .map_err(ApiError::from)?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+#[derive(Debug, Deserialize)]
+struct RenameFocusRequest {
+    title: String,
+}
+
+async fn rename_focus(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Json(req): Json<RenameFocusRequest>,
+) -> Result<StatusCode, ApiError> {
+    state
+        .commands
+        .rename_focus(&id, &req.title)
+        .map_err(ApiError::from)?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+#[derive(Debug, Deserialize)]
+struct PatchTaskRequest {
+    #[serde(default)]
+    text: Option<String>,
+    #[serde(default)]
+    done: Option<bool>,
+}
+
+async fn patch_task(
+    State(state): State<AppState>,
+    Path((id, idx)): Path<(String, usize)>,
+    Json(req): Json<PatchTaskRequest>,
+) -> Result<StatusCode, ApiError> {
+    if let Some(text) = req.text.as_deref() {
+        state
+            .commands
+            .update_task(&id, idx, text)
+            .map_err(ApiError::from)?;
+    }
+    if let Some(done) = req.done {
+        state
+            .commands
+            .toggle_task(&id, idx, done)
+            .map_err(ApiError::from)?;
+    }
     Ok(StatusCode::NO_CONTENT)
 }

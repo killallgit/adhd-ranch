@@ -148,10 +148,29 @@ mod tests {
         fn delete_focus(&self, _focus_id: &str) -> Result<(), FocusStoreError> {
             unimplemented!()
         }
+        fn rename_focus(&self, _focus_id: &str, _title: &str) -> Result<(), FocusStoreError> {
+            unimplemented!()
+        }
         fn append_task(&self, _focus_id: &str, _text: &str) -> Result<(), FocusStoreError> {
             unimplemented!()
         }
         fn delete_task(&self, _focus_id: &str, _index: usize) -> Result<(), FocusStoreError> {
+            unimplemented!()
+        }
+        fn update_task(
+            &self,
+            _focus_id: &str,
+            _index: usize,
+            _text: &str,
+        ) -> Result<(), FocusStoreError> {
+            unimplemented!()
+        }
+        fn toggle_task(
+            &self,
+            _focus_id: &str,
+            _index: usize,
+            _done: bool,
+        ) -> Result<(), FocusStoreError> {
             unimplemented!()
         }
     }
@@ -166,6 +185,7 @@ mod tests {
                 .map(|i| Task {
                     id: format!("{id}:{i}"),
                     text: format!("t{i}"),
+                    done: false,
                 })
                 .collect(),
             timer: None,
