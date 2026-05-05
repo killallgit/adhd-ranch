@@ -133,14 +133,14 @@ mod tests {
     #[test]
     fn append_task_blank_text_returns_bad_request() {
         let (commands, _dir) = build_commands(0);
-        commands
+        let created = commands
             .create_focus(CreateFocusInput {
                 title: "Real focus".into(),
                 description: String::new(),
                 timer_preset: None,
             })
             .unwrap();
-        let err = commands.append_task("real-focus", "   ").unwrap_err();
+        let err = commands.append_task(&created.id, "   ").unwrap_err();
         assert!(matches!(err, CommandError::BadRequest(_)));
     }
 

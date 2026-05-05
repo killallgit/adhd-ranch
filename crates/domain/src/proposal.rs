@@ -191,6 +191,9 @@ mod tests {
 
     #[test]
     fn new_focus_requires_title() {
+        // Struct literal is deliberate: NewFocus::new rejects empty titles, so
+        // this exercises Proposal::validate as a defense-in-depth fallback for
+        // any path that bypasses the constructor.
         let p = ok_proposal(ProposalKind::NewFocus {
             new_focus: NewFocus {
                 title: "".into(),
@@ -259,11 +262,7 @@ mod tests {
     #[test]
     fn round_trip_preserves_kind() {
         let original = ok_proposal(ProposalKind::NewFocus {
-            new_focus: NewFocus {
-                title: "T".into(),
-                description: "D".into(),
-                timer_preset: None,
-            },
+            new_focus: NewFocus::new("T", "D").unwrap(),
         });
         let json = serde_json::to_string(&original).unwrap();
         let back: Proposal = serde_json::from_str(&json).unwrap();
