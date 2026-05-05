@@ -66,6 +66,17 @@ pub fn ensure_shown(app: &AppHandle<Wry>, p: ShowParams<'_>) -> tauri::Result<()
     };
 
     crate::app::window_always_on_top::apply(&window, true);
+
+    // macOS demotes NSWindow level across key/resign-key transitions when the
+    // window is not an NSPanel. The popover's text inputs make the overlay key
+    // on click; re-apply on every focus event so the overlay stays floating.
+    let win_evt = window.clone();
+    window.on_window_event(move |event| {
+        if let tauri::WindowEvent::Focused(_) = event {
+            crate::app::window_always_on_top::apply(&win_evt, true);
+        }
+    });
+
     let show_result = window.show();
     log::info!("overlay: show={show_result:?}");
 
