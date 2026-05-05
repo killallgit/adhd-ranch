@@ -22,3 +22,4 @@ tsconfig.tsbuildinfo
 # ralph runtime state (not source-controlled)
 ralph/reviews/
 ralph/state/
+ralph/logs/

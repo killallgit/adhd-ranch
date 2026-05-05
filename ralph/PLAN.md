@@ -6,24 +6,24 @@
 
 ## 033
 title: Extract pig/drag IPC into api/ layer
-status: queued
+status: fixing-review
 branch: chore/pig-ipc-api-layer
 spec: issues/033-pig-ipc-api-layer.md
-pr: ~
+pr: 39
 
 ## 034
 title: Move Focus/Task invariants into domain
-status: queued
+status: fixing-review
 branch: chore/focus-invariants-in-domain
 spec: issues/034-focus-invariants-in-domain.md
-pr: ~
+pr: 40
 
 ## 035
 title: Unit tests for MarkdownFocusStore
-status: queued
+status: fixing-review
 branch: chore/focus-store-unit-tests
 spec: issues/035-focus-store-unit-tests.md
-pr: ~
+pr: 41
 
 ## 036
 title: Generate TypeScript types from Rust via ts-rs
