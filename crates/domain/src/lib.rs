@@ -1,6 +1,7 @@
 pub mod cap_monitor;
 pub mod caps;
 pub mod decision;
+pub mod error;
 pub mod focus;
 pub mod parse;
 pub mod pig_rect;
@@ -12,7 +13,8 @@ pub mod timer;
 pub use cap_monitor::{CapTransition, OverCapMonitor};
 pub use caps::{cap_state, CapState};
 pub use decision::{Decision, DecisionKind};
-pub use focus::{Focus, FocusId, Task};
+pub use error::DomainError;
+pub use focus::{Focus, FocusId, Task, TaskText};
 pub use parse::{parse_focus_md, ParseError};
 pub use pig_rect::{PigRect, RectUpdater};
 pub use proposal::{NewFocus, Proposal, ProposalId, ProposalKind, ProposalValidationError};

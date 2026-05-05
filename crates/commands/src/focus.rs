@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use adhd_ranch_domain::{Caps, Focus, FocusTimer, NewFocus, TimerPreset, TimerStatus};
+use adhd_ranch_domain::{Caps, Focus, FocusTimer, NewFocus, TaskText, TimerPreset, TimerStatus};
 use adhd_ranch_storage::FocusStore;
 use serde::{Deserialize, Serialize};
 
@@ -39,19 +39,13 @@ impl Commands {
     }
 
     pub fn create_focus(&self, input: CreateFocusInput) -> Result<CreatedFocus, CommandError> {
-        if input.title.trim().is_empty() {
-            return Err(CommandError::BadRequest("title must not be empty".into()));
-        }
         let timer = input.timer_preset.as_ref().map(|preset| FocusTimer {
             duration_secs: preset.duration_secs(),
             started_at: (self.clock_secs)(),
             status: TimerStatus::Running,
         });
-        let new_focus = NewFocus {
-            title: input.title,
-            description: input.description,
-            timer_preset: input.timer_preset,
-        };
+        let new_focus =
+            NewFocus::new(input.title, input.description)?.with_timer_preset(input.timer_preset);
         let slug =
             create_focus_in_store(&self.store, &self.clock, &self.id_gen, &new_focus, timer)?;
         Ok(CreatedFocus { id: slug })
@@ -63,10 +57,8 @@ impl Commands {
     }
 
     pub fn append_task(&self, focus_id: &str, text: &str) -> Result<(), CommandError> {
-        if text.trim().is_empty() {
-            return Err(CommandError::BadRequest("text must not be empty".into()));
-        }
-        self.store.append_task(focus_id, text)?;
+        let text = TaskText::new(text)?;
+        self.store.append_task(focus_id, text.as_str())?;
         Ok(())
     }
 
@@ -123,6 +115,33 @@ mod tests {
         let focuses = commands.list_focuses().unwrap();
         assert_eq!(focuses.len(), 1);
         assert!(focuses[0].timer.is_none());
+    }
+
+    #[test]
+    fn create_focus_blank_title_returns_bad_request() {
+        let (commands, _dir) = build_commands(0);
+        let err = commands
+            .create_focus(CreateFocusInput {
+                title: "  ".into(),
+                description: String::new(),
+                timer_preset: None,
+            })
+            .unwrap_err();
+        assert!(matches!(err, CommandError::BadRequest(_)));
+    }
+
+    #[test]
+    fn append_task_blank_text_returns_bad_request() {
+        let (commands, _dir) = build_commands(0);
+        let created = commands
+            .create_focus(CreateFocusInput {
+                title: "Real focus".into(),
+                description: String::new(),
+                timer_preset: None,
+            })
+            .unwrap();
+        let err = commands.append_task(&created.id, "   ").unwrap_err();
+        assert!(matches!(err, CommandError::BadRequest(_)));
     }
 
     #[test]

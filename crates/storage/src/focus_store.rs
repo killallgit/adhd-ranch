@@ -134,7 +134,7 @@ impl FocusStore for MarkdownFocusStore {
         created_at: &str,
         timer: Option<FocusTimer>,
     ) -> Result<String, FocusStoreError> {
-        let slug = slugify(&new_focus.title);
+        let slug = slugify(new_focus.title());
         let dir = self.root.join(&slug);
         if dir.exists() {
             return Err(FocusStoreError::AlreadyExists(slug));
@@ -143,8 +143,8 @@ impl FocusStore for MarkdownFocusStore {
 
         let body = format!(
             "---\nid: {id}\ntitle: {title}\ndescription: {description}\ncreated_at: {created_at}\n---\n",
-            title = new_focus.title,
-            description = new_focus.description,
+            title = new_focus.title(),
+            description = new_focus.description(),
         );
         atomic_write(&dir.join("focus.md"), body.as_bytes())?;
 
@@ -360,11 +360,7 @@ mod tests {
         let store = MarkdownFocusStore::new(dir.path());
         let slug = store
             .create_focus(
-                &NewFocus {
-                    title: "Customer X bug".into(),
-                    description: "ship it".into(),
-                    timer_preset: None,
-                },
+                &NewFocus::new("Customer X bug", "ship it").unwrap(),
                 "id-1",
                 "2026-04-30T12:00:00Z",
                 None,
@@ -384,11 +380,7 @@ mod tests {
         write_focus(dir.path(), "customer-x-bug", "existing");
         let err = store
             .create_focus(
-                &NewFocus {
-                    title: "Customer X bug".into(),
-                    description: "".into(),
-                    timer_preset: None,
-                },
+                &NewFocus::new("Customer X bug", "").unwrap(),
                 "id-2",
                 "2026-04-30T12:00:00Z",
                 None,

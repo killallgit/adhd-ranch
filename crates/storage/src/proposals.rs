@@ -100,11 +100,7 @@ mod tests {
             let p = proposal(
                 &format!("p{i}"),
                 ProposalKind::NewFocus {
-                    new_focus: NewFocus {
-                        title: format!("T{i}"),
-                        description: String::new(),
-                        timer_preset: None,
-                    },
+                    new_focus: NewFocus::new(format!("T{i}"), "").unwrap(),
                 },
             );
             queue.append(&p).unwrap();

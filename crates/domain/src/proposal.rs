@@ -1,16 +1,68 @@
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 
+use crate::error::DomainError;
 use crate::timer::TimerPreset;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProposalId(pub String);
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct NewFocus {
-    pub title: String,
-    pub description: String,
+    title: String,
+    description: String,
     #[serde(skip_serializing_if = "Option::is_none", default)]
-    pub timer_preset: Option<TimerPreset>,
+    timer_preset: Option<TimerPreset>,
+}
+
+impl NewFocus {
+    pub fn new(
+        title: impl Into<String>,
+        description: impl Into<String>,
+    ) -> Result<Self, DomainError> {
+        let title = title.into();
+        if title.trim().is_empty() {
+            return Err(DomainError::EmptyTitle);
+        }
+        Ok(Self {
+            title,
+            description: description.into(),
+            timer_preset: None,
+        })
+    }
+
+    pub fn title(&self) -> &str {
+        &self.title
+    }
+
+    pub fn description(&self) -> &str {
+        &self.description
+    }
+
+    pub fn timer_preset(&self) -> Option<&TimerPreset> {
+        self.timer_preset.as_ref()
+    }
+
+    #[must_use]
+    pub fn with_timer_preset(mut self, timer_preset: Option<TimerPreset>) -> Self {
+        self.timer_preset = timer_preset;
+        self
+    }
+}
+
+impl<'de> Deserialize<'de> for NewFocus {
+    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        struct Raw {
+            title: String,
+            #[serde(default)]
+            description: String,
+            #[serde(default)]
+            timer_preset: Option<TimerPreset>,
+        }
+        let raw = Raw::deserialize(d)?;
+        let nf = NewFocus::new(raw.title, raw.description).map_err(serde::de::Error::custom)?;
+        Ok(nf.with_timer_preset(raw.timer_preset))
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -80,7 +132,7 @@ impl Proposal {
                 }
             }
             ProposalKind::NewFocus { new_focus } => {
-                if new_focus.title.trim().is_empty() {
+                if new_focus.title().trim().is_empty() {
                     return Err(ProposalValidationError::NewFocusEmptyTitle);
                 }
             }
@@ -139,6 +191,9 @@ mod tests {
 
     #[test]
     fn new_focus_requires_title() {
+        // Struct literal is deliberate: NewFocus::new rejects empty titles, so
+        // this exercises Proposal::validate as a defense-in-depth fallback for
+        // any path that bypasses the constructor.
         let p = ok_proposal(ProposalKind::NewFocus {
             new_focus: NewFocus {
                 title: "".into(),
@@ -169,6 +224,30 @@ mod tests {
     }
 
     #[test]
+    fn new_focus_new_accepts_valid_title() {
+        let nf = NewFocus::new("Ship it", "the bug").unwrap();
+        assert_eq!(nf.title, "Ship it");
+        assert_eq!(nf.description, "the bug");
+        assert_eq!(nf.timer_preset, None);
+    }
+
+    #[test]
+    fn new_focus_new_rejects_empty_title() {
+        assert_eq!(
+            NewFocus::new("", "desc").unwrap_err(),
+            DomainError::EmptyTitle
+        );
+    }
+
+    #[test]
+    fn new_focus_new_rejects_whitespace_title() {
+        assert_eq!(
+            NewFocus::new("   ", "desc").unwrap_err(),
+            DomainError::EmptyTitle
+        );
+    }
+
+    #[test]
     fn add_task_kind_serializes_with_tag() {
         let p = ok_proposal(ProposalKind::AddTask {
             target_focus_id: "abc".into(),
@@ -183,11 +262,7 @@ mod tests {
     #[test]
     fn round_trip_preserves_kind() {
         let original = ok_proposal(ProposalKind::NewFocus {
-            new_focus: NewFocus {
-                title: "T".into(),
-                description: "D".into(),
-                timer_preset: None,
-            },
+            new_focus: NewFocus::new("T", "D").unwrap(),
         });
         let json = serde_json::to_string(&original).unwrap();
         let back: Proposal = serde_json::from_str(&json).unwrap();

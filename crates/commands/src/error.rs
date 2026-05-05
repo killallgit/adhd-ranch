@@ -1,4 +1,4 @@
-use adhd_ranch_domain::ProposalValidationError;
+use adhd_ranch_domain::{DomainError, ProposalValidationError};
 use adhd_ranch_storage::{FocusStoreError, JsonlError};
 
 #[derive(Debug, serde::Serialize)]
@@ -47,5 +47,11 @@ impl From<JsonlError> for CommandError {
 impl From<ProposalValidationError> for CommandError {
     fn from(e: ProposalValidationError) -> Self {
         CommandError::Validation(e.to_string())
+    }
+}
+
+impl From<DomainError> for CommandError {
+    fn from(e: DomainError) -> Self {
+        CommandError::BadRequest(e.to_string())
     }
 }

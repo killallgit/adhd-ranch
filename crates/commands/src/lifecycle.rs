@@ -71,7 +71,7 @@ impl ProposalLifecycle {
                 Ok(Some(target_focus_id.clone()))
             }
             ProposalKind::NewFocus { new_focus } => {
-                let timer = new_focus.timer_preset.as_ref().map(|preset| FocusTimer {
+                let timer = new_focus.timer_preset().map(|preset| FocusTimer {
                     duration_secs: preset.duration_secs(),
                     started_at: (self.clock_secs)(),
                     status: TimerStatus::Running,
@@ -243,11 +243,7 @@ mod tests {
             .append(&proposal(
                 "p1",
                 ProposalKind::NewFocus {
-                    new_focus: NewFocus {
-                        title: "Customer X bug".into(),
-                        description: "ship".into(),
-                        timer_preset: None,
-                    },
+                    new_focus: NewFocus::new("Customer X bug", "ship").unwrap(),
                 },
             ))
             .unwrap();
