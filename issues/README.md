@@ -10,6 +10,23 @@ Complete these before picking up any other open issue. All are unblocked and ind
 - [030](030-pig-growth-expired-visual-tray-list.md) — Pig scale growth + expired visual + tray list (GH #30)
 - [031](031-notification-settings-tray.md) — Notification settings in tray (GH #31) — **blocked by 029**
 
+### Architecture queue (deepening, AFK except where noted)
+
+Frontend reader collapse:
+
+- [037](037-collapse-focus-reader.md) — Collapse `FocusReader` into `PolledReader<Focus[]>`
+- [038](038-collapse-proposal-reader.md) — Collapse `ProposalReader` into `PolledReader<Proposal[]>`
+- [039](039-unify-caps-on-polled-reader.md) — Unify `useCaps` on `usePolledReader<Caps>`
+- [040](040-generic-tauri-reader-factory.md) — Generic `tauriReader<T>` factory — **blocked by 037, 038, 039**
+- [045](045-symmetric-fixture-reader.md) — Symmetric `fixtureReader<T>` + caps fixture parity — **blocked by 040**
+
+Domain seams:
+
+- [041](041-focus-writer-write-outcome.md) — `FocusWriter` returns `WriteOutcome` (hands off to 029)
+- [042](042-unify-cap-status-projection.md) — Unify cap-state behind a single `CapStatus` projection
+- [043](043-proposal-lifecycle-atomicity-design.md) — `ProposalLifecycle::accept` atomicity (**HITL design** — produces ADR + follow-up)
+- [044](044-domain-timer-ticker.md) — Carve domain `TimerTicker` pure module (recommended before 029)
+
 ### Icebox (deferred)
 
 Multi-monitor work paused. Files moved to `issues/icebox/`; GitHub issues carry the `icebox` label.
