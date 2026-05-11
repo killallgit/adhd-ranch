@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { type PolledReader, usePolledReader } from "./usePolledReader";
+import type { PolledReader } from "../api/polledReader";
+import { usePolledReader } from "./usePolledReader";
 
 describe("usePolledReader", () => {
   it("transitions loading -> ready with the resolved value", async () => {

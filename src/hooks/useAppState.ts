@@ -1,7 +1,7 @@
 import { type Caps, DEFAULT_CAPS } from "../api/caps";
+import type { PolledReader } from "../api/polledReader";
 import type { Focus } from "../types/focus";
 import type { Proposal } from "../types/proposal";
-import type { PolledReader } from "./usePolledReader";
 import { usePolledReader } from "./usePolledReader";
 
 export type AppStatus =

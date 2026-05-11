@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { type Caps, DEFAULT_CAPS, createFixtureCapsReader } from "../api/caps";
 import { createFixtureFocusReader } from "../api/fixtureFocusReader";
 import { createFixtureProposalReader } from "../api/fixtureProposalReader";
-import type { PolledReader } from "../hooks/usePolledReader";
+import type { PolledReader } from "../api/polledReader";
 import type { Focus } from "../types/focus";
 import type { Proposal } from "../types/proposal";
 import { useAppState } from "./useAppState";

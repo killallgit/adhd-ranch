@@ -1,9 +1,10 @@
 import { useState } from "react";
 import type { FocusWriter } from "../api/focusWriter";
+import type { PolledReader } from "../api/polledReader";
 import { useConfirmDelete } from "../hooks/useConfirmDelete";
 import { useDebugOverlay } from "../hooks/useDebugOverlay";
 import { usePigMovement } from "../hooks/usePigMovement";
-import { type PolledReader, usePolledReader } from "../hooks/usePolledReader";
+import { usePolledReader } from "../hooks/usePolledReader";
 import { useViewport } from "../hooks/useViewport";
 import type { Focus } from "../types/focus";
 import { PigDetail } from "./PigDetail";

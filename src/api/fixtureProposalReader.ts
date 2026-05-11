@@ -1,5 +1,5 @@
-import type { PolledReader } from "../hooks/usePolledReader";
 import type { Proposal } from "../types/proposal";
+import type { PolledReader } from "./polledReader";
 
 export function createFixtureProposalReader(
   proposals: readonly Proposal[],

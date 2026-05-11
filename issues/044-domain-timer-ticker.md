@@ -18,7 +18,7 @@ pub struct TimerTransition {
     pub focus_title: String,
 }
 
-pub fn tick(now_secs: u64, focuses: &[Focus]) -> Vec<TimerTransition>;
+pub fn tick(now_secs: i64, focuses: &[Focus]) -> Vec<TimerTransition>;
 ```
 
 Rules:

@@ -1,11 +1,5 @@
 import { useEffect, useState } from "react";
-
-export type Unsubscribe = () => void;
-
-export interface PolledReader<T> {
-  read(): Promise<T>;
-  subscribe?(onChange: () => void): Unsubscribe | Promise<Unsubscribe>;
-}
+import type { PolledReader, Unsubscribe } from "../api/polledReader";
 
 export type PolledState<T> =
   | { readonly status: "loading" }

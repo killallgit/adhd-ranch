@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import type { PolledReader, Unsubscribe } from "../hooks/usePolledReader";
+import type { PolledReader, Unsubscribe } from "./polledReader";
 
 export interface TauriReaderConfig<Raw, Out> {
   readonly invokeKey: string;

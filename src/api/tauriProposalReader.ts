@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { PolledReader } from "../hooks/usePolledReader";
 import type { CommandError } from "../types/error";
 import type { Proposal } from "../types/proposal";
+import type { PolledReader } from "./polledReader";
 import type { ProposalDecisionResult, ProposalEdit, ProposalWriter } from "./proposals";
 import { createTauriReader } from "./tauriReader";
 

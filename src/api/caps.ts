@@ -1,4 +1,4 @@
-import type { PolledReader } from "../hooks/usePolledReader";
+import type { PolledReader } from "./polledReader";
 import { createTauriReader } from "./tauriReader";
 
 export interface Caps {

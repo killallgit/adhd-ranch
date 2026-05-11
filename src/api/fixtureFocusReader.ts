@@ -1,5 +1,5 @@
-import type { PolledReader } from "../hooks/usePolledReader";
 import type { Focus } from "../types/focus";
+import type { PolledReader } from "./polledReader";
 
 export function createFixtureFocusReader(
   focuses: readonly Focus[],
