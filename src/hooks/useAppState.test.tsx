@@ -1,26 +1,21 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { type Caps, type CapsReader, DEFAULT_CAPS } from "../api/caps";
+import { type Caps, DEFAULT_CAPS, createFixtureCapsReader } from "../api/caps";
 import { createFixtureFocusReader } from "../api/fixtureFocusReader";
 import { createFixtureProposalReader } from "../api/fixtureProposalReader";
-import type { FocusReader } from "../api/focuses";
-import type { ProposalReader } from "../api/proposals";
+import type { PolledReader } from "../api/polledReader";
 import type { Focus } from "../types/focus";
 import type { Proposal } from "../types/proposal";
 import { useAppState } from "./useAppState";
 
 const fixtureCaps: Caps = { max_focuses: 3, max_tasks_per_focus: 4 };
 
-function fixtureCapsReader(caps: Caps = fixtureCaps): CapsReader {
-  return { get: () => Promise.resolve(caps) };
+function failingFocusReader(error: Error): PolledReader<readonly Focus[]> {
+  return { read: () => Promise.reject(error) };
 }
 
-function failingFocusReader(error: Error): FocusReader {
-  return { list: () => Promise.reject(error) };
-}
-
-function failingProposalReader(error: Error): ProposalReader {
-  return { list: () => Promise.reject(error) };
+function failingProposalReader(error: Error): PolledReader<readonly Proposal[]> {
+  return { read: () => Promise.reject(error) };
 }
 
 describe("useAppState", () => {
@@ -31,7 +26,7 @@ describe("useAppState", () => {
       useAppState({
         focusReader: createFixtureFocusReader(focuses),
         proposalReader: createFixtureProposalReader(proposals),
-        capsReader: fixtureCapsReader(),
+        capsReader: createFixtureCapsReader(fixtureCaps),
       }),
     );
     expect(result.current.status).toBe("loading");
@@ -45,7 +40,7 @@ describe("useAppState", () => {
       useAppState({
         focusReader: createFixtureFocusReader(focuses),
         proposalReader: createFixtureProposalReader(proposals),
-        capsReader: fixtureCapsReader(),
+        capsReader: createFixtureCapsReader(fixtureCaps),
       }),
     );
     await waitFor(() => {
@@ -66,7 +61,7 @@ describe("useAppState", () => {
       useAppState({
         focusReader: failingFocusReader(err),
         proposalReader: createFixtureProposalReader([]),
-        capsReader: fixtureCapsReader(),
+        capsReader: createFixtureCapsReader(fixtureCaps),
       }),
     );
     await waitFor(() => {
@@ -83,7 +78,7 @@ describe("useAppState", () => {
       useAppState({
         focusReader: createFixtureFocusReader([]),
         proposalReader: failingProposalReader(err),
-        capsReader: fixtureCapsReader(),
+        capsReader: createFixtureCapsReader(fixtureCaps),
       }),
     );
     await waitFor(() => {

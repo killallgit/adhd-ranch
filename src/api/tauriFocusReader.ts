@@ -1,7 +1,6 @@
-import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
 import type { Focus } from "../types/focus";
-import type { FocusReader, Unsubscribe } from "./focuses";
+import type { PolledReader } from "./polledReader";
+import { createTauriReader } from "./tauriReader";
 
 interface RustFocus {
   readonly id: string;
@@ -10,8 +9,6 @@ interface RustFocus {
   readonly created_at: string;
   readonly tasks: readonly { id: string; text: string; done?: boolean }[];
 }
-
-const FOCUSES_CHANGED = "focuses-changed";
 
 function fromRust(raw: RustFocus): Focus {
   return {
@@ -23,19 +20,10 @@ function fromRust(raw: RustFocus): Focus {
   };
 }
 
-export function createTauriFocusReader(): FocusReader {
-  return {
-    async list() {
-      const raw = await invoke<RustFocus[]>("list_focuses");
-      return raw.map(fromRust);
-    },
-    async subscribe(onChange): Promise<Unsubscribe> {
-      const unlisten = await listen(FOCUSES_CHANGED, () => {
-        onChange();
-      });
-      return () => {
-        unlisten();
-      };
-    },
-  };
+export function createTauriFocusReader(): PolledReader<readonly Focus[]> {
+  return createTauriReader<readonly RustFocus[], readonly Focus[]>({
+    invokeKey: "list_focuses",
+    eventKey: "focuses-changed",
+    map: (raw) => raw.map(fromRust),
+  });
 }

@@ -1,8 +1,10 @@
 import type { Focus } from "../types/focus";
-import type { FocusReader } from "./focuses";
+import type { PolledReader } from "./polledReader";
 
-export function createFixtureFocusReader(focuses: readonly Focus[]): FocusReader {
+export function createFixtureFocusReader(
+  focuses: readonly Focus[],
+): PolledReader<readonly Focus[]> {
   return {
-    list: () => Promise.resolve(focuses),
+    read: () => Promise.resolve(focuses),
   };
 }

@@ -10,6 +10,7 @@ pub mod proposal;
 pub mod settings;
 pub mod slug;
 pub mod timer;
+pub mod timer_ticker;
 
 pub use cap_monitor::{CapTransition, OverCapMonitor};
 pub use caps::{cap_state, CapState};
@@ -23,3 +24,4 @@ pub use proposal::{NewFocus, Proposal, ProposalId, ProposalKind, ProposalValidat
 pub use settings::{Alerts, Caps, DisplayConfig, Settings, Widget};
 pub use slug::slugify;
 pub use timer::{growth_factor, timer_remaining_secs, FocusTimer, TimerPreset, TimerStatus};
+pub use timer_ticker::{tick, TimerTransition};

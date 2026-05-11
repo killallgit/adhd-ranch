@@ -1,11 +1,8 @@
-import type { Caps, CapsReader } from "../api/caps";
-import type { FocusReader } from "../api/focuses";
-import type { ProposalReader } from "../api/proposals";
+import { type Caps, DEFAULT_CAPS } from "../api/caps";
+import type { PolledReader } from "../api/polledReader";
 import type { Focus } from "../types/focus";
 import type { Proposal } from "../types/proposal";
-import { useCaps } from "./useCaps";
-import { useFocuses } from "./useFocuses";
-import { useProposals } from "./useProposals";
+import { usePolledReader } from "./usePolledReader";
 
 export type AppStatus =
   | { readonly status: "loading" }
@@ -19,15 +16,16 @@ export type AppStatus =
 export type AppState = AppStatus & { readonly caps: Caps };
 
 export interface AppStateDeps {
-  readonly focusReader: FocusReader;
-  readonly proposalReader: ProposalReader;
-  readonly capsReader: CapsReader;
+  readonly focusReader: PolledReader<readonly Focus[]>;
+  readonly proposalReader: PolledReader<readonly Proposal[]>;
+  readonly capsReader: PolledReader<Caps>;
 }
 
 export function useAppState({ focusReader, proposalReader, capsReader }: AppStateDeps): AppState {
-  const focuses = useFocuses(focusReader);
-  const proposals = useProposals(proposalReader);
-  const caps = useCaps(capsReader);
+  const focuses = usePolledReader(focusReader);
+  const proposals = usePolledReader(proposalReader);
+  const capsState = usePolledReader(capsReader);
+  const caps = capsState.status === "ready" ? capsState.value : DEFAULT_CAPS;
 
   if (focuses.status === "error") return { status: "error", error: focuses.error, caps };
   if (proposals.status === "error") return { status: "error", error: proposals.error, caps };
@@ -36,8 +34,8 @@ export function useAppState({ focusReader, proposalReader, capsReader }: AppStat
   }
   return {
     status: "ready",
-    focuses: focuses.focuses,
-    proposals: proposals.proposals,
+    focuses: focuses.value,
+    proposals: proposals.value,
     caps,
   };
 }

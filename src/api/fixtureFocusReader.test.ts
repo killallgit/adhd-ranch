@@ -15,6 +15,6 @@ describe("fixtureFocusReader", () => {
       },
     ];
     const reader = createFixtureFocusReader(focuses);
-    expect(await reader.list()).toEqual(focuses);
+    expect(await reader.read()).toEqual(focuses);
   });
 });

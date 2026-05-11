@@ -10,6 +10,26 @@ Complete these before picking up any other open issue. All are unblocked and ind
 - [030](030-pig-growth-expired-visual-tray-list.md) — Pig scale growth + expired visual + tray list (GH #30)
 - [031](031-notification-settings-tray.md) — Notification settings in tray (GH #31) — **blocked by 029**
 
+### Architecture queue (deepening, AFK except where noted)
+
+Frontend reader collapse:
+
+- [037](037-collapse-focus-reader.md) — Collapse `FocusReader` into `PolledReader<Focus[]>` — **done**
+- [038](038-collapse-proposal-reader.md) — Collapse `ProposalReader` into `PolledReader<Proposal[]>` — **done**
+- [039](039-unify-caps-on-polled-reader.md) — Unify `useCaps` on `usePolledReader<Caps>` — **done**
+- [040](040-generic-tauri-reader-factory.md) — Generic `tauriReader<T>` factory — **done**
+
+Domain seams:
+
+- [041](041-focus-writer-write-outcome.md) — `FocusWriter` returns `WriteOutcome` (hands off to 029)
+- [043](043-proposal-lifecycle-atomicity-design.md) — `ProposalLifecycle::accept` atomicity (**HITL design** — produces ADR + follow-up)
+- [044](044-domain-timer-ticker.md) — Carve domain `TimerTicker` pure module — **done** (merged, consumed by 029)
+
+Closed without implementation:
+
+- 042 — Unify cap-state behind a single `CapStatus` projection. Premise was wrong; see [ADR-0001](../docs/adr/0001-cap-state-is-already-a-single-projection.md).
+- 045 — Symmetric `fixtureReader<T>` + caps fixture parity. Helper too thin to warrant abstraction; test-wrapper deletion folded into 039. See [ADR-0002](../docs/adr/0002-fixture-readers-are-too-thin-for-a-generic-helper.md).
+
 ### Icebox (deferred)
 
 Multi-monitor work paused. Files moved to `issues/icebox/`; GitHub issues carry the `icebox` label.
