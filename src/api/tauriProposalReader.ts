@@ -1,14 +1,9 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import type { Unsubscribe } from "../hooks/usePolledReader";
+import type { PolledReader, Unsubscribe } from "../hooks/usePolledReader";
 import type { CommandError } from "../types/error";
 import type { Proposal } from "../types/proposal";
-import type {
-  ProposalDecisionResult,
-  ProposalEdit,
-  ProposalReader,
-  ProposalWriter,
-} from "./proposals";
+import type { ProposalDecisionResult, ProposalEdit, ProposalWriter } from "./proposals";
 
 const PROPOSALS_CHANGED = "proposals-changed";
 
@@ -17,9 +12,9 @@ interface RustDecisionResponse {
   readonly target: string | null;
 }
 
-export function createTauriProposalReader(): ProposalReader {
+export function createTauriProposalReader(): PolledReader<readonly Proposal[]> {
   return {
-    list: () => invoke<Proposal[]>("list_proposals"),
+    read: () => invoke<Proposal[]>("list_proposals"),
     async subscribe(onChange): Promise<Unsubscribe> {
       const unlisten = await listen(PROPOSALS_CHANGED, () => {
         onChange();

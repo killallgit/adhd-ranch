@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import { type Caps, type CapsReader, DEFAULT_CAPS } from "../api/caps";
 import { createFixtureFocusReader } from "../api/fixtureFocusReader";
 import { createFixtureProposalReader } from "../api/fixtureProposalReader";
-import type { ProposalReader } from "../api/proposals";
 import type { PolledReader } from "../hooks/usePolledReader";
 import type { Focus } from "../types/focus";
 import type { Proposal } from "../types/proposal";
@@ -19,8 +18,8 @@ function failingFocusReader(error: Error): PolledReader<readonly Focus[]> {
   return { read: () => Promise.reject(error) };
 }
 
-function failingProposalReader(error: Error): ProposalReader {
-  return { list: () => Promise.reject(error) };
+function failingProposalReader(error: Error): PolledReader<readonly Proposal[]> {
+  return { read: () => Promise.reject(error) };
 }
 
 describe("useAppState", () => {
