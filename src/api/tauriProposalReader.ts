@@ -1,11 +1,9 @@
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
-import type { PolledReader, Unsubscribe } from "../hooks/usePolledReader";
+import type { PolledReader } from "../hooks/usePolledReader";
 import type { CommandError } from "../types/error";
 import type { Proposal } from "../types/proposal";
 import type { ProposalDecisionResult, ProposalEdit, ProposalWriter } from "./proposals";
-
-const PROPOSALS_CHANGED = "proposals-changed";
+import { createTauriReader } from "./tauriReader";
 
 interface RustDecisionResponse {
   readonly id: string;
@@ -13,17 +11,11 @@ interface RustDecisionResponse {
 }
 
 export function createTauriProposalReader(): PolledReader<readonly Proposal[]> {
-  return {
-    read: () => invoke<Proposal[]>("list_proposals"),
-    async subscribe(onChange): Promise<Unsubscribe> {
-      const unlisten = await listen(PROPOSALS_CHANGED, () => {
-        onChange();
-      });
-      return () => {
-        unlisten();
-      };
-    },
-  };
+  return createTauriReader<readonly Proposal[], readonly Proposal[]>({
+    invokeKey: "list_proposals",
+    eventKey: "proposals-changed",
+    map: (raw) => raw,
+  });
 }
 
 export function createTauriProposalWriter(): ProposalWriter {

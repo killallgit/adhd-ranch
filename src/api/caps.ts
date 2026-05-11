@@ -1,5 +1,5 @@
-import { invoke } from "@tauri-apps/api/core";
 import type { PolledReader } from "../hooks/usePolledReader";
+import { createTauriReader } from "./tauriReader";
 
 export interface Caps {
   readonly max_focuses: number;
@@ -12,9 +12,10 @@ export const DEFAULT_CAPS: Caps = {
 };
 
 export function createTauriCapsReader(): PolledReader<Caps> {
-  return {
-    read: () => invoke<Caps>("get_caps"),
-  };
+  return createTauriReader<Caps, Caps>({
+    invokeKey: "get_caps",
+    map: (raw) => raw,
+  });
 }
 
 export function createFixtureCapsReader(caps: Caps): PolledReader<Caps> {
