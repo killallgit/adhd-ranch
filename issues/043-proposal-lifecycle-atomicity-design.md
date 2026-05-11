@@ -8,13 +8,13 @@ PRD.md §FR4 (proposal flow, v1.3 deferred)
 
 ## What to build
 
-`ProposalLifecycle::accept` (`crates/commands/src/lifecycle.rs:41-90`) chains three storage writes:
+`ProposalLifecycle::accept` (`crates/commands/src/lifecycle.rs:41-52`, helper `apply` at `:64-90`) loads + validates the proposal, then performs three sequential storage writes:
 
-1. Apply side-effect (`create_focus_in_store` or `append_task`)
-2. Append decision to `decisions.jsonl`
-3. Remove proposal from `proposals.jsonl`
+1. `self.apply(&proposal)` — `store.append_task(...)` or `store.create_focus(...)` (writes to a per-focus dir)
+2. `self.record_decision(...)` — append to `decisions.jsonl`
+3. `self.queue.remove(...)` — rewrite `proposals.jsonl` without the accepted entry
 
-If step 2 fails after step 1 succeeds, the focus exists but is unrecorded. If step 3 fails after step 2, retry duplicates the decision. The transaction boundary is invisible — caller sees `Result<DecisionOutcome>` and assumes atomicity that storage does not provide.
+If write 2 fails after write 1 succeeds, the focus exists but is unrecorded. If write 3 fails after write 2, retry duplicates the decision. The transaction boundary is invisible — caller sees `Result<DecisionOutcome>` and assumes atomicity that storage does not provide.
 
 Decide between two shapes for the seam, write an ADR, then file the AFK implementation issue.
 

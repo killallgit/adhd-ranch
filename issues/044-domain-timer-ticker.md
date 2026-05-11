@@ -27,7 +27,7 @@ Rules:
 - `timer.status == Expired` → skipped (already transitioned).
 - `timer.is_none()` → skipped.
 - Pure: no I/O, no clock read, no allocation in the hot path beyond the result vector.
-- Mirrors `OverCapMonitor`'s shape: stateless detection, transitions returned to a caller that owns side effects.
+- Unlike `OverCapMonitor` (`crates/domain/src/cap_monitor.rs`), which holds a `Mutex<State>` to dedup transitions in-memory, `TimerTicker` is **stateless**: dedup lives in the persisted `timer.status == Expired`. Once a transition fires and the store records `Expired`, subsequent ticks skip the focus naturally.
 
 ### Out of scope for this slice
 

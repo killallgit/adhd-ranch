@@ -6,13 +6,14 @@ PRD.md §FR3 (pig UI) — test infrastructure
 
 ## What to build
 
-After 040 lands, the Tauri side has `createTauriReader<T>(invokeKey, eventKey?)` consolidating focus / proposal / caps Tauri readers. The fixture side stays asymmetric:
+After 040 lands, the Tauri side has `createTauriReader<T>(invokeKey, eventKey?)` consolidating focus / proposal / caps Tauri readers. The fixture side is **inconsistent**:
 
-- `src/api/fixtureFocusReader.ts` — factory exists
-- `src/api/fixtureProposalReader.ts` — factory exists
-- caps fixture — **hand-rolled inline** in every test (`src/hooks/useAppState.test.tsx`)
+- `src/api/fixtureFocusReader.ts` — dedicated file, exports factory
+- `src/api/fixtureProposalReader.ts` — dedicated file, exports factory
+- `src/api/caps.ts:23` — exports `createFixtureCapsReader(caps)` co-located with the production reader (no dedicated file)
+- `src/hooks/useAppState.test.tsx:14` — **re-implements** the caps fixture body locally (`{ get: () => Promise.resolve(caps) }`) instead of importing `createFixtureCapsReader`
 
-Two adapters per concept (Tauri + fixture) is the **real seam** test. Without a fixture caps reader, that test fails for caps. Close the gap with a generic `fixtureReader<T>` mirroring 040's `tauriReader<T>`.
+No generic helper exists; each fixture is bespoke. Close the gap with `createFixtureReader<T>` that all three concrete fixtures delegate to, and migrate the test off its local reimplementation.
 
 ### `fixtureReader<T>` (`src/api/fixtureReader.ts`)
 
@@ -33,8 +34,8 @@ export function createFixtureReader<T>(config: FixtureReaderConfig<T>): PolledRe
 
 - `createFixtureFocusReader` → wraps `createFixtureReader<readonly Focus[]>({ initial: seed })`
 - `createFixtureProposalReader` → wraps `createFixtureReader<readonly Proposal[]>({ initial: seed })`
-- `createFixtureCapsReader` (new) → wraps `createFixtureReader<Caps>({ initial: seed })`
-- `src/hooks/useAppState.test.tsx`: replace inline caps fixture with `createFixtureCapsReader(...)`
+- `createFixtureCapsReader` (already exists in `src/api/caps.ts:23`) → reimplement to wrap `createFixtureReader<Caps>({ initial: seed })`
+- `src/hooks/useAppState.test.tsx:14`: delete local `fixtureCapsReader` wrapper; import `createFixtureCapsReader` directly
 
 ### Optional: configurable failure injection
 
@@ -42,13 +43,13 @@ If a test wants to assert on read failure, allow `{ initial: T } | { error: Erro
 
 ## Completion promise
 
-Every `PolledReader<T>` consumer has a fixture factory built on one shared `createFixtureReader<T>` helper; no test hand-rolls a caps fixture.
+Every `PolledReader<T>` consumer has a fixture factory built on one shared `createFixtureReader<T>` helper; no test re-implements a fixture body locally.
 
 ## Acceptance criteria
 
 - [ ] `src/api/fixtureReader.ts` exports `createFixtureReader<T>`
-- [ ] `createFixtureFocusReader`, `createFixtureProposalReader`, `createFixtureCapsReader` all built on it
-- [ ] `useAppState.test.tsx` uses `createFixtureCapsReader` (no inline caps fixture object)
+- [ ] `createFixtureFocusReader`, `createFixtureProposalReader`, `createFixtureCapsReader` all delegate to `createFixtureReader<T>`
+- [ ] `useAppState.test.tsx` imports `createFixtureCapsReader` from `src/api/caps.ts`; the local `fixtureCapsReader` wrapper at line 14 is deleted
 - [ ] All existing Vitest specs pass without behaviour change
 - [ ] `task check` green
 
