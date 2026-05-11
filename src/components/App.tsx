@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { FocusWriter } from "../api/focusWriter";
+import type { FocusWriter, WriteOutcome } from "../api/focusWriter";
 import type { PolledReader } from "../api/polledReader";
 import { useConfirmDelete } from "../hooks/useConfirmDelete";
 import { useDebugOverlay } from "../hooks/useDebugOverlay";
@@ -27,54 +27,34 @@ export function App({ focusReader, focusWriter }: AppProps) {
   const selectedPig = pigs.find((p) => p.id === selectedId);
   const selectedFocus = focuses.find((f) => f.id === selectedId);
 
+  function reportFailure(op: string, outcome: WriteOutcome) {
+    if (!outcome.ok) console.warn(`[adhd-ranch] ${op} failed`, outcome.kind, outcome.message);
+  }
+
   async function handleClearTask(index: number) {
     if (!selectedFocus) return;
-    try {
-      await focusWriter.deleteTask(selectedFocus.id, index);
-    } catch {
-      // focusWriter already logs the typed error
-    }
+    reportFailure("delete_task", await focusWriter.deleteTask(selectedFocus.id, index));
   }
 
   async function handleAddTask(text: string) {
     if (!selectedFocus) return;
-    try {
-      await focusWriter.appendTask(selectedFocus.id, text);
-    } catch {
-      // focusWriter already logs the typed error
-    }
+    reportFailure("append_task", await focusWriter.appendTask(selectedFocus.id, text));
   }
 
   async function handleRenameFocus(focusId: string, title: string) {
-    try {
-      await focusWriter.renameFocus(focusId, title);
-    } catch {
-      // focusWriter already logs the typed error
-    }
+    reportFailure("rename_focus", await focusWriter.renameFocus(focusId, title));
   }
 
   async function handleUpdateTask(focusId: string, index: number, text: string) {
-    try {
-      await focusWriter.updateTask(focusId, index, text);
-    } catch {
-      // focusWriter already logs the typed error
-    }
+    reportFailure("update_task", await focusWriter.updateTask(focusId, index, text));
   }
 
   async function handleToggleTask(focusId: string, index: number, done: boolean) {
-    try {
-      await focusWriter.toggleTask(focusId, index, done);
-    } catch {
-      // focusWriter already logs the typed error
-    }
+    reportFailure("toggle_task", await focusWriter.toggleTask(focusId, index, done));
   }
 
   async function handleDeleteFocus(focusId: string) {
-    try {
-      await focusWriter.deleteFocus(focusId);
-    } catch {
-      // focusWriter already logs the typed error
-    }
+    reportFailure("delete_focus", await focusWriter.deleteFocus(focusId));
   }
 
   return (

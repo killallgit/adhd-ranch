@@ -45,14 +45,15 @@ const sample: Focus[] = [
 ];
 
 function noopFocusWriter(): FocusWriter {
+  const ok = { ok: true } as const;
   return {
-    createFocus: vi.fn().mockResolvedValue({ id: "any" }),
-    deleteFocus: vi.fn().mockResolvedValue(undefined),
-    renameFocus: vi.fn().mockResolvedValue(undefined),
-    appendTask: vi.fn().mockResolvedValue(undefined),
-    deleteTask: vi.fn().mockResolvedValue(undefined),
-    updateTask: vi.fn().mockResolvedValue(undefined),
-    toggleTask: vi.fn().mockResolvedValue(undefined),
+    createFocus: vi.fn().mockResolvedValue(ok),
+    deleteFocus: vi.fn().mockResolvedValue(ok),
+    renameFocus: vi.fn().mockResolvedValue(ok),
+    appendTask: vi.fn().mockResolvedValue(ok),
+    deleteTask: vi.fn().mockResolvedValue(ok),
+    updateTask: vi.fn().mockResolvedValue(ok),
+    toggleTask: vi.fn().mockResolvedValue(ok),
   };
 }
 
