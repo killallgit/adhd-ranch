@@ -14,11 +14,10 @@ Complete these before picking up any other open issue. All are unblocked and ind
 
 Frontend reader collapse:
 
-- [037](037-collapse-focus-reader.md) — Collapse `FocusReader` into `PolledReader<Focus[]>`
-- [038](038-collapse-proposal-reader.md) — Collapse `ProposalReader` into `PolledReader<Proposal[]>`
-- [039](039-unify-caps-on-polled-reader.md) — Unify `useCaps` on `usePolledReader<Caps>`
-- [040](040-generic-tauri-reader-factory.md) — Generic `tauriReader<T>` factory — **blocked by 037, 038, 039**
-- [045](045-symmetric-fixture-reader.md) — Symmetric `fixtureReader<T>` + caps fixture parity — **blocked by 040**
+- [037](037-collapse-focus-reader.md) — Collapse `FocusReader` into `PolledReader<Focus[]>` — **done**
+- [038](038-collapse-proposal-reader.md) — Collapse `ProposalReader` into `PolledReader<Proposal[]>` — **done**
+- [039](039-unify-caps-on-polled-reader.md) — Unify `useCaps` on `usePolledReader<Caps>` — **done**
+- [040](040-generic-tauri-reader-factory.md) — Generic `tauriReader<T>` factory — **done**
 
 Domain seams:
 
@@ -29,6 +28,7 @@ Domain seams:
 Closed without implementation:
 
 - 042 — Unify cap-state behind a single `CapStatus` projection. Premise was wrong; see [ADR-0001](../docs/adr/0001-cap-state-is-already-a-single-projection.md).
+- 045 — Symmetric `fixtureReader<T>` + caps fixture parity. Helper too thin to warrant abstraction; test-wrapper deletion folded into 039. See [ADR-0002](../docs/adr/0002-fixture-readers-are-too-thin-for-a-generic-helper.md).
 
 ### Icebox (deferred)
 
