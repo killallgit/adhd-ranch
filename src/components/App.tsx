@@ -10,12 +10,15 @@ import type { Focus } from "../types/focus";
 import { PigDetail } from "./PigDetail";
 import { PigSprite } from "./PigSprite";
 
+export type ReportWriteFailure = (op: string, outcome: WriteOutcome) => void;
+
 export interface AppProps {
   readonly focusReader: PolledReader<readonly Focus[]>;
   readonly focusWriter: FocusWriter;
+  readonly onWriteFailure: ReportWriteFailure;
 }
 
-export function App({ focusReader, focusWriter }: AppProps) {
+export function App({ focusReader, focusWriter, onWriteFailure }: AppProps) {
   const focusState = usePolledReader(focusReader);
   const focuses = focusState.status === "ready" ? focusState.value : [];
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -27,34 +30,30 @@ export function App({ focusReader, focusWriter }: AppProps) {
   const selectedPig = pigs.find((p) => p.id === selectedId);
   const selectedFocus = focuses.find((f) => f.id === selectedId);
 
-  function reportFailure(op: string, outcome: WriteOutcome) {
-    if (!outcome.ok) console.warn(`[adhd-ranch] ${op} failed`, outcome.kind, outcome.message);
-  }
-
   async function handleClearTask(index: number) {
     if (!selectedFocus) return;
-    reportFailure("delete_task", await focusWriter.deleteTask(selectedFocus.id, index));
+    onWriteFailure("delete_task", await focusWriter.deleteTask(selectedFocus.id, index));
   }
 
   async function handleAddTask(text: string) {
     if (!selectedFocus) return;
-    reportFailure("append_task", await focusWriter.appendTask(selectedFocus.id, text));
+    onWriteFailure("append_task", await focusWriter.appendTask(selectedFocus.id, text));
   }
 
   async function handleRenameFocus(focusId: string, title: string) {
-    reportFailure("rename_focus", await focusWriter.renameFocus(focusId, title));
+    onWriteFailure("rename_focus", await focusWriter.renameFocus(focusId, title));
   }
 
   async function handleUpdateTask(focusId: string, index: number, text: string) {
-    reportFailure("update_task", await focusWriter.updateTask(focusId, index, text));
+    onWriteFailure("update_task", await focusWriter.updateTask(focusId, index, text));
   }
 
   async function handleToggleTask(focusId: string, index: number, done: boolean) {
-    reportFailure("toggle_task", await focusWriter.toggleTask(focusId, index, done));
+    onWriteFailure("toggle_task", await focusWriter.toggleTask(focusId, index, done));
   }
 
   async function handleDeleteFocus(focusId: string) {
-    reportFailure("delete_focus", await focusWriter.deleteFocus(focusId));
+    onWriteFailure("delete_focus", await focusWriter.deleteFocus(focusId));
   }
 
   return (

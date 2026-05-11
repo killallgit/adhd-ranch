@@ -59,12 +59,24 @@ function noopFocusWriter(): FocusWriter {
 
 describe("App overlay", () => {
   it("renders the overlay root", () => {
-    render(<App focusReader={createFixtureFocusReader([])} focusWriter={noopFocusWriter()} />);
+    render(
+      <App
+        focusReader={createFixtureFocusReader([])}
+        focusWriter={noopFocusWriter()}
+        onWriteFailure={() => {}}
+      />,
+    );
     expect(document.querySelector(".overlay-root")).toBeInTheDocument();
   });
 
   it("spawns a pig for each focus", async () => {
-    render(<App focusReader={createFixtureFocusReader(sample)} focusWriter={noopFocusWriter()} />);
+    render(
+      <App
+        focusReader={createFixtureFocusReader(sample)}
+        focusWriter={noopFocusWriter()}
+        onWriteFailure={() => {}}
+      />,
+    );
     await waitFor(() => {
       expect(screen.getByText("Customer X bug")).toBeInTheDocument();
       expect(screen.getByText("API refactor")).toBeInTheDocument();
@@ -73,7 +85,13 @@ describe("App overlay", () => {
 
   it("add-task input calls focusWriter.appendTask with selected focus id", async () => {
     const writer = noopFocusWriter();
-    render(<App focusReader={createFixtureFocusReader(sample)} focusWriter={writer} />);
+    render(
+      <App
+        focusReader={createFixtureFocusReader(sample)}
+        focusWriter={writer}
+        onWriteFailure={() => {}}
+      />,
+    );
 
     await waitFor(() => {
       expect(screen.getByText("Customer X bug")).toBeInTheDocument();

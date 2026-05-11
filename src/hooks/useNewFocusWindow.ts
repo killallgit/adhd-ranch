@@ -47,16 +47,19 @@ export function useNewFocusWindow(focusWriter: FocusWriter): NewFocusWindowState
     }
     setSubmitting(true);
     setError(null);
-    const outcome = await focusWriter.createFocus({
-      title: title.trim(),
-      description: description.trim(),
-    });
-    if (outcome.ok) {
-      await hideWindow();
-    } else {
-      setError(outcome.message);
+    try {
+      const outcome = await focusWriter.createFocus({
+        title: title.trim(),
+        description: description.trim(),
+      });
+      if (outcome.ok) {
+        await hideWindow();
+      } else {
+        setError(outcome.message);
+      }
+    } finally {
+      setSubmitting(false);
     }
-    setSubmitting(false);
   };
 
   const handleCancel = async () => {
