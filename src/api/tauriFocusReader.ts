@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import type { PolledReader, Unsubscribe } from "../hooks/usePolledReader";
 import type { Focus } from "../types/focus";
-import type { FocusReader, Unsubscribe } from "./focuses";
 
 interface RustFocus {
   readonly id: string;
@@ -23,9 +23,9 @@ function fromRust(raw: RustFocus): Focus {
   };
 }
 
-export function createTauriFocusReader(): FocusReader {
+export function createTauriFocusReader(): PolledReader<readonly Focus[]> {
   return {
-    async list() {
+    async read() {
       const raw = await invoke<RustFocus[]>("list_focuses");
       return raw.map(fromRust);
     },

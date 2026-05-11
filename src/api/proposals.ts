@@ -1,5 +1,5 @@
+import type { Unsubscribe } from "../hooks/usePolledReader";
 import type { NewFocus, Proposal } from "../types/proposal";
-import type { Unsubscribe } from "./focuses";
 
 export interface ProposalDecisionResult {
   readonly id: string;

@@ -1,22 +1,22 @@
 import { useState } from "react";
 import type { FocusWriter } from "../api/focusWriter";
-import type { FocusReader } from "../api/focuses";
 import { useConfirmDelete } from "../hooks/useConfirmDelete";
 import { useDebugOverlay } from "../hooks/useDebugOverlay";
-import { useFocuses } from "../hooks/useFocuses";
 import { usePigMovement } from "../hooks/usePigMovement";
+import { type PolledReader, usePolledReader } from "../hooks/usePolledReader";
 import { useViewport } from "../hooks/useViewport";
+import type { Focus } from "../types/focus";
 import { PigDetail } from "./PigDetail";
 import { PigSprite } from "./PigSprite";
 
 export interface AppProps {
-  readonly focusReader: FocusReader;
+  readonly focusReader: PolledReader<readonly Focus[]>;
   readonly focusWriter: FocusWriter;
 }
 
 export function App({ focusReader, focusWriter }: AppProps) {
-  const focusState = useFocuses(focusReader);
-  const focuses = focusState.status === "ready" ? focusState.focuses : [];
+  const focusState = usePolledReader(focusReader);
+  const focuses = focusState.status === "ready" ? focusState.value : [];
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const confirmDelete = useConfirmDelete();
   const { pigs, startDrag, moveDrag, endDrag, setDragActive } = usePigMovement(focuses, selectedId);
