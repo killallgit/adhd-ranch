@@ -54,6 +54,7 @@ function noopFocusWriter(): FocusWriter {
     deleteTask: vi.fn().mockResolvedValue(ok),
     updateTask: vi.fn().mockResolvedValue(ok),
     toggleTask: vi.fn().mockResolvedValue(ok),
+    startTimer: vi.fn().mockResolvedValue(ok),
   };
 }
 

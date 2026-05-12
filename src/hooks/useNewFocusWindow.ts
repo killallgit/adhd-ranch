@@ -1,14 +1,23 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect, useState } from "react";
 import type { FocusWriter } from "../api/focusWriter";
+import {
+  type PresetSelection,
+  isCustomValid,
+  resolvePreset,
+} from "../components/TimerPresetPicker";
 
 export interface NewFocusWindowState {
   readonly title: string;
   readonly description: string;
+  readonly timerSelection: PresetSelection;
+  readonly customMinutes: number;
   readonly submitting: boolean;
   readonly error: string | null;
   readonly setTitle: (v: string) => void;
   readonly setDescription: (v: string) => void;
+  readonly setTimerSelection: (v: PresetSelection) => void;
+  readonly setCustomMinutes: (v: number) => void;
   readonly handleSubmit: (e: React.FormEvent<HTMLFormElement>) => Promise<void>;
   readonly handleCancel: () => Promise<void>;
 }
@@ -16,13 +25,21 @@ export interface NewFocusWindowState {
 export function useNewFocusWindow(focusWriter: FocusWriter): NewFocusWindowState {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [timerSelection, setTimerSelection] = useState<PresetSelection>("none");
+  const [customMinutes, setCustomMinutes] = useState(10);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const hideWindow = async () => {
+  const resetForm = () => {
     setTitle("");
     setDescription("");
+    setTimerSelection("none");
+    setCustomMinutes(10);
     setError(null);
+  };
+
+  const hideWindow = async () => {
+    resetForm();
     await getCurrentWindow().hide();
   };
 
@@ -31,6 +48,8 @@ export function useNewFocusWindow(focusWriter: FocusWriter): NewFocusWindowState
       if (e.key === "Escape") {
         setTitle("");
         setDescription("");
+        setTimerSelection("none");
+        setCustomMinutes(10);
         setError(null);
         void getCurrentWindow().hide();
       }
@@ -45,12 +64,17 @@ export function useNewFocusWindow(focusWriter: FocusWriter): NewFocusWindowState
       setError("title is required");
       return;
     }
+    if (timerSelection === "custom" && !isCustomValid(customMinutes)) {
+      setError("custom timer must be at least 1 minute");
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
       const outcome = await focusWriter.createFocus({
         title: title.trim(),
         description: description.trim(),
+        timer_preset: resolvePreset(timerSelection, customMinutes),
       });
       if (outcome.ok) {
         await hideWindow();
@@ -69,10 +93,14 @@ export function useNewFocusWindow(focusWriter: FocusWriter): NewFocusWindowState
   return {
     title,
     description,
+    timerSelection,
+    customMinutes,
     submitting,
     error,
     setTitle,
     setDescription,
+    setTimerSelection,
+    setCustomMinutes,
     handleSubmit,
     handleCancel,
   };
