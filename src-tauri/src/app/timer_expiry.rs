@@ -26,7 +26,11 @@ pub fn spawn(handle: AppHandle, store: Arc<dyn FocusStore>) {
             // thread so concurrent IPC handlers aren't blocked for a tick.
             let handle = handle.clone();
             let store = store.clone();
-            let _ = tokio::task::spawn_blocking(move || run_once(&handle, store.as_ref())).await;
+            if let Err(e) =
+                tokio::task::spawn_blocking(move || run_once(&handle, store.as_ref())).await
+            {
+                log::error!("timer_expiry: worker join failed: {e}");
+            }
         }
     });
 }
@@ -69,20 +73,28 @@ fn run_once(handle: &AppHandle, store: &dyn FocusStore) {
             log::error!("timer_expiry: update_timer for {} failed: {e}", t.focus_id);
             continue;
         }
-        let _ = handle.emit(
+        if let Err(e) = handle.emit(
             TIMER_EXPIRED_EVENT,
             TimerExpiredPayload {
                 focus_id: &t.focus_id,
                 focus_title: &t.focus_title,
             },
-        );
+        ) {
+            log::error!("timer_expiry: emit failed for {}: {e}", t.focus_id);
+        }
         if notifications_enabled {
-            let _ = handle
+            if let Err(e) = handle
                 .notification()
                 .builder()
                 .title("Timer expired")
                 .body(format!("{} reached its timer.", t.focus_title))
-                .show();
+                .show()
+            {
+                log::error!(
+                    "timer_expiry: system notification failed for {}: {e}",
+                    t.focus_id
+                );
+            }
         }
     }
 }
