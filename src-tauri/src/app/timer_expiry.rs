@@ -22,7 +22,11 @@ pub fn spawn(handle: AppHandle, store: Arc<dyn FocusStore>) {
         let mut interval = tokio::time::interval(TICK_INTERVAL);
         loop {
             interval.tick().await;
-            run_once(&handle, store.as_ref());
+            // FocusStore is synchronous file I/O; move it off the async runtime
+            // thread so concurrent IPC handlers aren't blocked for a tick.
+            let handle = handle.clone();
+            let store = store.clone();
+            let _ = tokio::task::spawn_blocking(move || run_once(&handle, store.as_ref())).await;
         }
     });
 }

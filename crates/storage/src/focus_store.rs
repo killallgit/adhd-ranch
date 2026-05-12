@@ -295,8 +295,13 @@ impl FocusStore for MarkdownFocusStore {
             return Err(FocusStoreError::NotFound(focus_id.to_string()));
         }
         let bytes = serde_json::to_vec(timer).map_err(io::Error::other)?;
-        atomic_write(&dir.join("timer.json"), &bytes)?;
-        Ok(())
+        match atomic_write(&dir.join("timer.json"), &bytes) {
+            Ok(()) => Ok(()),
+            Err(e) if e.kind() == io::ErrorKind::NotFound => {
+                Err(FocusStoreError::NotFound(focus_id.to_string()))
+            }
+            Err(e) => Err(e.into()),
+        }
     }
 }
 
