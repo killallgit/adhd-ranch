@@ -7,6 +7,7 @@ import { usePigMovement } from "../hooks/usePigMovement";
 import { usePolledReader } from "../hooks/usePolledReader";
 import { useViewport } from "../hooks/useViewport";
 import type { Focus } from "../types/focus";
+import type { TimerPreset } from "../types/timer";
 import { PigDetail } from "./PigDetail";
 import { PigSprite } from "./PigSprite";
 
@@ -54,6 +55,10 @@ export function App({ focusReader, focusWriter, onWriteFailure }: AppProps) {
 
   async function handleDeleteFocus(focusId: string) {
     onWriteFailure("delete_focus", await focusWriter.deleteFocus(focusId));
+  }
+
+  async function handleStartTimer(focusId: string, preset: TimerPreset) {
+    onWriteFailure("start_timer", await focusWriter.startTimer(focusId, preset));
   }
 
   return (
@@ -107,6 +112,7 @@ export function App({ focusReader, focusWriter, onWriteFailure }: AppProps) {
           onUpdateTask={handleUpdateTask}
           onToggleTask={handleToggleTask}
           onDeleteFocus={handleDeleteFocus}
+          onStartTimer={handleStartTimer}
         />
       )}
     </div>

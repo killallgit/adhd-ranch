@@ -5,7 +5,7 @@ use adhd_ranch_commands::{
     CommandError, Commands, CreateFocusInput, CreatedFocus, CreatedProposal, DecisionOutcome,
     ProposalEdit,
 };
-use adhd_ranch_domain::{Caps, Focus, Proposal, Settings};
+use adhd_ranch_domain::{Caps, Focus, Proposal, Settings, TimerPreset};
 use adhd_ranch_storage::write_settings;
 
 use tauri::{AppHandle, Emitter, Manager, State, Wry};
@@ -132,6 +132,19 @@ pub fn toggle_task(
         .toggle_task(&focus_id, index, done)
         .inspect(|_| log::info!("task {index} in {focus_id} toggled to {done}"))
         .inspect_err(|e| log::error!("toggle_task({focus_id:?}, {index}, {done}): {e}"))
+}
+
+#[tauri::command]
+pub fn start_timer(
+    focus_id: String,
+    preset: TimerPreset,
+    state: State<'_, CommandsState>,
+) -> Result<(), CommandError> {
+    state
+        .0
+        .start_timer(&focus_id, preset)
+        .inspect(|_| log::info!("timer started on {focus_id}"))
+        .inspect_err(|e| log::error!("start_timer({focus_id:?}): {e}"))
 }
 
 #[tauri::command]

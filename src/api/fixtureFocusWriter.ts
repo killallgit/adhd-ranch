@@ -15,5 +15,6 @@ export function createFixtureFocusWriter(opts: FixtureFocusWriterOptions = {}): 
     deleteTask: result,
     updateTask: result,
     toggleTask: result,
+    startTimer: result,
   };
 }
