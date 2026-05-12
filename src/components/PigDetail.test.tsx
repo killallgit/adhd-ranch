@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { Focus } from "../types/focus";
 import { PigDetail } from "./PigDetail";
@@ -200,5 +201,42 @@ describe("PigDetail timer picker", () => {
       },
     });
     expect(screen.getByRole("button", { name: "Restart" })).toBeInTheDocument();
+  });
+
+  it("resets picker state when focus changes", async () => {
+    function Harness() {
+      const [focusId, setFocusId] = useState("pig-a");
+      return (
+        <>
+          <button type="button" data-testid="swap" onClick={() => setFocusId("pig-b")}>
+            swap
+          </button>
+          <PigDetail
+            focus={{ ...baseFocus, id: focusId }}
+            pigX={100}
+            pigY={100}
+            viewportW={1920}
+            viewportH={1080}
+            confirmDelete={true}
+            onClose={vi.fn()}
+            onClearTask={vi.fn()}
+            onAddTask={vi.fn()}
+            onRenameFocus={vi.fn()}
+            onUpdateTask={vi.fn()}
+            onToggleTask={vi.fn()}
+            onDeleteFocus={vi.fn()}
+            onStartTimer={vi.fn()}
+          />
+        </>
+      );
+    }
+    render(<Harness />);
+
+    await userEvent.selectOptions(screen.getByTestId("timer-preset-select"), "Sixteen");
+    expect(screen.getByTestId("timer-preset-select")).toHaveValue("Sixteen");
+
+    await userEvent.click(screen.getByTestId("swap"));
+
+    expect(screen.getByTestId("timer-preset-select")).toHaveValue("Eight");
   });
 });

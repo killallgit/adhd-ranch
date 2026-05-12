@@ -1,13 +1,9 @@
 import { useEffect, useState } from "react";
 import { PIG_SIZE } from "../hooks/usePigMovement";
+import { type PresetSelection, isCustomValid, resolvePreset } from "../lib/timerPreset";
 import type { Focus } from "../types/focus";
 import type { TimerPreset } from "../types/timer";
-import {
-  type PresetSelection,
-  TimerPresetPicker,
-  isCustomValid,
-  resolvePreset,
-} from "./TimerPresetPicker";
+import { TimerPresetPicker } from "./TimerPresetPicker";
 
 export interface PigDetailProps {
   readonly focus: Focus;
@@ -68,6 +64,13 @@ export function PigDetail({
     setTitleDraft(focus.title);
     setTitleError(false);
   }, [focus.title]);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-run when switching to a different focus so picker state doesn't leak.
+  useEffect(() => {
+    setTimerSelection("Eight");
+    setCustomMinutes(10);
+    setTimerError(null);
+  }, [focus.id]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {

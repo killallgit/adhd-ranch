@@ -1,4 +1,5 @@
-import { type PresetSelection, TimerPresetPicker } from "./TimerPresetPicker";
+import type { PresetSelection } from "../lib/timerPreset";
+import { TimerPresetPicker } from "./TimerPresetPicker";
 
 export interface NewFocusWindowProps {
   readonly title: string;

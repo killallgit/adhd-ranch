@@ -1,11 +1,7 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect, useState } from "react";
 import type { FocusWriter } from "../api/focusWriter";
-import {
-  type PresetSelection,
-  isCustomValid,
-  resolvePreset,
-} from "../components/TimerPresetPicker";
+import { type PresetSelection, isCustomValid, resolvePreset } from "../lib/timerPreset";
 
 export interface NewFocusWindowState {
   readonly title: string;
