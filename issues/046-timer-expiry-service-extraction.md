@@ -38,6 +38,10 @@ impl TimerExpiryService {
 
 CodeRabbit flagged this on PR #53 (https://github.com/killallgit/adhd-ranch/pull/53). Deferred to keep that PR scoped to issue 029.
 
+## Completion promise
+
+Timer expiry coordination is tested through one workflow module; `app/timer_expiry.rs` only wires dependencies and runs the interval loop.
+
 ## Acceptance criteria
 
 - [ ] `TimerExpiryService` exists in `crates/commands` (or a new dedicated crate); takes a `TimerExpiryNotifier` trait + `FocusStore` + clock + notification-settings provider via constructor injection.
@@ -49,6 +53,10 @@ CodeRabbit flagged this on PR #53 (https://github.com/killallgit/adhd-ranch/pull
 ## Blocked by
 
 - 029 (timer-expiry interface) — done
+
+## User stories addressed
+
+- "When a FocusTimer expires, the app updates storage, emits the UI event, and sends the configured notification through one testable workflow instead of inline Tauri code."
 
 ## Hands off to
 

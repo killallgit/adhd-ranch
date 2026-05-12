@@ -22,8 +22,13 @@ Frontend reader collapse:
 Domain seams:
 
 - [041](041-focus-writer-write-outcome.md) — `FocusWriter` returns `WriteOutcome` (hands off to 029)
-- [043](043-proposal-lifecycle-atomicity-design.md) — `ProposalLifecycle::accept` atomicity (**HITL design** — produces ADR + follow-up)
+- [043](043-proposal-lifecycle-atomicity-design.md) — `ProposalLifecycle::accept` atomicity — **done** by [ADR-0003](../docs/adr/0003-storage-transaction-seam-for-proposal-lifecycle.md)
 - [044](044-domain-timer-ticker.md) — Carve domain `TimerTicker` pure module — **done** (merged, consumed by 029)
+- [046](046-timer-expiry-service-extraction.md) — Timer expiry workflow module
+- [047](047-storage-transaction-seam.md) — Storage transaction seam for Proposal lifecycle
+- [048](048-focus-document-mutation-module.md) — FocusDocument mutation module
+- [049](049-display-space-pig-movement-seam.md) — Display-space seam for Pig movement
+- [050](050-settings-update-workflow.md) — Settings update workflow module
 
 Closed without implementation:
 
