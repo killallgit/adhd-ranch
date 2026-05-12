@@ -54,6 +54,7 @@ pub trait FocusStore: Send + Sync {
     fn delete_task(&self, focus_id: &str, index: usize) -> Result<(), FocusStoreError>;
     fn update_task(&self, focus_id: &str, index: usize, text: &str) -> Result<(), FocusStoreError>;
     fn toggle_task(&self, focus_id: &str, index: usize, done: bool) -> Result<(), FocusStoreError>;
+    fn update_timer(&self, focus_id: &str, timer: &FocusTimer) -> Result<(), FocusStoreError>;
 }
 
 pub struct MarkdownFocusStore {
@@ -286,6 +287,16 @@ impl FocusStore for MarkdownFocusStore {
             };
             format!("{leading_ws}{new_marker}{rest}")
         })
+    }
+
+    fn update_timer(&self, focus_id: &str, timer: &FocusTimer) -> Result<(), FocusStoreError> {
+        let dir = self.root.join(focus_id);
+        if !dir.is_dir() {
+            return Err(FocusStoreError::NotFound(focus_id.to_string()));
+        }
+        let bytes = serde_json::to_vec(timer).map_err(io::Error::other)?;
+        atomic_write(&dir.join("timer.json"), &bytes)?;
+        Ok(())
     }
 }
 
@@ -671,6 +682,50 @@ mod tests {
         let focuses = store.list().unwrap();
         assert_eq!(focuses.len(), 1);
         assert_eq!(focuses[0].timer, Some(timer));
+    }
+
+    #[test]
+    fn update_timer_persists_new_status() {
+        let dir = TempDir::new().unwrap();
+        let store = MarkdownFocusStore::new(dir.path());
+        let timer = FocusTimer {
+            duration_secs: 60,
+            started_at: 1_000,
+            status: adhd_ranch_domain::TimerStatus::Running,
+        };
+        let slug = store
+            .create_focus(
+                &NewFocus::new("With timer", "").unwrap(),
+                "id-1",
+                "2026-04-30T12:00:00Z",
+                Some(timer.clone()),
+            )
+            .unwrap();
+
+        let expired = FocusTimer {
+            status: adhd_ranch_domain::TimerStatus::Expired,
+            ..timer
+        };
+        store.update_timer(&slug, &expired).unwrap();
+
+        let focuses = store.list().unwrap();
+        assert_eq!(
+            focuses[0].timer.as_ref().unwrap().status,
+            adhd_ranch_domain::TimerStatus::Expired
+        );
+    }
+
+    #[test]
+    fn update_timer_missing_focus_returns_not_found() {
+        let dir = TempDir::new().unwrap();
+        let store = MarkdownFocusStore::new(dir.path());
+        let timer = FocusTimer {
+            duration_secs: 60,
+            started_at: 0,
+            status: adhd_ranch_domain::TimerStatus::Running,
+        };
+        let err = store.update_timer("does-not-exist", &timer).unwrap_err();
+        assert!(matches!(err, FocusStoreError::NotFound(_)));
     }
 
     #[test]

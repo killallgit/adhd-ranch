@@ -1,6 +1,7 @@
 pub mod cap_notifier;
 pub mod menu;
 pub mod paths;
+pub mod timer_expiry;
 pub mod tray;
 pub mod window_always_on_top;
 
@@ -164,6 +165,8 @@ pub fn run() {
             _focuses: focuses_watcher,
             _proposals: proposals_watcher,
         });
+
+        timer_expiry::spawn(app.handle().clone(), store.clone());
 
         let server = install_http_server(store, queue, decision_log)?;
         app.manage(server);

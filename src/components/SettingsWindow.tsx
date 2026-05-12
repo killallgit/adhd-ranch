@@ -2,6 +2,12 @@ import type React from "react";
 import type { MonitorInfo } from "../types/monitor";
 import type { Settings } from "../types/settings";
 
+const NOTIFICATION_SOURCES = [
+  { key: "timer_expired", label: "Timer expired" },
+  { key: "focuses_over_cap", label: "Too many focuses" },
+  { key: "tasks_over_cap", label: "Too many tasks in a focus" },
+] as const;
+
 interface SettingsWindowProps {
   readonly settings: Settings | null;
   readonly monitors: MonitorInfo[];
@@ -146,17 +152,22 @@ export function SettingsWindow({
           )}
 
           <section className="settings-section">
-            <h2 className="settings-section-title">Alerts</h2>
-            <ToggleRow
-              label="System Notifications"
-              checked={settings.alerts.system_notifications}
-              onChange={(v) =>
-                onUpdate({
-                  ...settings,
-                  alerts: { ...settings.alerts, system_notifications: v },
-                })
-              }
-            />
+            <h2 className="settings-section-title">Notifications</h2>
+            {NOTIFICATION_SOURCES.map(({ key, label }) => (
+              <ToggleRow
+                key={key}
+                label={label}
+                checked={settings.notifications.sources[key] ?? true}
+                onChange={(v) =>
+                  onUpdate({
+                    ...settings,
+                    notifications: {
+                      sources: { ...settings.notifications.sources, [key]: v },
+                    },
+                  })
+                }
+              />
+            ))}
           </section>
         </>
       )}

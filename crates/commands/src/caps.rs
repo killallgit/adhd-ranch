@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
-use adhd_ranch_domain::{cap_state, OverCapMonitor, Settings};
+use adhd_ranch_domain::{
+    cap_state, FocusesOverCapSource, OverCapMonitor, Settings, TasksOverCapSource,
+};
 use adhd_ranch_storage::FocusStore;
 
 use crate::error::CommandError;
@@ -39,23 +41,27 @@ impl CapEvaluator {
         let state = cap_state(&focuses, self.settings.caps);
         let transition = self.monitor.evaluate(&state);
 
-        if !self.settings.alerts.system_notifications {
-            return Ok(());
-        }
+        let focuses_enabled = self
+            .settings
+            .notifications
+            .is_enabled(&FocusesOverCapSource);
+        let tasks_enabled = self.settings.notifications.is_enabled(&TasksOverCapSource);
 
-        if transition.focuses_to_over {
+        if focuses_enabled && transition.focuses_to_over {
             self.notifier
                 .focuses_over_cap(self.settings.caps.max_focuses);
         }
-        if transition.focuses_to_under {
+        if focuses_enabled && transition.focuses_to_under {
             self.notifier.focuses_under_cap();
         }
-        for id in &transition.task_to_over_focus_ids {
-            self.notifier
-                .task_over_cap(id, self.settings.caps.max_tasks_per_focus);
-        }
-        for id in &transition.task_to_under_focus_ids {
-            self.notifier.task_under_cap(id);
+        if tasks_enabled {
+            for id in &transition.task_to_over_focus_ids {
+                self.notifier
+                    .task_over_cap(id, self.settings.caps.max_tasks_per_focus);
+            }
+            for id in &transition.task_to_under_focus_ids {
+                self.notifier.task_under_cap(id);
+            }
         }
         Ok(())
     }
@@ -66,7 +72,7 @@ mod tests {
     use std::sync::Mutex;
 
     use adhd_ranch_domain::focus::{Focus, FocusId, Task};
-    use adhd_ranch_domain::{Alerts, Caps, NewFocus, Widget};
+    use adhd_ranch_domain::{Caps, NewFocus, NotificationSettings, Widget};
     use adhd_ranch_storage::FocusStoreError;
 
     use super::*;
@@ -173,6 +179,13 @@ mod tests {
         ) -> Result<(), FocusStoreError> {
             unimplemented!()
         }
+        fn update_timer(
+            &self,
+            _focus_id: &str,
+            _timer: &adhd_ranch_domain::FocusTimer,
+        ) -> Result<(), FocusStoreError> {
+            unimplemented!()
+        }
     }
 
     fn focus_with_tasks(id: &str, count: usize) -> Focus {
@@ -192,21 +205,21 @@ mod tests {
         }
     }
 
-    fn settings(notifications: bool) -> Settings {
+    fn settings(notifications: NotificationSettings) -> Settings {
         Settings {
             caps: Caps {
                 max_focuses: 5,
                 max_tasks_per_focus: 7,
             },
-            alerts: Alerts {
-                system_notifications: notifications,
-            },
+            notifications,
             widget: Widget::default(),
             displays: adhd_ranch_domain::DisplayConfig::default(),
         }
     }
 
-    fn build(notifications: bool) -> (Arc<StubStore>, Arc<RecordingNotifier>, CapEvaluator) {
+    fn build(
+        notifications: NotificationSettings,
+    ) -> (Arc<StubStore>, Arc<RecordingNotifier>, CapEvaluator) {
         let store = Arc::new(StubStore::new());
         let notifier = Arc::new(RecordingNotifier::new());
         let evaluator = CapEvaluator::new(
@@ -218,9 +231,13 @@ mod tests {
         (store, notifier, evaluator)
     }
 
+    fn all_enabled() -> NotificationSettings {
+        NotificationSettings::default()
+    }
+
     #[test]
     fn under_caps_emits_nothing() {
-        let (store, notifier, evaluator) = build(true);
+        let (store, notifier, evaluator) = build(all_enabled());
         store.set(vec![focus_with_tasks("a", 3)]);
         evaluator.evaluate().unwrap();
         assert!(notifier.calls().is_empty());
@@ -228,7 +245,7 @@ mod tests {
 
     #[test]
     fn focuses_to_over_calls_notifier_once() {
-        let (store, notifier, evaluator) = build(true);
+        let (store, notifier, evaluator) = build(all_enabled());
         store.set(
             (0..6)
                 .map(|i| focus_with_tasks(&format!("f{i}"), 0))
@@ -243,7 +260,7 @@ mod tests {
 
     #[test]
     fn focuses_recovery_calls_under() {
-        let (store, notifier, evaluator) = build(true);
+        let (store, notifier, evaluator) = build(all_enabled());
         store.set(
             (0..6)
                 .map(|i| focus_with_tasks(&format!("f{i}"), 0))
@@ -263,7 +280,7 @@ mod tests {
 
     #[test]
     fn task_cap_transitions_per_focus() {
-        let (store, notifier, evaluator) = build(true);
+        let (store, notifier, evaluator) = build(all_enabled());
         store.set(vec![focus_with_tasks("a", 9)]);
         evaluator.evaluate().unwrap();
         assert_eq!(notifier.calls(), vec![Call::TaskOver("a".into(), 7)]);
@@ -274,14 +291,40 @@ mod tests {
     }
 
     #[test]
-    fn notifications_disabled_suppresses_calls() {
-        let (store, notifier, evaluator) = build(false);
+    fn focuses_source_disabled_suppresses_focus_calls_but_not_task_calls() {
+        let mut notifications = NotificationSettings::default();
+        notifications.set(&adhd_ranch_domain::FocusesOverCapSource, false);
+        let (store, notifier, evaluator) = build(notifications);
         store.set(
             (0..6)
-                .map(|i| focus_with_tasks(&format!("f{i}"), 0))
+                .map(|i| {
+                    let n = if i == 0 { 9 } else { 0 };
+                    focus_with_tasks(&format!("f{i}"), n)
+                })
                 .collect(),
         );
         evaluator.evaluate().unwrap();
-        assert!(notifier.calls().is_empty());
+        let calls = notifier.calls();
+        assert!(!calls.contains(&Call::FocusesOver(5)));
+        assert!(calls.contains(&Call::TaskOver("f0".into(), 7)));
+    }
+
+    #[test]
+    fn tasks_source_disabled_suppresses_task_calls_but_not_focus_calls() {
+        let mut notifications = NotificationSettings::default();
+        notifications.set(&adhd_ranch_domain::TasksOverCapSource, false);
+        let (store, notifier, evaluator) = build(notifications);
+        store.set(
+            (0..6)
+                .map(|i| {
+                    let n = if i == 0 { 9 } else { 0 };
+                    focus_with_tasks(&format!("f{i}"), n)
+                })
+                .collect(),
+        );
+        evaluator.evaluate().unwrap();
+        let calls = notifier.calls();
+        assert!(calls.contains(&Call::FocusesOver(5)));
+        assert!(!calls.contains(&Call::TaskOver("f0".into(), 7)));
     }
 }

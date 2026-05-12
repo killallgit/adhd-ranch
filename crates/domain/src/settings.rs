@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::notification::NotificationSettings;
+
 pub const DEFAULT_MAX_FOCUSES: usize = 5;
 pub const DEFAULT_MAX_TASKS_PER_FOCUS: usize = 7;
 
@@ -37,21 +39,6 @@ impl Default for Caps {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "export-ts", derive(ts_rs::TS))]
-#[cfg_attr(feature = "export-ts", ts(export))]
-pub struct Alerts {
-    pub system_notifications: bool,
-}
-
-impl Default for Alerts {
-    fn default() -> Self {
-        Self {
-            system_notifications: true,
-        }
-    }
-}
-
 /// Which monitor indices have an active overlay window. Default: primary only (index 0).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "export-ts", derive(ts_rs::TS))]
@@ -73,7 +60,7 @@ impl Default for DisplayConfig {
 #[cfg_attr(feature = "export-ts", ts(export))]
 pub struct Settings {
     pub caps: Caps,
-    pub alerts: Alerts,
+    pub notifications: NotificationSettings,
     pub widget: Widget,
     pub displays: DisplayConfig,
 }
@@ -86,11 +73,17 @@ impl Settings {
             .iter()
             .map(|i| i.to_string())
             .collect();
+        let mut notification_keys: Vec<&String> = self.notifications.sources.keys().collect();
+        notification_keys.sort();
+        let mut notifications = String::from("notifications:\n");
+        for k in notification_keys {
+            let v = self.notifications.sources.get(k).copied().unwrap_or(true);
+            notifications.push_str(&format!("  {k}: {v}\n"));
+        }
         format!(
-            "caps:\n  max_focuses: {}\n  max_tasks_per_focus: {}\nalerts:\n  system_notifications: {}\nwidget:\n  always_on_top: {}\n  confirm_delete: {}\ndisplays:\n  enabled: {}\n",
+            "caps:\n  max_focuses: {}\n  max_tasks_per_focus: {}\n{notifications}widget:\n  always_on_top: {}\n  confirm_delete: {}\ndisplays:\n  enabled: {}\n",
             self.caps.max_focuses,
             self.caps.max_tasks_per_focus,
-            self.alerts.system_notifications,
             self.widget.always_on_top,
             self.widget.confirm_delete,
             enabled.join(","),
@@ -111,7 +104,7 @@ impl Settings {
                 if !indented {
                     section = match name {
                         "caps" => "caps",
-                        "alerts" => "alerts",
+                        "notifications" => "notifications",
                         "widget" => "widget",
                         "displays" => "displays",
                         _ => "",
@@ -135,9 +128,9 @@ impl Settings {
                         settings.caps.max_tasks_per_focus = n;
                     }
                 }
-                ("alerts", "system_notifications") => {
+                ("notifications", k) => {
                     if let Some(b) = parse_bool(value) {
-                        settings.alerts.system_notifications = b;
+                        settings.notifications.sources.insert(k.to_string(), b);
                     }
                 }
                 ("widget", "always_on_top") => {
@@ -181,31 +174,33 @@ fn parse_bool(value: &str) -> Option<bool> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::notification::{FocusesOverCapSource, TimerExpiredSource};
 
     #[test]
     fn empty_input_yields_defaults() {
         let s = Settings::parse_yaml("");
         assert_eq!(s.caps.max_focuses, 5);
         assert_eq!(s.caps.max_tasks_per_focus, 7);
-        assert!(s.alerts.system_notifications);
+        assert!(s.notifications.is_enabled(&TimerExpiredSource));
+        assert!(s.notifications.is_enabled(&FocusesOverCapSource));
     }
 
     #[test]
-    fn parses_full_yaml() {
+    fn parses_notifications_section() {
         let s = Settings::parse_yaml(
-            "caps:\n  max_focuses: 3\n  max_tasks_per_focus: 4\nalerts:\n  system_notifications: false\n",
+            "notifications:\n  timer_expired: false\n  focuses_over_cap: true\n",
         );
-        assert_eq!(s.caps.max_focuses, 3);
-        assert_eq!(s.caps.max_tasks_per_focus, 4);
-        assert!(!s.alerts.system_notifications);
+        assert!(!s.notifications.is_enabled(&TimerExpiredSource));
+        assert!(s.notifications.is_enabled(&FocusesOverCapSource));
     }
 
     #[test]
-    fn missing_keys_fall_back_to_defaults() {
+    fn missing_notifications_section_defaults_all_enabled() {
         let s = Settings::parse_yaml("caps:\n  max_focuses: 9\n");
         assert_eq!(s.caps.max_focuses, 9);
         assert_eq!(s.caps.max_tasks_per_focus, 7);
-        assert!(s.alerts.system_notifications);
+        assert!(s.notifications.is_enabled(&TimerExpiredSource));
+        assert!(s.notifications.is_enabled(&FocusesOverCapSource));
     }
 
     #[test]
@@ -254,14 +249,15 @@ mod tests {
 
     #[test]
     fn to_yaml_round_trips() {
+        let mut notifications = NotificationSettings::default();
+        notifications.set(&TimerExpiredSource, false);
+        notifications.set(&FocusesOverCapSource, true);
         let s = Settings {
             caps: Caps {
                 max_focuses: 3,
                 max_tasks_per_focus: 4,
             },
-            alerts: Alerts {
-                system_notifications: false,
-            },
+            notifications,
             widget: Widget {
                 always_on_top: true,
                 confirm_delete: false,
