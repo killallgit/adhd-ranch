@@ -4,6 +4,7 @@ pub mod decision;
 pub mod error;
 pub mod focus;
 pub mod monitor;
+pub mod notification;
 pub mod parse;
 pub mod pig_rect;
 pub mod proposal;
@@ -18,10 +19,14 @@ pub use decision::{Decision, DecisionKind};
 pub use error::DomainError;
 pub use focus::{Focus, FocusId, Task, TaskText};
 pub use monitor::MonitorInfo;
+pub use notification::{
+    all_sources, FocusesOverCapSource, NotificationSettings, NotificationSource,
+    TasksOverCapSource, TimerExpiredSource,
+};
 pub use parse::{parse_focus_md, ParseError};
 pub use pig_rect::{PigRect, RectUpdater};
 pub use proposal::{NewFocus, Proposal, ProposalId, ProposalKind, ProposalValidationError};
-pub use settings::{Alerts, Caps, DisplayConfig, Settings, Widget};
+pub use settings::{Caps, DisplayConfig, Settings, Widget};
 pub use slug::slugify;
 pub use timer::{growth_factor, timer_remaining_secs, FocusTimer, TimerPreset, TimerStatus};
 pub use timer_ticker::{tick, TimerTransition};

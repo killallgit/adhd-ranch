@@ -11,7 +11,9 @@ pub fn write_settings(path: &Path, settings: &Settings) -> io::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use adhd_ranch_domain::{Alerts, Caps, DisplayConfig, Widget};
+    use adhd_ranch_domain::{
+        Caps, DisplayConfig, NotificationSettings, TimerExpiredSource, Widget,
+    };
     use tempfile::TempDir;
 
     use super::*;
@@ -20,14 +22,14 @@ mod tests {
     fn write_settings_round_trips() {
         let dir = TempDir::new().unwrap();
         let path = dir.path().join("settings.yaml");
+        let mut notifications = NotificationSettings::default();
+        notifications.set(&TimerExpiredSource, false);
         let settings = Settings {
             caps: Caps {
                 max_focuses: 3,
                 max_tasks_per_focus: 4,
             },
-            alerts: Alerts {
-                system_notifications: false,
-            },
+            notifications,
             widget: Widget {
                 always_on_top: true,
                 confirm_delete: true,
@@ -43,14 +45,14 @@ mod tests {
     fn write_settings_preserves_all_keys() {
         let dir = TempDir::new().unwrap();
         let path = dir.path().join("settings.yaml");
+        let mut notifications = NotificationSettings::default();
+        notifications.set(&TimerExpiredSource, true);
         let original = Settings {
             caps: Caps {
                 max_focuses: 7,
                 max_tasks_per_focus: 10,
             },
-            alerts: Alerts {
-                system_notifications: true,
-            },
+            notifications,
             widget: Widget {
                 always_on_top: false,
                 confirm_delete: true,
@@ -70,7 +72,7 @@ mod tests {
         let final_settings = Settings::parse_yaml(&final_raw);
         assert_eq!(final_settings.caps.max_focuses, 7);
         assert_eq!(final_settings.caps.max_tasks_per_focus, 10);
-        assert!(final_settings.alerts.system_notifications);
+        assert!(final_settings.notifications.is_enabled(&TimerExpiredSource));
         assert!(final_settings.widget.always_on_top);
         assert_eq!(final_settings.displays.enabled_indices, vec![0, 2]);
     }
