@@ -99,6 +99,16 @@ impl Commands {
         Ok(())
     }
 
+    pub fn start_timer(&self, focus_id: &str, preset: TimerPreset) -> Result<(), CommandError> {
+        let timer = FocusTimer {
+            duration_secs: preset.duration_secs(),
+            started_at: (self.clock_secs)(),
+            status: TimerStatus::Running,
+        };
+        self.store.update_timer(focus_id, &timer)?;
+        Ok(())
+    }
+
     pub fn caps(&self) -> Caps {
         self.settings.caps
     }
@@ -251,6 +261,38 @@ mod tests {
         commands.toggle_task(&created.id, 0, false).unwrap();
         let focuses = commands.list_focuses().unwrap();
         assert!(!focuses[0].tasks[0].done);
+    }
+
+    #[test]
+    fn start_timer_sets_running_timer_with_preset_duration() {
+        let started_at = 1_700_000_500_i64;
+        let (commands, _dir) = build_commands(started_at);
+        let created = commands
+            .create_focus(CreateFocusInput {
+                title: "No timer yet".into(),
+                description: String::new(),
+                timer_preset: None,
+            })
+            .unwrap();
+
+        commands
+            .start_timer(&created.id, TimerPreset::Four)
+            .unwrap();
+
+        let focuses = commands.list_focuses().unwrap();
+        let timer = focuses[0].timer.as_ref().expect("timer should be Some");
+        assert_eq!(timer.duration_secs, 240);
+        assert_eq!(timer.started_at, started_at);
+        assert_eq!(timer.status, TimerStatus::Running);
+    }
+
+    #[test]
+    fn start_timer_unknown_focus_returns_not_found() {
+        let (commands, _dir) = build_commands(0);
+        let err = commands
+            .start_timer("does-not-exist", TimerPreset::Two)
+            .unwrap_err();
+        assert!(matches!(err, CommandError::NotFound(_)));
     }
 
     #[test]

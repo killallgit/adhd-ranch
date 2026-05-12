@@ -19,6 +19,7 @@ export interface FocusWriter {
   deleteTask(focusId: string, index: number): Promise<WriteOutcome>;
   updateTask(focusId: string, index: number, text: string): Promise<WriteOutcome>;
   toggleTask(focusId: string, index: number, done: boolean): Promise<WriteOutcome>;
+  startTimer(focusId: string, preset: TimerPreset): Promise<WriteOutcome>;
 }
 
 function toFailure(e: unknown): WriteOutcome {
@@ -66,6 +67,9 @@ export function createTauriFocusWriter(): FocusWriter {
     },
     toggleTask(focusId, index, done) {
       return runInvoke("toggle_task", { focusId, index, done });
+    },
+    startTimer(focusId, preset) {
+      return runInvoke("start_timer", { focusId, preset });
     },
   };
 }

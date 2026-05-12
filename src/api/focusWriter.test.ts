@@ -56,4 +56,29 @@ describe("tauriFocusWriter", () => {
 
     expect(outcome).toEqual({ ok: false, kind: "not_found", message: "focus missing: x" });
   });
+
+  it("startTimer forwards focusId + preset", async () => {
+    mockInvoke.mockResolvedValueOnce(undefined);
+    const writer = createTauriFocusWriter();
+
+    const outcome = await writer.startTimer("focus-1", "Eight");
+
+    expect(outcome).toEqual({ ok: true });
+    expect(mockInvoke).toHaveBeenCalledWith("start_timer", {
+      focusId: "focus-1",
+      preset: "Eight",
+    });
+  });
+
+  it("startTimer forwards custom preset object", async () => {
+    mockInvoke.mockResolvedValueOnce(undefined);
+    const writer = createTauriFocusWriter();
+
+    await writer.startTimer("focus-1", { Custom: 15 });
+
+    expect(mockInvoke).toHaveBeenCalledWith("start_timer", {
+      focusId: "focus-1",
+      preset: { Custom: 15 },
+    });
+  });
 });

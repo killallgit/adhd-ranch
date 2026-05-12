@@ -54,6 +54,7 @@ pub fn run() {
             ui_bridge::rename_focus,
             ui_bridge::update_task,
             ui_bridge::toggle_task,
+            ui_bridge::start_timer,
             ui_bridge::get_caps,
             ui_bridge::update_pig_rects,
             ui_bridge::set_pig_drag_active,

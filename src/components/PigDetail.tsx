@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { PIG_SIZE } from "../hooks/usePigMovement";
+import { type PresetSelection, isCustomValid, resolvePreset } from "../lib/timerPreset";
 import type { Focus } from "../types/focus";
+import type { TimerPreset } from "../types/timer";
+import { TimerPresetPicker } from "./TimerPresetPicker";
 
 export interface PigDetailProps {
   readonly focus: Focus;
@@ -16,6 +19,7 @@ export interface PigDetailProps {
   readonly onUpdateTask: (focusId: string, index: number, text: string) => void;
   readonly onToggleTask: (focusId: string, index: number, done: boolean) => void;
   readonly onDeleteFocus: (focusId: string) => void;
+  readonly onStartTimer: (focusId: string, preset: TimerPreset) => void;
 }
 
 const CARD_W = 340;
@@ -35,16 +39,38 @@ export function PigDetail({
   onUpdateTask,
   onToggleTask,
   onDeleteFocus,
+  onStartTimer,
 }: PigDetailProps) {
   const [taskInput, setTaskInput] = useState("");
   const [titleDraft, setTitleDraft] = useState(focus.title);
   const [titleError, setTitleError] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [timerSelection, setTimerSelection] = useState<PresetSelection>("Eight");
+  const [customMinutes, setCustomMinutes] = useState(10);
+  const [timerError, setTimerError] = useState<string | null>(null);
+
+  function handleStartTimer() {
+    if (timerSelection === "custom" && !isCustomValid(customMinutes)) {
+      setTimerError("custom timer must be at least 1 minute");
+      return;
+    }
+    const preset = resolvePreset(timerSelection, customMinutes);
+    if (preset === null) return;
+    setTimerError(null);
+    onStartTimer(focus.id, preset);
+  }
 
   useEffect(() => {
     setTitleDraft(focus.title);
     setTitleError(false);
   }, [focus.title]);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-run when switching to a different focus so picker state doesn't leak.
+  useEffect(() => {
+    setTimerSelection("Eight");
+    setCustomMinutes(10);
+    setTimerError(null);
+  }, [focus.id]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -184,6 +210,29 @@ export function PigDetail({
             }
           }}
         />
+        <div className="pig-detail-timer">
+          <TimerPresetPicker
+            selection={timerSelection}
+            customMinutes={customMinutes}
+            allowNone={false}
+            onSelectionChange={(v) => {
+              setTimerSelection(v);
+              if (timerError) setTimerError(null);
+            }}
+            onCustomMinutesChange={(v) => {
+              setCustomMinutes(v);
+              if (timerError) setTimerError(null);
+            }}
+          />
+          <button type="button" className="pig-detail-timer-start" onClick={handleStartTimer}>
+            {focus.timer && focus.timer.status === "Running" ? "Restart" : "Start"}
+          </button>
+          {timerError && (
+            <p className="pig-detail-timer-error" role="alert">
+              {timerError}
+            </p>
+          )}
+        </div>
       </div>
     </>
   );
