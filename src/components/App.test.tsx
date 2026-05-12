@@ -45,25 +45,38 @@ const sample: Focus[] = [
 ];
 
 function noopFocusWriter(): FocusWriter {
+  const ok = { ok: true } as const;
   return {
-    createFocus: vi.fn().mockResolvedValue({ id: "any" }),
-    deleteFocus: vi.fn().mockResolvedValue(undefined),
-    renameFocus: vi.fn().mockResolvedValue(undefined),
-    appendTask: vi.fn().mockResolvedValue(undefined),
-    deleteTask: vi.fn().mockResolvedValue(undefined),
-    updateTask: vi.fn().mockResolvedValue(undefined),
-    toggleTask: vi.fn().mockResolvedValue(undefined),
+    createFocus: vi.fn().mockResolvedValue(ok),
+    deleteFocus: vi.fn().mockResolvedValue(ok),
+    renameFocus: vi.fn().mockResolvedValue(ok),
+    appendTask: vi.fn().mockResolvedValue(ok),
+    deleteTask: vi.fn().mockResolvedValue(ok),
+    updateTask: vi.fn().mockResolvedValue(ok),
+    toggleTask: vi.fn().mockResolvedValue(ok),
   };
 }
 
 describe("App overlay", () => {
   it("renders the overlay root", () => {
-    render(<App focusReader={createFixtureFocusReader([])} focusWriter={noopFocusWriter()} />);
+    render(
+      <App
+        focusReader={createFixtureFocusReader([])}
+        focusWriter={noopFocusWriter()}
+        onWriteFailure={() => {}}
+      />,
+    );
     expect(document.querySelector(".overlay-root")).toBeInTheDocument();
   });
 
   it("spawns a pig for each focus", async () => {
-    render(<App focusReader={createFixtureFocusReader(sample)} focusWriter={noopFocusWriter()} />);
+    render(
+      <App
+        focusReader={createFixtureFocusReader(sample)}
+        focusWriter={noopFocusWriter()}
+        onWriteFailure={() => {}}
+      />,
+    );
     await waitFor(() => {
       expect(screen.getByText("Customer X bug")).toBeInTheDocument();
       expect(screen.getByText("API refactor")).toBeInTheDocument();
@@ -72,7 +85,13 @@ describe("App overlay", () => {
 
   it("add-task input calls focusWriter.appendTask with selected focus id", async () => {
     const writer = noopFocusWriter();
-    render(<App focusReader={createFixtureFocusReader(sample)} focusWriter={writer} />);
+    render(
+      <App
+        focusReader={createFixtureFocusReader(sample)}
+        focusWriter={writer}
+        onWriteFailure={() => {}}
+      />,
+    );
 
     await waitFor(() => {
       expect(screen.getByText("Customer X bug")).toBeInTheDocument();
