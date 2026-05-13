@@ -21,6 +21,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
 
       - uses: Swatinem/rust-cache@v2
+        with:
+          cache-bin: false
 
       - uses: arduino/setup-task@v2
         with:
