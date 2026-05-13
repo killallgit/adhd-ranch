@@ -23,6 +23,8 @@ jobs:
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
+        with:
+          cache-bin: false
 
       - name: Install Task
         uses: arduino/setup-task@v2
