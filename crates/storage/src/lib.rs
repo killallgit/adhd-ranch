@@ -1,5 +1,6 @@
 pub mod atomic;
 pub mod decisions;
+mod focus_document;
 pub mod focus_store;
 pub mod jsonl;
 pub mod proposals;
