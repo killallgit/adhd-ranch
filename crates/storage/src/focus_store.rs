@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use adhd_ranch_domain::{parse_focus_md, slugify, Focus, FocusTimer, NewFocus, ParseError};
 
 use crate::atomic::atomic_write;
+use crate::focus_document::{FocusDocument, FocusDocumentError};
 
 #[derive(Debug)]
 pub enum FocusStoreError {
@@ -175,118 +176,50 @@ impl FocusStore for MarkdownFocusStore {
 
     fn rename_focus(&self, focus_id: &str, title: &str) -> Result<(), FocusStoreError> {
         let current = self.read_focus(focus_id)?;
-        let mut out = String::with_capacity(current.len());
-        let mut in_frontmatter = false;
-        let mut closed_frontmatter = false;
-        let mut replaced = false;
-        let trailing_newline = current.ends_with('\n');
-        for (line_idx, line) in current.lines().enumerate() {
-            if line_idx == 0 && line == "---" {
-                in_frontmatter = true;
-                out.push_str(line);
-                out.push('\n');
-                continue;
-            }
-            if in_frontmatter && !closed_frontmatter && line == "---" {
-                closed_frontmatter = true;
-                out.push_str(line);
-                out.push('\n');
-                continue;
-            }
-            if in_frontmatter && !closed_frontmatter && !replaced {
-                if let Some((key, _)) = line.split_once(':') {
-                    if key.trim() == "title" {
-                        out.push_str(&format!("title: {title}"));
-                        out.push('\n');
-                        replaced = true;
-                        continue;
-                    }
-                }
-            }
-            out.push_str(line);
-            out.push('\n');
-        }
-        if !trailing_newline {
-            out.pop();
-        }
-        atomic_write(&self.focus_md(focus_id), out.as_bytes())?;
+        let next = FocusDocument::from_raw(current)
+            .rename_focus(title)
+            .into_raw();
+        atomic_write(&self.focus_md(focus_id), next.as_bytes())?;
         Ok(())
     }
 
     fn append_task(&self, focus_id: &str, text: &str) -> Result<(), FocusStoreError> {
-        let mut next = self.read_focus(focus_id)?;
-        if !next.ends_with('\n') {
-            next.push('\n');
-        }
-        next.push_str("- [ ] ");
-        next.push_str(text);
-        next.push('\n');
+        let current = self.read_focus(focus_id)?;
+        let next = FocusDocument::from_raw(current)
+            .append_task(text)
+            .into_raw();
         atomic_write(&self.focus_md(focus_id), next.as_bytes())?;
         Ok(())
     }
 
     fn delete_task(&self, focus_id: &str, index: usize) -> Result<(), FocusStoreError> {
         let current = self.read_focus(focus_id)?;
-        let mut bullet_indices: Vec<usize> = Vec::new();
-        for (line_idx, line) in current.lines().enumerate() {
-            let trimmed = line.trim_start();
-            if trimmed.starts_with("- [ ]") || trimmed.starts_with("- [x]") {
-                bullet_indices.push(line_idx);
-            }
-        }
-        let target =
-            *bullet_indices
-                .get(index)
-                .ok_or_else(|| FocusStoreError::TaskIndexOutOfRange {
-                    focus_id: focus_id.to_string(),
-                    index,
-                })?;
-
-        let mut out = String::with_capacity(current.len());
-        let trailing_newline = current.ends_with('\n');
-        for (line_idx, line) in current.lines().enumerate() {
-            if line_idx == target {
-                continue;
-            }
-            out.push_str(line);
-            out.push('\n');
-        }
-        if !trailing_newline {
-            out.pop();
-        }
-        atomic_write(&self.focus_md(focus_id), out.as_bytes())?;
+        let next = FocusDocument::from_raw(current)
+            .delete_task(index)
+            .map_err(|e| map_document_error(focus_id, e))?
+            .into_raw();
+        atomic_write(&self.focus_md(focus_id), next.as_bytes())?;
         Ok(())
     }
 
     fn update_task(&self, focus_id: &str, index: usize, text: &str) -> Result<(), FocusStoreError> {
-        rewrite_task_line(self, focus_id, index, |line| {
-            let leading_ws: String = line.chars().take_while(|c| c.is_whitespace()).collect();
-            let body = line.trim_start();
-            let (marker, _rest) = if let Some(rest) = body.strip_prefix("- [ ]") {
-                ("- [ ]", rest)
-            } else if let Some(rest) = body.strip_prefix("- [x]") {
-                ("- [x]", rest)
-            } else {
-                return line.to_string();
-            };
-            format!("{leading_ws}{marker} {text}", text = text.trim())
-        })
+        let current = self.read_focus(focus_id)?;
+        let next = FocusDocument::from_raw(current)
+            .update_task(index, text)
+            .map_err(|e| map_document_error(focus_id, e))?
+            .into_raw();
+        atomic_write(&self.focus_md(focus_id), next.as_bytes())?;
+        Ok(())
     }
 
     fn toggle_task(&self, focus_id: &str, index: usize, done: bool) -> Result<(), FocusStoreError> {
-        rewrite_task_line(self, focus_id, index, |line| {
-            let leading_ws: String = line.chars().take_while(|c| c.is_whitespace()).collect();
-            let body = line.trim_start();
-            let new_marker = if done { "- [x]" } else { "- [ ]" };
-            let rest = if let Some(rest) = body.strip_prefix("- [ ]") {
-                rest
-            } else if let Some(rest) = body.strip_prefix("- [x]") {
-                rest
-            } else {
-                return line.to_string();
-            };
-            format!("{leading_ws}{new_marker}{rest}")
-        })
+        let current = self.read_focus(focus_id)?;
+        let next = FocusDocument::from_raw(current)
+            .toggle_task(index, done)
+            .map_err(|e| map_document_error(focus_id, e))?
+            .into_raw();
+        atomic_write(&self.focus_md(focus_id), next.as_bytes())?;
+        Ok(())
     }
 
     fn update_timer(&self, focus_id: &str, timer: &FocusTimer) -> Result<(), FocusStoreError> {
@@ -305,48 +238,13 @@ impl FocusStore for MarkdownFocusStore {
     }
 }
 
-fn rewrite_task_line<F>(
-    store: &MarkdownFocusStore,
-    focus_id: &str,
-    index: usize,
-    transform: F,
-) -> Result<(), FocusStoreError>
-where
-    F: FnOnce(&str) -> String,
-{
-    let current = store.read_focus(focus_id)?;
-    let mut bullet_indices: Vec<usize> = Vec::new();
-    for (line_idx, line) in current.lines().enumerate() {
-        let trimmed = line.trim_start();
-        if trimmed.starts_with("- [ ]") || trimmed.starts_with("- [x]") {
-            bullet_indices.push(line_idx);
-        }
+fn map_document_error(focus_id: &str, error: FocusDocumentError) -> FocusStoreError {
+    match error {
+        FocusDocumentError::TaskIndexOutOfRange { index } => FocusStoreError::TaskIndexOutOfRange {
+            focus_id: focus_id.to_string(),
+            index,
+        },
     }
-    let target =
-        *bullet_indices
-            .get(index)
-            .ok_or_else(|| FocusStoreError::TaskIndexOutOfRange {
-                focus_id: focus_id.to_string(),
-                index,
-            })?;
-
-    let mut out = String::with_capacity(current.len());
-    let trailing_newline = current.ends_with('\n');
-    let mut transform = Some(transform);
-    for (line_idx, line) in current.lines().enumerate() {
-        if line_idx == target {
-            let f = transform.take().unwrap();
-            out.push_str(&f(line));
-        } else {
-            out.push_str(line);
-        }
-        out.push('\n');
-    }
-    if !trailing_newline {
-        out.pop();
-    }
-    atomic_write(&store.focus_md(focus_id), out.as_bytes())?;
-    Ok(())
 }
 
 #[cfg(test)]
