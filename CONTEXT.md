@@ -14,6 +14,14 @@ A top-level item the user is paying attention to. Represents a real-world goal (
 
 The visual representation of a Focus. A pixel-art sprite that wanders the screen. One pig = one Focus. Clicking a pig opens its detail card. Pigs are not stored — they are ephemeral projections of Focus state.
 
+### RanchAnimal
+
+The broader visual projection family for Focuses. Pig is the only implemented RanchAnimal today, but future versions may render other animals with different sprites or movement feel. Shared movement and display rules should use animal-neutral names where practical; Pig-specific names should remain only at the current sprite/UI Adapter.
+
+### DisplaySpace
+
+The normalized layout of enabled monitors within the spanning overlay window. Defines the overlay span, the primary spawn region, and the actual visible monitor regions where RanchAnimals may move. RanchAnimals are constrained to monitor regions, not the full rectangular span, so odd layouts do not allow invisible wandering through gaps between displays. If a RanchAnimal is outside every movement region after a display change, it moves to the nearest valid point in any enabled movement region. At movement-region edges, RanchAnimals soft-steer before impact for a natural wandering feel, then hard-clamp and reflect velocity if they still cross outside a valid region.
+
 ### Task
 
 A child item under a Focus. Single sentence. Created by user action or (v1.3+) by an accepted `add_task` proposal. Tree is capped at two levels — Focus → Task. No sub-tasks. Removed only by user action.

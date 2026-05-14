@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import type { PigHitRect, SpawnRegion } from "../types/pig";
+import type { DisplaySpace } from "../types/display";
+import type { PigHitRect } from "../types/pig";
 
 export type Unsubscribe = () => void;
 
@@ -16,8 +17,8 @@ export async function subscribeGatherPigs(cb: () => void): Promise<Unsubscribe> 
   return listen("gather-pigs", () => cb());
 }
 
-export async function subscribeDisplayRegion(
-  cb: (region: SpawnRegion) => void,
+export async function subscribeDisplaySpace(
+  cb: (space: DisplaySpace) => void,
 ): Promise<Unsubscribe> {
-  return listen<SpawnRegion>("display-region", (event) => cb(event.payload));
+  return listen<DisplaySpace>("display-space", (event) => cb(event.payload));
 }

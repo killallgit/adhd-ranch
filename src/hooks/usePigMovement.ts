@@ -1,28 +1,31 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   setPigDragActive,
-  subscribeDisplayRegion,
+  subscribeDisplaySpace,
   subscribeGatherPigs,
   updatePigRects,
 } from "../api/pig";
+import {
+  RANCH_ANIMAL_SIZE,
+  RANCH_ANIMAL_SPEED,
+  type RanchAnimalDirection,
+  type RanchAnimalState,
+  advanceRanchAnimal,
+} from "../lib/ranchAnimalMovement";
+import type { DisplaySpace } from "../types/display";
 import type { Focus } from "../types/focus";
-import type { PigHitRect, SpawnRegion } from "../types/pig";
+import type { PigHitRect } from "../types/pig";
 
-export type { PigHitRect, SpawnRegion };
+export type { DisplaySpace, PigHitRect };
 
-export const PIG_SIZE = 48;
+export const PIG_SIZE = RANCH_ANIMAL_SIZE;
 export const HITBOX_PADDING = 16;
 export const DRAG_THRESHOLD = 4;
 export const TOSS_VELOCITY_WINDOW_MS = 80;
-export const FRICTION = 0.97;
 
-export const PIG_SPEED = 60; // px/s — fast enough to look alive across large spans
-const MIN_SPEED_FRAC = 0.35; // friction floor: never drop below this fraction of PIG_SPEED
+export const PIG_SPEED = RANCH_ANIMAL_SPEED; // px/s — fast enough to look alive across large spans
 const EDGE_MARGIN = 60; // px from screen edge
 
-const FRAME_INTERVAL = 150; // ms per animation frame
-const MIN_TURN_MS = 3000;
-const MAX_TURN_MS = 8000;
 const RECT_UPDATE_EVERY = 4; // rAF frames between pig-rect syncs to Rust
 
 export interface PointerSample {
@@ -53,20 +56,9 @@ export function computeTossVelocity(
   return { vx, vy };
 }
 
-export type PigDirection = "front" | "right" | "back" | "left";
+export type PigDirection = RanchAnimalDirection;
 
-export interface PigState {
-  id: string;
-  name: string;
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
-  frameIndex: number;
-  direction: PigDirection;
-  lastFrameAt: number;
-  nextTurnAt: number;
-}
+export type PigState = RanchAnimalState;
 
 export interface PigMovementResult {
   pigs: PigState[];
@@ -81,11 +73,8 @@ function direction4(vx: number, vy: number): PigDirection {
   return vy >= 0 ? "front" : "back";
 }
 
-function randomTurnDelay(): number {
-  return MIN_TURN_MS + Math.random() * (MAX_TURN_MS - MIN_TURN_MS);
-}
-
-function initPig(focus: Focus, region: SpawnRegion, now: number): PigState {
+function initPig(focus: Focus, displaySpace: DisplaySpace, now: number): PigState {
+  const region = displaySpace.spawnRegion;
   const angle = Math.random() * 2 * Math.PI;
   const vx = Math.cos(angle) * PIG_SPEED;
   const vy = Math.sin(angle) * PIG_SPEED;
@@ -99,102 +88,8 @@ function initPig(focus: Focus, region: SpawnRegion, now: number): PigState {
     frameIndex: 0,
     direction: direction4(vx, vy),
     lastFrameAt: now,
-    nextTurnAt: now + randomTurnDelay(),
+    nextTurnAt: now + 3000 + Math.random() * 5000,
   };
-}
-
-function tickPig(
-  pig: PigState,
-  dt: number,
-  now: number,
-  screenW: number,
-  screenH: number,
-  frozen: boolean,
-  primaryRegion: SpawnRegion,
-): PigState {
-  // Advance timers while frozen so nextTurnAt/lastFrameAt don't expire during
-  // the pause, preventing an immediate turn or frame jump on unfreeze.
-  if (frozen) {
-    return {
-      ...pig,
-      nextTurnAt: pig.nextTurnAt + dt,
-      lastFrameAt: pig.lastFrameAt + dt,
-    };
-  }
-  let { x, y, vx, vy, frameIndex, lastFrameAt, nextTurnAt, direction } = pig;
-
-  // Apply friction so toss velocity decelerates naturally.
-  vx *= FRICTION;
-  vy *= FRICTION;
-
-  // Enforce minimum speed so pigs never look frozen between turns.
-  const speed = Math.sqrt(vx * vx + vy * vy);
-  const minSpeed = PIG_SPEED * MIN_SPEED_FRAC;
-  if (speed < minSpeed && speed > 0) {
-    const scale = minSpeed / speed;
-    vx *= scale;
-    vy *= scale;
-  } else if (speed === 0) {
-    const angle = Math.random() * 2 * Math.PI;
-    vx = Math.cos(angle) * minSpeed;
-    vy = Math.sin(angle) * minSpeed;
-  }
-
-  // Random direction change
-  if (now >= nextTurnAt) {
-    const angle = Math.random() * 2 * Math.PI;
-    vx = Math.cos(angle) * PIG_SPEED;
-    vy = Math.sin(angle) * PIG_SPEED;
-    nextTurnAt = now + randomTurnDelay();
-  }
-
-  // Effective y ceiling: when pig is in the primary-display x-range it must stay
-  // within the primary display height. Outside that x-range (e.g. portrait monitor
-  // to the left) the full span height is available.
-  const inPrimary = x >= primaryRegion.x && x <= primaryRegion.x + primaryRegion.w;
-  const effectiveMaxY = inPrimary ? primaryRegion.y + primaryRegion.h : screenH;
-
-  // Soft boundary steering: blend away-from-edge velocity when within margin
-  if (x < EDGE_MARGIN) vx = Math.abs(vx) || PIG_SPEED * 0.5;
-  if (x > screenW - EDGE_MARGIN - PIG_SIZE) vx = -(Math.abs(vx) || PIG_SPEED * 0.5);
-  if (y < EDGE_MARGIN) vy = Math.abs(vy) || PIG_SPEED * 0.5;
-  if (y > effectiveMaxY - EDGE_MARGIN - PIG_SIZE) vy = -(Math.abs(vy) || PIG_SPEED * 0.5);
-
-  // Clamp to max toss speed.
-  const speed2 = Math.sqrt(vx * vx + vy * vy);
-  if (speed2 > PIG_SPEED * 6) {
-    vx = (vx / speed2) * PIG_SPEED * 6;
-    vy = (vy / speed2) * PIG_SPEED * 6;
-  }
-
-  // Update position and reflect velocity at hard boundaries so pigs never escape.
-  x += vx * (dt / 1000);
-  y += vy * (dt / 1000);
-  if (x < 0) {
-    x = 0;
-    vx = Math.abs(vx);
-  }
-  if (x > screenW - PIG_SIZE) {
-    x = screenW - PIG_SIZE;
-    vx = -Math.abs(vx);
-  }
-  if (y < 0) {
-    y = 0;
-    vy = Math.abs(vy);
-  }
-  if (y > effectiveMaxY - PIG_SIZE) {
-    y = effectiveMaxY - PIG_SIZE;
-    vy = -Math.abs(vy);
-  }
-
-  direction = direction4(vx, vy);
-
-  if (now - lastFrameAt >= FRAME_INTERVAL) {
-    frameIndex = (frameIndex + 1) % 4;
-    lastFrameAt = now;
-  }
-
-  return { ...pig, x, y, vx, vy, frameIndex, direction, lastFrameAt, nextTurnAt };
 }
 
 export function buildHitRects(pigs: PigState[], dpr: number): PigHitRect[] {
@@ -205,19 +100,25 @@ export function buildHitRects(pigs: PigState[], dpr: number): PigHitRect[] {
   }));
 }
 
-function syncRects(pigs: PigState[], wide: boolean): void {
-  const dpr = window.devicePixelRatio || 1;
+function syncRects(pigs: PigState[], wide: boolean, displaySpace: DisplaySpace): void {
+  const scale = displaySpace.hitTestScale;
   // Wide rect (detail open or dragging) keeps overlay interactive across the full viewport.
   const rects = wide
-    ? [{ x: 0, y: 0, size: Math.max(window.innerWidth, window.innerHeight) * dpr * 2 }]
-    : buildHitRects(pigs, dpr);
+    ? [{ x: 0, y: 0, size: Math.max(displaySpace.span.w, displaySpace.span.h) * scale * 2 }]
+    : buildHitRects(pigs, scale);
   updatePigRects(rects).catch(() => {});
 }
 
-function defaultRegion(): SpawnRegion {
+function defaultDisplaySpace(): DisplaySpace {
   const w = document.documentElement.clientWidth || window.screen.width;
   const h = document.documentElement.clientHeight || window.screen.height;
-  return { x: 0, y: 0, w, h };
+  const region = { x: 0, y: 0, w, h };
+  return {
+    span: { w, h },
+    spawnRegion: region,
+    movementRegions: [region],
+    hitTestScale: window.devicePixelRatio || 1,
+  };
 }
 
 export function usePigMovement(
@@ -230,8 +131,15 @@ export function usePigMovement(
   const rafRef = useRef<number>(0);
   const lastTimeRef = useRef<number>(performance.now());
   const frameCountRef = useRef<number>(0);
-  // Region is updated via setRegion when Rust emits display-region.
-  const regionRef = useRef<SpawnRegion>(defaultRegion());
+  const fallbackDisplaySpaceRef = useRef<DisplaySpace | null>(null);
+  const [displaySpace, setDisplaySpaceState] = useState<DisplaySpace>(() => {
+    const space = defaultDisplaySpace();
+    fallbackDisplaySpaceRef.current = space;
+    return space;
+  });
+  // DisplaySpace is updated when Rust emits display-space.
+  const displaySpaceRef = useRef<DisplaySpace>(displaySpace);
+  const spawnedFromFallbackRef = useRef<Set<string>>(new Set());
 
   // Drag state — refs to avoid stale closures in the rAF loop.
   const dragIdRef = useRef<string | null>(null);
@@ -241,8 +149,9 @@ export function usePigMovement(
   // Keep selectedId ref in sync so the rAF loop sees the latest value without restarting.
   selectedIdRef.current = selectedId;
 
-  const setRegion = useCallback((r: SpawnRegion) => {
-    regionRef.current = r;
+  const setDisplaySpace = useCallback((space: DisplaySpace) => {
+    displaySpaceRef.current = space;
+    setDisplaySpaceState(space);
   }, []);
 
   const setDragActive = useCallback((active: boolean) => {
@@ -256,7 +165,7 @@ export function usePigMovement(
     // Widen hit-rect immediately so the overlay stays interactive during the drag.
     // Without this there is a ~67ms window where the window is click-through,
     // which breaks pointer capture when crossing monitor boundaries.
-    syncRects(pigsRef.current, true);
+    syncRects(pigsRef.current, true, displaySpaceRef.current);
   }, []);
 
   const moveDrag = useCallback((x: number, y: number) => {
@@ -277,7 +186,7 @@ export function usePigMovement(
 
   const gather = useCallback(() => {
     setPigs((prev) => {
-      const r = regionRef.current;
+      const r = displaySpaceRef.current.spawnRegion;
       const margin = 20;
       const rowHeight = PIG_SIZE + 24;
       const colWidth = PIG_SIZE + 24;
@@ -319,7 +228,7 @@ export function usePigMovement(
       const next = prev.map((p) => (p.id === pigId ? { ...p, vx, vy } : p));
       pigsRef.current = next;
       // Restore narrow rects immediately so hit-test is precise again.
-      syncRects(next, false);
+      syncRects(next, false, displaySpaceRef.current);
       return next;
     });
 
@@ -328,18 +237,33 @@ export function usePigMovement(
 
   // Sync pig list to focuses: add spawns for new, remove for deleted.
   useEffect(() => {
-    const region = regionRef.current;
     const now = performance.now();
 
     setPigs((prev) => {
       const prevMap = new Map(prev.map((p) => [p.id, p]));
-      const next = focuses.map((f) => prevMap.get(f.id) ?? initPig(f, region, now));
+      const fallbackIds = spawnedFromFallbackRef.current;
+      const nextFallbackIds = new Set<string>();
+      const next = focuses.map((f) => {
+        const existing = prevMap.get(f.id);
+        const usingFallback = displaySpace === fallbackDisplaySpaceRef.current;
+        if (existing && (!fallbackIds.has(f.id) || usingFallback)) {
+          if (fallbackIds.has(f.id)) nextFallbackIds.add(f.id);
+          return existing;
+        }
+
+        const pig = initPig(f, displaySpace, now);
+        if (usingFallback) {
+          nextFallbackIds.add(f.id);
+        }
+        return pig;
+      });
+      spawnedFromFallbackRef.current = nextFallbackIds;
       pigsRef.current = next;
       return next;
     });
-  }, [focuses]);
+  }, [focuses, displaySpace]);
 
-  // Subscribe to gather-pigs / display-region events from Rust.
+  // Subscribe to gather-pigs / display-space events from Rust.
   // Fall back to a no-op unsubscribe if subscribe rejects so cleanup never throws.
   useEffect(() => {
     const unsubPromise = subscribeGatherPigs(gather).catch(() => () => {});
@@ -349,11 +273,11 @@ export function usePigMovement(
   }, [gather]);
 
   useEffect(() => {
-    const unsubPromise = subscribeDisplayRegion(setRegion).catch(() => () => {});
+    const unsubPromise = subscribeDisplaySpace(setDisplaySpace).catch(() => () => {});
     return () => {
       unsubPromise.then((unsub) => unsub());
     };
-  }, [setRegion]);
+  }, [setDisplaySpace]);
 
   // rAF movement loop
   useEffect(() => {
@@ -361,14 +285,18 @@ export function usePigMovement(
       const dt = Math.min(now - lastTimeRef.current, 100);
       lastTimeRef.current = now;
 
-      const screenW = document.documentElement.clientWidth || window.screen.width;
-      const screenH = document.documentElement.clientHeight || window.screen.height;
-
-      const region = regionRef.current;
+      const displaySpace = displaySpaceRef.current;
       const updated = pigsRef.current.map((p) => {
         // Skip tick for dragged pig — position is driven by pointer events.
         if (p.id === dragIdRef.current) return p;
-        return tickPig(p, dt, now, screenW, screenH, p.id === selectedIdRef.current, region);
+        return advanceRanchAnimal({
+          animal: p,
+          displaySpace,
+          dtMs: dt,
+          nowMs: now,
+          frozen: p.id === selectedIdRef.current,
+          random: Math.random,
+        });
       });
       pigsRef.current = updated;
       setPigs(updated);
@@ -376,7 +304,7 @@ export function usePigMovement(
       frameCountRef.current += 1;
       if (frameCountRef.current % RECT_UPDATE_EVERY === 0) {
         const wide = selectedIdRef.current !== null || dragIdRef.current !== null;
-        syncRects(updated, wide);
+        syncRects(updated, wide, displaySpace);
       }
 
       rafRef.current = requestAnimationFrame(loop);

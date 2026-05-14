@@ -5,7 +5,7 @@ use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder, Wry};
 
 use super::hit_test::PigHitTester;
-use super::PrimaryRegion;
+use super::monitor::DisplaySpace;
 
 const OVERLAY_LABEL: &str = "overlay-0";
 
@@ -16,7 +16,7 @@ pub struct ShowParams<'a> {
     pub height: f64,
     pub tester: &'a PigHitTester,
     pub already_managed: bool,
-    pub primary_region: &'a PrimaryRegion,
+    pub display_space: &'a DisplaySpace,
     pub drag_active: Arc<AtomicBool>,
     /// Signals the hit-test poller to exit when set to true.
     pub stop: Arc<AtomicBool>,
@@ -30,7 +30,7 @@ pub fn ensure_shown(app: &AppHandle<Wry>, p: ShowParams<'_>) -> tauri::Result<()
         height,
         tester,
         already_managed,
-        primary_region,
+        display_space,
         drag_active,
         stop,
     } = p;
@@ -97,9 +97,9 @@ pub fn ensure_shown(app: &AppHandle<Wry>, p: ShowParams<'_>) -> tauri::Result<()
     let sf = window.scale_factor().unwrap_or(0.0);
     log::info!("overlay: window scale_factor={sf}");
 
-    // Always emit primary region so React knows where to spawn pigs.
-    // Re-emitted on display toggle so React updates the spawn zone.
-    let _ = window.emit("display-region", primary_region.clone());
+    // Always emit display-space so React knows where animals can spawn and move.
+    // Re-emitted on display toggle so React updates the movement model.
+    let _ = window.emit("display-space", display_space.clone());
 
     if !already_managed {
         let tester_thread = tester.clone();

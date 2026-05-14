@@ -1,3 +1,5 @@
+use serde::Serialize;
+
 #[derive(Clone, Debug)]
 pub struct LogicalMonitor {
     pub index: usize,
@@ -40,6 +42,29 @@ pub struct SpanBounds {
     pub height: f64,
 }
 
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct DisplaySpan {
+    pub w: f64,
+    pub h: f64,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct DisplayRect {
+    pub x: f64,
+    pub y: f64,
+    pub w: f64,
+    pub h: f64,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DisplaySpace {
+    pub span: DisplaySpan,
+    pub spawn_region: DisplayRect,
+    pub movement_regions: Vec<DisplayRect>,
+    pub hit_test_scale: f64,
+}
+
 pub fn compute_span(monitors: &[LogicalMonitor]) -> SpanBounds {
     let min_x = monitors
         .iter()
@@ -64,6 +89,40 @@ pub fn compute_span(monitors: &[LogicalMonitor]) -> SpanBounds {
         width: (max_x - min_x).max(1.0),
         height: (max_y - min_y).max(1.0),
     }
+}
+
+pub fn compute_display_space(
+    monitors: &[LogicalMonitor],
+    enabled_indices: &[usize],
+) -> Option<(DisplaySpace, SpanBounds)> {
+    let enabled: Vec<&LogicalMonitor> = monitors
+        .iter()
+        .filter(|m| enabled_indices.contains(&m.index))
+        .collect();
+    if enabled.is_empty() {
+        return None;
+    }
+
+    let bounds = compute_span(&enabled.iter().map(|m| (*m).clone()).collect::<Vec<_>>());
+    let to_rect = |m: &LogicalMonitor| DisplayRect {
+        x: m.position.0 - bounds.x,
+        y: m.position.1 - bounds.y,
+        w: m.size.0,
+        h: m.size.1,
+    };
+    let primary = enabled[0];
+
+    let display_space = DisplaySpace {
+        span: DisplaySpan {
+            w: bounds.width,
+            h: bounds.height,
+        },
+        spawn_region: to_rect(primary),
+        movement_regions: enabled.iter().map(|m| to_rect(m)).collect(),
+        hit_test_scale: primary.scale_factor,
+    };
+
+    Some((display_space, bounds))
 }
 
 pub fn disambiguate_names(monitors: &mut [LogicalMonitor]) {
@@ -145,6 +204,168 @@ mod tests {
         assert_eq!(span.y, 0.0);
         assert_eq!(span.width, 3200.0); // 1920 + 1280
         assert_eq!(span.height, 1080.0);
+    }
+
+    #[test]
+    fn display_space_normalizes_enabled_monitor_regions_into_overlay_coordinates() {
+        let monitors = vec![
+            mon(0, (0.0, 0.0), (1920.0, 1080.0)),
+            mon(1, (-1280.0, 0.0), (1280.0, 800.0)),
+        ];
+        let (space, _bounds) = compute_display_space(&monitors, &[0, 1]).unwrap();
+
+        assert_eq!(
+            space.span,
+            DisplaySpan {
+                w: 3200.0,
+                h: 1080.0
+            }
+        );
+        assert_eq!(
+            space.spawn_region,
+            DisplayRect {
+                x: 1280.0,
+                y: 0.0,
+                w: 1920.0,
+                h: 1080.0
+            }
+        );
+        assert_eq!(
+            space.movement_regions,
+            vec![
+                DisplayRect {
+                    x: 1280.0,
+                    y: 0.0,
+                    w: 1920.0,
+                    h: 1080.0
+                },
+                DisplayRect {
+                    x: 0.0,
+                    y: 0.0,
+                    w: 1280.0,
+                    h: 800.0
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn display_space_single_monitor_uses_the_monitor_as_span_spawn_and_movement() {
+        let monitors = vec![mon(0, (0.0, 0.0), (1920.0, 1080.0))];
+        let (space, _bounds) = compute_display_space(&monitors, &[0]).unwrap();
+
+        assert_eq!(
+            space.span,
+            DisplaySpan {
+                w: 1920.0,
+                h: 1080.0
+            }
+        );
+        assert_eq!(
+            space.spawn_region,
+            DisplayRect {
+                x: 0.0,
+                y: 0.0,
+                w: 1920.0,
+                h: 1080.0
+            }
+        );
+        assert_eq!(space.movement_regions, vec![space.spawn_region.clone()]);
+    }
+
+    #[test]
+    fn display_space_side_by_side_regions_are_not_collapsed_into_one_span_rect() {
+        let monitors = vec![
+            mon(0, (0.0, 0.0), (1920.0, 1080.0)),
+            mon(1, (1920.0, 0.0), (2560.0, 1440.0)),
+        ];
+        let (space, _bounds) = compute_display_space(&monitors, &[0, 1]).unwrap();
+
+        assert_eq!(
+            space.span,
+            DisplaySpan {
+                w: 4480.0,
+                h: 1440.0
+            }
+        );
+        assert_eq!(space.movement_regions.len(), 2);
+        assert_eq!(
+            space.movement_regions[1],
+            DisplayRect {
+                x: 1920.0,
+                y: 0.0,
+                w: 2560.0,
+                h: 1440.0
+            }
+        );
+    }
+
+    #[test]
+    fn display_space_portrait_left_keeps_separate_visible_regions() {
+        let monitors = vec![
+            mon(0, (0.0, 0.0), (2560.0, 1440.0)),
+            mon(1, (-1080.0, 0.0), (1080.0, 1920.0)),
+        ];
+        let (space, _bounds) = compute_display_space(&monitors, &[0, 1]).unwrap();
+
+        assert_eq!(
+            space.span,
+            DisplaySpan {
+                w: 3640.0,
+                h: 1920.0
+            }
+        );
+        assert_eq!(
+            space.movement_regions,
+            vec![
+                DisplayRect {
+                    x: 1080.0,
+                    y: 0.0,
+                    w: 2560.0,
+                    h: 1440.0
+                },
+                DisplayRect {
+                    x: 0.0,
+                    y: 0.0,
+                    w: 1080.0,
+                    h: 1920.0
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn display_space_monitor_above_primary_normalizes_negative_y() {
+        let monitors = vec![
+            mon(0, (0.0, 0.0), (2560.0, 1440.0)),
+            mon(1, (500.0, -1920.0), (1080.0, 1920.0)),
+        ];
+        let (space, _bounds) = compute_display_space(&monitors, &[0, 1]).unwrap();
+
+        assert_eq!(
+            space.span,
+            DisplaySpan {
+                w: 2560.0,
+                h: 3360.0
+            }
+        );
+        assert_eq!(
+            space.movement_regions,
+            vec![
+                DisplayRect {
+                    x: 0.0,
+                    y: 1920.0,
+                    w: 2560.0,
+                    h: 1440.0
+                },
+                DisplayRect {
+                    x: 500.0,
+                    y: 0.0,
+                    w: 1080.0,
+                    h: 1920.0
+                },
+            ]
+        );
     }
 
     // Test 4: portrait monitor (270° rotated, height > width) left of landscape
