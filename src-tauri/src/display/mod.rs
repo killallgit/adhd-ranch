@@ -7,23 +7,12 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use adhd_ranch_domain::{DisplayConfig, PigRect, RectUpdater};
-use serde::Serialize;
 use tauri::{AppHandle, Wry};
 
 use hit_test::PigHitTester;
 use monitor::LogicalMonitor;
 
 const OVERLAY_LABEL: &str = "overlay-0";
-
-/// CSS-space region of the first enabled monitor within the spanning overlay window.
-/// Sent to React so pig spawning is confined to a visible display.
-#[derive(Serialize, Clone, Debug)]
-pub struct PrimaryRegion {
-    pub x: f64,
-    pub y: f64,
-    pub w: f64,
-    pub h: f64,
-}
 
 struct OverlayEntry {
     tester: PigHitTester,
@@ -84,18 +73,12 @@ impl DisplayService for DisplayManager {
             return;
         }
 
-        let bounds =
-            monitor::compute_span(&enabled.iter().map(|m| (*m).clone()).collect::<Vec<_>>());
-
-        // CSS offset of first enabled monitor within the span.
-        let primary = enabled[0];
-        let primary_region = PrimaryRegion {
-            x: primary.position.0 - bounds.x,
-            y: primary.position.1 - bounds.y,
-            w: primary.size.0,
-            h: primary.size.1,
+        let Some((display_space, bounds)) =
+            monitor::compute_display_space(monitors, &config.enabled_indices)
+        else {
+            return;
         };
-        log::info!("display: primary_region={primary_region:?}");
+        log::info!("display: display_space={display_space:?}");
 
         let already_managed = self
             .entries
@@ -138,7 +121,7 @@ impl DisplayService for DisplayManager {
                 height: bounds.height,
                 tester: &tester,
                 already_managed,
-                primary_region: &primary_region,
+                display_space: &display_space,
                 drag_active: Arc::clone(&self.drag_active),
                 stop,
             },
