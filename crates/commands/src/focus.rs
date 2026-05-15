@@ -187,6 +187,35 @@ mod tests {
     }
 
     #[test]
+    fn append_task_revives_expired_focus() {
+        let (commands, _dir) = build_commands(1_700_000_000);
+        let created = commands
+            .create_focus(CreateFocusInput {
+                title: "Dead focus".into(),
+                description: String::new(),
+                timer_preset: None,
+            })
+            .unwrap();
+        commands
+            .store
+            .update_timer(
+                &created.id,
+                &FocusTimer {
+                    duration_secs: 60,
+                    started_at: 1_000,
+                    status: TimerStatus::Expired,
+                },
+            )
+            .unwrap();
+
+        commands.append_task(&created.id, "new life").unwrap();
+
+        let focuses = commands.list_focuses().unwrap();
+        assert!(focuses[0].timer.is_none());
+        assert_eq!(focuses[0].tasks[0].text, "new life");
+    }
+
+    #[test]
     fn rename_focus_updates_title() {
         let (commands, _dir) = build_commands(0);
         let created = commands

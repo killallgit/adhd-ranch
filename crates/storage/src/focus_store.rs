@@ -2,7 +2,9 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
-use adhd_ranch_domain::{parse_focus_md, slugify, Focus, FocusTimer, NewFocus, ParseError};
+use adhd_ranch_domain::{
+    parse_focus_md, slugify, Focus, FocusTimer, NewFocus, ParseError, TimerStatus,
+};
 
 use crate::atomic::atomic_write;
 use crate::focus_document::{FocusDocument, FocusDocumentError};
@@ -73,6 +75,10 @@ impl MarkdownFocusStore {
 
     fn focus_md(&self, focus_id: &str) -> PathBuf {
         self.root.join(focus_id).join("focus.md")
+    }
+
+    fn timer_json(&self, focus_id: &str) -> PathBuf {
+        self.root.join(focus_id).join("timer.json")
     }
 
     fn read_focus(&self, focus_id: &str) -> Result<String, FocusStoreError> {
@@ -189,6 +195,7 @@ impl FocusStore for MarkdownFocusStore {
             .append_task(text)
             .into_raw();
         atomic_write(&self.focus_md(focus_id), next.as_bytes())?;
+        self.clear_expired_timer(focus_id)?;
         Ok(())
     }
 
@@ -234,6 +241,28 @@ impl FocusStore for MarkdownFocusStore {
                 Err(FocusStoreError::NotFound(focus_id.to_string()))
             }
             Err(e) => Err(e.into()),
+        }
+    }
+}
+
+impl MarkdownFocusStore {
+    fn clear_expired_timer(&self, focus_id: &str) -> Result<(), FocusStoreError> {
+        let path = self.timer_json(focus_id);
+        let raw = match fs::read_to_string(&path) {
+            Ok(raw) => raw,
+            Err(err) if err.kind() == io::ErrorKind::NotFound => return Ok(()),
+            Err(err) => return Err(err.into()),
+        };
+        let Ok(timer) = serde_json::from_str::<FocusTimer>(&raw) else {
+            return Ok(());
+        };
+        if timer.status != TimerStatus::Expired {
+            return Ok(());
+        }
+        match fs::remove_file(&path) {
+            Ok(()) => Ok(()),
+            Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(()),
+            Err(err) => Err(err.into()),
         }
     }
 }
@@ -345,6 +374,58 @@ mod tests {
         let content = fs::read_to_string(dir.path().join("a/focus.md")).unwrap();
         assert!(content.contains("- [ ] existing"));
         assert!(content.trim_end().ends_with("- [ ] new task"));
+    }
+
+    #[test]
+    fn append_task_clears_expired_timer_sidecar() {
+        let dir = TempDir::new().unwrap();
+        write_focus(dir.path(), "a", &focus_md("a", &["existing"]));
+        let timer_path = dir.path().join("a/timer.json");
+        fs::write(
+            &timer_path,
+            serde_json::to_vec(&FocusTimer {
+                duration_secs: 60,
+                started_at: 1_000,
+                status: TimerStatus::Expired,
+            })
+            .unwrap(),
+        )
+        .unwrap();
+        let store = MarkdownFocusStore::new(dir.path());
+
+        store.append_task("a", "revive me").unwrap();
+
+        assert!(!timer_path.exists());
+        let focuses = store.list().unwrap();
+        assert!(focuses[0].timer.is_none());
+        assert_eq!(focuses[0].tasks.len(), 2);
+    }
+
+    #[test]
+    fn append_task_preserves_running_timer_sidecar() {
+        let dir = TempDir::new().unwrap();
+        write_focus(dir.path(), "a", &focus_md("a", &["existing"]));
+        let timer_path = dir.path().join("a/timer.json");
+        fs::write(
+            &timer_path,
+            serde_json::to_vec(&FocusTimer {
+                duration_secs: 60,
+                started_at: 1_000,
+                status: TimerStatus::Running,
+            })
+            .unwrap(),
+        )
+        .unwrap();
+        let store = MarkdownFocusStore::new(dir.path());
+
+        store.append_task("a", "keep timer").unwrap();
+
+        assert!(timer_path.exists());
+        let focuses = store.list().unwrap();
+        assert_eq!(
+            focuses[0].timer.as_ref().map(|timer| &timer.status),
+            Some(&TimerStatus::Running)
+        );
     }
 
     #[test]

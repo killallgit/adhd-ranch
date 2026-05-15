@@ -30,6 +30,8 @@ The only concrete animal today is `Pig`, but this behavior is not pig-specific. 
 
 - When `timer.status === 'Expired'`: animal renders with a ghostly transparent style
 - Subtle pulse/shake animation on expiry (CSS keyframe, one-shot on status change)
+- Expired animals stop moving and face away
+- Adding a new task to an expired Focus clears the expired timer sidecar, reviving the animal
 - `PigDetail` shows timer status + remaining time (or "Expired")
 
 ### Tray expired list
@@ -50,6 +52,8 @@ Focus animals with timers visually grow over their timer window; expired animals
 - [x] Current pig sprite reaches ~3× base size at or after timer end
 - [x] Hit testing and `PigDetail` positioning account for scaled animal size
 - [x] Expired animal has distinct visual style (ghostly transparency)
+- [x] Expired animal stops moving and faces away
+- [x] Adding a new task to an expired Focus revives the animal
 - [x] Expiry animation plays once on status change
 - [x] `PigDetail` shows "Expired" or remaining `mm:ss`
 - [x] Tray lists expired focuses under a divider; section absent when none

@@ -76,7 +76,7 @@ Unchanged. Each Focus is a directory under `~/.adhd-ranch/focuses/<slug>/` conta
 - Sprite: real pixel-art pig sprite sheet (4 directions × 4 frames in one PNG).
 - Clicking a pig opens `PigDetail` popover near the pig (edge-clamped): Focus title + task list + `✗` per task.
 - `PigDetail` closes on click-outside.
-- **Timer growth (028 + 030 done):** If a Focus has a `FocusTimer`, its current animal projection grows from 1× to 3× sprite size linearly over the timer window. Focuses without a timer stay at 1×. Expired animals show a distinct visual style and appear in the tray's Expired section. The only concrete animal today is still the pig sprite, so `PigSprite` and `PigDetail` remain valid component names until a broader animal-vocabulary refactor lands.
+- **Timer growth (028 + 030 done):** If a Focus has a `FocusTimer`, its current animal projection grows from 1× to 3× sprite size linearly over the timer window. Focuses without a timer stay at 1×. Expired animals become ghostly, stop moving, face away, and appear in the tray's Expired section. Adding a new task to an expired Focus clears the expired timer and revives the animal. The only concrete animal today is still the pig sprite, so `PigSprite` and `PigDetail` remain valid component names until a broader animal-vocabulary refactor lands.
 
 ### FR4 — Menu bar item
 

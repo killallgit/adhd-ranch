@@ -92,6 +92,15 @@ function initPig(focus: Focus, displaySpace: DisplaySpace, now: number): PigStat
   };
 }
 
+function isExpiredFocus(focus: Focus): boolean {
+  return focus.timer?.status === "Expired";
+}
+
+function restExpiredAnimal(animal: PigState): PigState {
+  if (animal.vx === 0 && animal.vy === 0 && animal.direction === "back") return animal;
+  return { ...animal, vx: 0, vy: 0, direction: "back" };
+}
+
 export function buildHitRects(
   pigs: PigState[],
   dpr: number,
@@ -260,10 +269,12 @@ export function usePigMovement(
         const usingFallback = displaySpace === fallbackDisplaySpaceRef.current;
         if (existing && (!fallbackIds.has(f.id) || usingFallback)) {
           if (fallbackIds.has(f.id)) nextFallbackIds.add(f.id);
-          return existing.name === f.title ? existing : { ...existing, name: f.title };
+          const named = existing.name === f.title ? existing : { ...existing, name: f.title };
+          return isExpiredFocus(f) ? restExpiredAnimal(named) : named;
         }
 
         const pig = initPig(f, displaySpace, now);
+        if (isExpiredFocus(f)) return restExpiredAnimal(pig);
         if (usingFallback) {
           nextFallbackIds.add(f.id);
         }
@@ -298,9 +309,13 @@ export function usePigMovement(
       lastTimeRef.current = now;
 
       const displaySpace = displaySpaceRef.current;
+      const expiredFocusIds = new Set(
+        focuses.filter((focus) => focus.timer?.status === "Expired").map((focus) => focus.id),
+      );
       const updated = pigsRef.current.map((p) => {
         // Skip tick for dragged pig — position is driven by pointer events.
         if (p.id === dragIdRef.current) return p;
+        if (expiredFocusIds.has(p.id)) return restExpiredAnimal(p);
         return advanceRanchAnimal({
           animal: p,
           displaySpace,
@@ -324,7 +339,7 @@ export function usePigMovement(
 
     rafRef.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(rafRef.current);
-  }, []);
+  }, [focuses]);
 
   return { pigs, startDrag, moveDrag, endDrag, setDragActive };
 }
