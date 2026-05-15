@@ -109,6 +109,23 @@ describe("App overlay", () => {
     expect(writer.appendTask).toHaveBeenCalledWith("a", "write tests");
   });
 
+  it("shows an added task in the open detail card after append succeeds", async () => {
+    render(
+      <App
+        focusReader={createFixtureFocusReader(sample)}
+        focusWriter={noopFocusWriter()}
+        onWriteFailure={() => {}}
+      />,
+    );
+
+    await screen.findByText("Customer X bug");
+    await userEvent.click(screen.getByText("Customer X bug"));
+
+    await userEvent.type(screen.getByPlaceholderText("Add task…"), "write tests{Enter}");
+
+    expect(await screen.findByLabelText("task text: write tests")).toHaveValue("write tests");
+  });
+
   it("renders a timed focus with the current animal scale", async () => {
     const nowSpy = vi.spyOn(Date, "now").mockReturnValue(1_060_000);
     render(

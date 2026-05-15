@@ -21,9 +21,17 @@ export interface AppProps {
   readonly onWriteFailure: ReportWriteFailure;
 }
 
+const EMPTY_FOCUSES: readonly Focus[] = [];
+
 export function App({ focusReader, focusWriter, onWriteFailure }: AppProps) {
   const focusState = usePolledReader(focusReader);
-  const focuses = focusState.status === "ready" ? focusState.value : [];
+  const readerFocuses = focusState.status === "ready" ? focusState.value : EMPTY_FOCUSES;
+  const [optimisticFocuses, setOptimisticFocuses] = useState<{
+    readonly source: readonly Focus[];
+    readonly value: readonly Focus[];
+  } | null>(null);
+  const focuses =
+    optimisticFocuses?.source === readerFocuses ? optimisticFocuses.value : readerFocuses;
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const confirmDelete = useConfirmDelete();
   const animalScales = new Map(
@@ -61,7 +69,27 @@ export function App({ focusReader, focusWriter, onWriteFailure }: AppProps) {
 
   async function handleAddTask(text: string) {
     if (!selectedFocus) return;
-    onWriteFailure("append_task", await focusWriter.appendTask(selectedFocus.id, text));
+    const focusId = selectedFocus.id;
+    const outcome = await focusWriter.appendTask(focusId, text);
+    onWriteFailure("append_task", outcome);
+    if (!outcome.ok) return;
+    const newTask = {
+      id: `optimistic-${focusId}-${selectedFocus.tasks.length}-${Date.now()}`,
+      text,
+      done: false,
+    };
+    setOptimisticFocuses({
+      source: readerFocuses,
+      value: focuses.map((focus) =>
+        focus.id === focusId
+          ? {
+              ...focus,
+              tasks: [...focus.tasks, newTask],
+              timer: focus.timer?.status === "Expired" ? null : focus.timer,
+            }
+          : focus,
+      ),
+    });
   }
 
   async function handleRenameFocus(focusId: string, title: string) {
