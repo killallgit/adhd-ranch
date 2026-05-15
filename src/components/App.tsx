@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FocusWriter, WriteOutcome } from "../api/focusWriter";
+import { subscribeOpenFocusDetail } from "../api/pig";
 import type { PolledReader } from "../api/polledReader";
 import { useConfirmDelete } from "../hooks/useConfirmDelete";
 import { useDebugOverlay } from "../hooks/useDebugOverlay";
-import { usePigMovement } from "../hooks/usePigMovement";
+import { PIG_SIZE, usePigMovement } from "../hooks/usePigMovement";
 import { usePolledReader } from "../hooks/usePolledReader";
+import { ranchAnimalScale } from "../hooks/useRanchAnimalScale";
 import { useViewport } from "../hooks/useViewport";
 import type { Focus } from "../types/focus";
 import type { TimerPreset } from "../types/timer";
@@ -24,12 +26,33 @@ export function App({ focusReader, focusWriter, onWriteFailure }: AppProps) {
   const focuses = focusState.status === "ready" ? focusState.value : [];
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const confirmDelete = useConfirmDelete();
-  const { pigs, startDrag, moveDrag, endDrag, setDragActive } = usePigMovement(focuses, selectedId);
+  const animalScales = new Map(
+    focuses.map((focus) => [
+      focus.id,
+      ranchAnimalScale(focus.timer?.started_at ?? null, focus.timer?.duration_secs ?? null),
+    ]),
+  );
+  const { pigs, startDrag, moveDrag, endDrag, setDragActive } = usePigMovement(
+    focuses,
+    selectedId,
+    animalScales,
+  );
   const { screenW, screenH } = useViewport();
   const { visible: showDebug, topOffset: debugTopOffset } = useDebugOverlay();
 
   const selectedPig = pigs.find((p) => p.id === selectedId);
   const selectedFocus = focuses.find((f) => f.id === selectedId);
+
+  useEffect(() => {
+    const unsubscribe = subscribeOpenFocusDetail((focusId) => {
+      if (focuses.some((focus) => focus.id === focusId)) {
+        setSelectedId(focusId);
+      }
+    }).catch(() => () => {});
+    return () => {
+      unsubscribe.then((fn) => fn());
+    };
+  }, [focuses]);
 
   async function handleClearTask(index: number) {
     if (!selectedFocus) return;
@@ -90,6 +113,8 @@ export function App({ focusReader, focusWriter, onWriteFailure }: AppProps) {
           direction={pig.direction}
           frame={pig.frameIndex}
           name={pig.name}
+          scale={animalScales.get(pig.id) ?? 1}
+          expired={focuses.find((f) => f.id === pig.id)?.timer?.status === "Expired"}
           onClick={() => setSelectedId(pig.id)}
           onDragStart={(x, y) => startDrag(pig.id, x, y)}
           onDragMove={moveDrag}
@@ -102,6 +127,7 @@ export function App({ focusReader, focusWriter, onWriteFailure }: AppProps) {
           focus={selectedFocus}
           pigX={selectedPig.x}
           pigY={selectedPig.y}
+          animalSize={PIG_SIZE * (animalScales.get(selectedPig.id) ?? 1)}
           viewportW={screenW}
           viewportH={screenH}
           confirmDelete={confirmDelete}

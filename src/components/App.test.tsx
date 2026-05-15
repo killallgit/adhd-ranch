@@ -1,5 +1,7 @@
+import { listen } from "@tauri-apps/api/event";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { act } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { createFixtureFocusReader } from "../api/fixtureFocusReader";
 import type { FocusWriter } from "../api/focusWriter";
@@ -105,5 +107,75 @@ describe("App overlay", () => {
     await userEvent.type(input, "write tests{Enter}");
 
     expect(writer.appendTask).toHaveBeenCalledWith("a", "write tests");
+  });
+
+  it("renders a timed focus with the current animal scale", async () => {
+    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(1_060_000);
+    render(
+      <App
+        focusReader={createFixtureFocusReader([
+          {
+            id: "timed",
+            title: "Timer focus",
+            description: "",
+            created_at: "",
+            tasks: [],
+            timer: { duration_secs: 120, started_at: 1_000, status: "Running" },
+          },
+        ])}
+        focusWriter={noopFocusWriter()}
+        onWriteFailure={() => {}}
+      />,
+    );
+
+    const pig = await screen.findByRole("button", { name: /timer focus/i });
+    expect(pig.querySelector(".pig-sprite-frame")).toHaveStyle({ width: "96px", height: "96px" });
+    nowSpy.mockRestore();
+  });
+
+  it("renders an expired focus with an expired animal visual", async () => {
+    render(
+      <App
+        focusReader={createFixtureFocusReader([
+          {
+            id: "expired",
+            title: "Expired focus",
+            description: "",
+            created_at: "",
+            tasks: [],
+            timer: { duration_secs: 120, started_at: 1_000, status: "Expired" },
+          },
+        ])}
+        focusWriter={noopFocusWriter()}
+        onWriteFailure={() => {}}
+      />,
+    );
+
+    const pig = await screen.findByRole("button", { name: /expired focus/i });
+    expect(pig).toHaveClass("pig-sprite--expired");
+    expect(pig.querySelector(".pig-sprite-frame")).toHaveStyle({ filter: "hue-rotate(125deg)" });
+  });
+
+  it("opens animal detail when the tray asks to open a focus", async () => {
+    const listeners = new Map<string, (event: { payload: string }) => void>();
+    vi.mocked(listen).mockImplementation((event, cb) => {
+      listeners.set(event, cb as (event: { payload: string }) => void);
+      return Promise.resolve(() => {});
+    });
+
+    render(
+      <App
+        focusReader={createFixtureFocusReader(sample)}
+        focusWriter={noopFocusWriter()}
+        onWriteFailure={() => {}}
+      />,
+    );
+
+    await screen.findByText("API refactor");
+    await act(async () => {
+      listeners.get("open-focus-detail")?.({ payload: "b" });
+    });
+
+    expect(screen.getByLabelText("focus title")).toHaveValue("API refactor");
   });
 });

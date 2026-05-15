@@ -62,11 +62,11 @@ An ADR exists at `docs/adr/NNNN-proposal-lifecycle-atomicity.md` recording the c
 
 ## Acceptance criteria
 
-- [ ] ADR drafted at `docs/adr/NNNN-proposal-lifecycle-atomicity.md`
-- [ ] ADR names the chosen option and explains rejection of the other
-- [ ] ADR addresses all four decision criteria above
-- [ ] Follow-up AFK implementation issue filed (numbered after 045)
-- [ ] Follow-up issue links back to this ADR
+- [x] ADR drafted at `docs/adr/NNNN-proposal-lifecycle-atomicity.md`
+- [x] ADR names the chosen option and explains rejection of the other
+- [x] ADR addresses all four decision criteria above
+- [x] Follow-up AFK implementation issue filed (numbered after 045)
+- [x] Follow-up issue links back to this ADR
 
 ## Blocked by
 

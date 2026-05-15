@@ -1,4 +1,4 @@
-# 030 — Pig scale growth + expired visual + tray expired list
+# 030 — Animal timer growth + expired visual + tray expired list
 
 ## Parent PRD
 
@@ -6,23 +6,27 @@ PRD.md §FR3 (pig UI)
 
 ## What to build
 
-Visual feedback for timer state: pigs grow as their timer runs down, show a distinct expired style, and expired focuses are listed in the tray.
+Visual feedback for timer state: the animal projection for a Focus grows as its timer runs down, shows a distinct expired style, and expired focuses are listed in the tray.
 
-### Pig scale growth
+The only concrete animal today is `Pig`, but this behavior is not pig-specific. New pure helpers and shared state should prefer `RanchAnimal` / animal-neutral naming. Keep `PigSprite` and `PigDetail` names only where the current UI component or sprite asset is specifically pig-shaped.
 
-- `src/hooks/usePigScale.ts` — pure function hook:
+### Animal scale growth
+
+- `src/hooks/useRanchAnimalScale.ts` — pure function hook:
 
   ```ts
-  export function usePigScale(startedAt: number | null, durationSecs: number | null): number
+  export function useRanchAnimalScale(startedAt: number | null, durationSecs: number | null): number
   // Returns 1.0 if no timer. Otherwise pig_scale(elapsed, duration) clamped 1.0–3.0.
   ```
 
-- Pig component multiplies `PIG_SIZE` by scale each render frame
+- Current `PigSprite` component multiplies the base animal size by scale each render frame
+- Hit rects use the scaled visual bounds, not the base animal size, so large animals remain clickable and click-through remains precise
+- `PigDetail` popover positioning uses the scaled animal size for offset/clamping
 - Scale recomputed from `Date.now()` each rAF tick — no new `PigState` fields
 
-### Expired pig visual
+### Expired animal visual
 
-- When `timer.status === 'Expired'`: pig renders with red tint (CSS `filter: hue-rotate` or overlay)
+- When `timer.status === 'Expired'`: animal renders with red tint (CSS `filter: hue-rotate` or overlay)
 - Subtle pulse/shake animation on expiry (CSS keyframe, one-shot on status change)
 - `PigDetail` shows timer status + remaining time (or "Expired")
 
@@ -35,20 +39,20 @@ Visual feedback for timer state: pigs grow as their timer runs down, show a dist
 
 ## Completion promise
 
-Pigs with timers visually grow over their timer window; expired pigs are visually distinct; expired focuses appear in a dedicated tray section.
+Focus animals with timers visually grow over their timer window; expired animals are visually distinct; expired focuses appear in a dedicated tray section.
 
 ## Acceptance criteria
 
-- [ ] `usePigScale` returns 1.0 for no-timer focuses
-- [ ] Pig renders larger as elapsed time increases toward `duration_secs`
-- [ ] Pig reaches ~3× base size at or after timer end
-- [ ] Expired pig has distinct visual style (red tint)
-- [ ] Expiry animation plays once on status change
-- [ ] `PigDetail` shows "Expired" or remaining `mm:ss`
-- [ ] Tray lists expired focuses under a divider; section absent when none
-- [ ] `task check` green
+- [x] New timer-scale helper uses animal-neutral naming and returns 1.0 for no-timer focuses
+- [x] Current pig sprite renders larger as elapsed time increases toward `duration_secs`
+- [x] Current pig sprite reaches ~3× base size at or after timer end
+- [x] Hit testing and `PigDetail` positioning account for scaled animal size
+- [x] Expired animal has distinct visual style (red tint)
+- [x] Expiry animation plays once on status change
+- [x] `PigDetail` shows "Expired" or remaining `mm:ss`
+- [x] Tray lists expired focuses under a divider; section absent when none
+- [x] `task check` green
 
 ## Blocked by
 
-028 (FocusTimer + pig_scale domain types)
-029 (timer-expired Tauri event for expiry animation trigger)
+None. 028 and 029 are done.

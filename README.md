@@ -2,7 +2,7 @@
 
 Issue tracking for a five-year-old. macOS menubar app — Tauri v2 + React.
 
-A small number of buckets ("Focuses") with a few bullets each ("Tasks"). Run `/checkpoint` in any Claude Code session and the in-session agent proposes which bucket the moment you just spent belongs in. You accept, reject, or edit the proposal in the menubar widget. Markdown on disk is the source of truth.
+A small number of buckets ("Focuses") with a few bullets each ("Tasks"). Pixel pigs roam the screen as a peripheral reminder — one pig per Focus. Click a pig to inspect or edit its Tasks. Markdown on disk is the source of truth.
 
 See `PRD.md`, `CONTEXT.md`, and `CLAUDE.md` for the full design and the programming rules every slice must follow.
 
@@ -14,19 +14,13 @@ See `PRD.md`, `CONTEXT.md`, and `CLAUDE.md` for the full design and the programm
    xattr -dr com.apple.quarantine "/Applications/Adhd Ranch.app"
    ```
 3. Launch the app once. The tray icon appears in the menubar.
-4. Install the `/checkpoint` slash command into your global Claude Code:
-   ```sh
-   git clone https://github.com/<owner>/adhd-ranch.git
-   cd adhd-ranch
-   task install-skill
-   ```
-   This copies `skill/checkpoint.md` to `~/.claude/commands/checkpoint.md`.
+4. The `/checkpoint` slash command exists in the repo for the deferred v1.3 agent proposal flow, but v1.2 does not require installing it.
 
 ## Day-to-day usage
 
-1. Open the menubar popover. Click **+ New Focus** and give it a title + short description (the description is what the routing agent reads).
-2. In any Claude Code session, run `/checkpoint`. The agent fetches your catalog, picks a bucket (`add_task` / `new_focus` / `discard`), and posts one proposal.
-3. The popover shows a `📥 N pending` tray. Tap to expand; tap **✓** to accept, **✗** to reject, **Edit** to change the target Focus or task text first, or **?** to read the agent's reasoning.
+1. Open the tray menu. Click **+ New Focus** and give it a title + short description. The description is retained for the deferred v1.3 routing agent.
+2. A pig appears for each Focus and wanders on the overlay.
+3. Click a pig to open its detail card. Add, edit, complete, or clear Tasks from there.
 4. Hand-edit `~/.adhd-ranch/focuses/<slug>/focus.md` whenever you want — the watcher reflects changes within a second. Adding `- [ ] something` adds a task, deleting a line removes it.
 
 ## Limits + alerts
@@ -39,11 +33,18 @@ Override defaults in `~/.adhd-ranch/settings.yaml`:
 caps:
   max_focuses: 5
   max_tasks_per_focus: 7
-alerts:
-  system_notifications: true
+notifications:
+  timer_expired: true
+  focuses_over_cap: true
+  tasks_over_cap: true
+widget:
+  always_on_top: true
+  confirm_delete: true
+displays:
+  enabled: 0
 ```
 
-Missing keys fall back to defaults. Restart the app to pick up changes.
+Missing keys fall back to defaults. Settings changed through the app are persisted immediately; manual file edits are picked up on app restart.
 
 ## Storage layout (canonical state)
 
@@ -51,9 +52,10 @@ Missing keys fall back to defaults. Restart the app to pick up changes.
 ~/.adhd-ranch/
   focuses/
     <slug>/focus.md     YAML frontmatter + - [ ] bullets
+    <slug>/timer.json    optional countdown timer sidecar
   proposals.jsonl       pending proposals, one per line
   decisions.jsonl       audit log of accept/reject (with edited flag)
-  settings.yaml         optional caps + alert config
+  settings.yaml         optional caps + notification/widget/display config
   run/port              ephemeral HTTP port
 ```
 
@@ -88,7 +90,7 @@ crates/
   domain/            pure types and logic — no I/O
   storage/           disk + watcher adapters
   http-api/          axum router + serve
-skill/               /checkpoint slash command
+skill/               /checkpoint slash command for deferred v1.3 proposal flow
 .github/workflows/   CI
 ```
 

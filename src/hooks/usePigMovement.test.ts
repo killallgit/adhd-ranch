@@ -68,6 +68,13 @@ describe("buildHitRects", () => {
     const pigs = [makePig({ id: "a" }), makePig({ id: "b" }), makePig({ id: "c" })];
     expect(buildHitRects(pigs, 1)).toHaveLength(3);
   });
+
+  it("uses scaled animal bounds when scale is supplied", () => {
+    const [rect] = buildHitRects([makePig()], 1, new Map([["test", 3]]));
+    expect(rect?.x).toBe(100 - HITBOX_PADDING / 2);
+    expect(rect?.y).toBe(200 - HITBOX_PADDING / 2);
+    expect(rect?.size).toBe(PIG_SIZE * 3 + HITBOX_PADDING);
+  });
 });
 
 describe("DRAG_THRESHOLD", () => {

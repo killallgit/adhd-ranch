@@ -27,12 +27,12 @@ The Proposal catalog flows through one reader interface and one polling hook. `P
 
 ## Acceptance criteria
 
-- [ ] `ProposalReader` interface deleted (or aliased only).
-- [ ] `src/hooks/useProposals.ts` deleted.
-- [ ] `tauriProposalReader` and `fixtureProposalReader` return `PolledReader<readonly Proposal[]>`.
-- [ ] `useAppState.ts` uses `usePolledReader` directly for proposals.
-- [ ] All proposal-related tests still green; no behavior change.
-- [ ] `task check` green.
+- [x] `ProposalReader` interface deleted (or aliased only).
+- [x] `src/hooks/useProposals.ts` deleted.
+- [x] `tauriProposalReader` and `fixtureProposalReader` return `PolledReader<readonly Proposal[]>`.
+- [x] `useAppState.ts` uses `usePolledReader` directly for proposals.
+- [x] All proposal-related tests still green; no behavior change.
+- [x] `task check` green.
 
 ## Blocked by
 

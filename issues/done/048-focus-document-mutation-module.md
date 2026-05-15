@@ -39,12 +39,12 @@ All `focus.md` mutation rules live in a pure FocusDocument module; `MarkdownFocu
 
 ## Acceptance criteria
 
-- [ ] A pure FocusDocument module exists under `crates/storage/src/`
-- [ ] FocusDocument has unit tests for rename, append, delete, update, toggle, missing Task index, checked and unchecked Task preservation, and trailing-newline preservation
-- [ ] `MarkdownFocusStore::{rename_focus, append_task, delete_task, update_task, toggle_task}` delegate document mutation to FocusDocument
-- [ ] Existing `MarkdownFocusStore` tests still cover disk placement, missing Focus behavior, and atomic write integration
-- [ ] No parsing or mutation logic is moved into `crates/domain`; markdown shape stays a storage concern
-- [ ] `task check` green
+- [x] A pure FocusDocument module exists under `crates/storage/src/`
+- [x] FocusDocument has unit tests for rename, append, delete, update, toggle, missing Task index, checked and unchecked Task preservation, and trailing-newline preservation
+- [x] `MarkdownFocusStore::{rename_focus, append_task, delete_task, update_task, toggle_task}` delegate document mutation to FocusDocument
+- [x] Existing `MarkdownFocusStore` tests still cover disk placement, missing Focus behavior, and atomic write integration
+- [x] No parsing or mutation logic is moved into `crates/domain`; markdown shape stays a storage concern
+- [x] `task check` green
 
 ## Blocked by
 

@@ -34,12 +34,12 @@ Unify on `usePolledReader<Caps>`. Preserve current UX (silent default fallback, 
 
 ## Acceptance criteria
 
-- [ ] `CapsReader` is `PolledReader<Caps>` (or aliased to it).
-- [ ] `src/hooks/useCaps.ts` deleted.
-- [ ] `useAppState` uses `usePolledReader<Caps>` and falls back to `DEFAULT_CAPS` on non-ready states.
-- [ ] No component receives a loading or error state for caps; consumer contract unchanged.
-- [ ] Existing cap-badge tests still green.
-- [ ] `task check` green.
+- [x] `CapsReader` is `PolledReader<Caps>` (or aliased to it).
+- [x] `src/hooks/useCaps.ts` deleted.
+- [x] `useAppState` uses `usePolledReader<Caps>` and falls back to `DEFAULT_CAPS` on non-ready states.
+- [x] No component receives a loading or error state for caps; consumer contract unchanged.
+- [x] Existing cap-badge tests still green.
+- [x] `task check` green.
 
 ## Blocked by
 

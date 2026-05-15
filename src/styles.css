@@ -422,6 +422,26 @@ body,
   flex-shrink: 0;
 }
 
+.pig-sprite--expired .pig-sprite-frame {
+  animation: expired-animal-pulse 700ms ease-out 1;
+}
+
+@keyframes expired-animal-pulse {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  20% {
+    transform: translate(-2px, 0) scale(1.08);
+  }
+  40% {
+    transform: translate(2px, 0) scale(1.08);
+  }
+  60% {
+    transform: translate(-1px, 0) scale(1.04);
+  }
+}
+
 .pig-name {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: 11px;
@@ -631,6 +651,20 @@ body,
 
 .pig-detail-add-task:focus {
   border-color: rgba(255, 255, 255, 0.3);
+}
+
+.pig-detail-timer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.pig-detail-timer-status {
+  color: #ff8a80;
+  font-size: 12px;
+  font-weight: 600;
+  margin-right: auto;
 }
 
 .settings-window {

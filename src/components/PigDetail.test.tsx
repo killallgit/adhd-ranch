@@ -159,6 +159,28 @@ describe("PigDetail delete focus", () => {
 });
 
 describe("PigDetail timer picker", () => {
+  it("shows remaining time for a running timer", () => {
+    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(1_030_000);
+    renderDetail({
+      focus: {
+        ...baseFocus,
+        timer: { duration_secs: 120, started_at: 1_000, status: "Running" },
+      },
+    });
+    expect(screen.getByText("01:30 remaining")).toBeInTheDocument();
+    nowSpy.mockRestore();
+  });
+
+  it("shows Expired for an expired timer", () => {
+    renderDetail({
+      focus: {
+        ...baseFocus,
+        timer: { duration_secs: 120, started_at: 1_000, status: "Expired" },
+      },
+    });
+    expect(screen.getByText("Expired")).toBeInTheDocument();
+  });
+
   it("renders Start button + preset select", () => {
     renderDetail();
     expect(screen.getByRole("button", { name: "Start" })).toBeInTheDocument();
