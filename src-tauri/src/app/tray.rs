@@ -130,13 +130,13 @@ fn build_menu(handle: &AppHandle<Wry>, focuses: &[Focus]) -> tauri::Result<Menu<
 
     let sections = partition_focuses_for_menu(focuses);
 
-    if sections.active.is_empty() && sections.expired.is_empty() {
+    if sections.list.is_empty() {
         let item = MenuItemBuilder::with_id(NO_FOCUSES_ID, "No focuses yet")
             .enabled(false)
             .build(handle)?;
         items.push(Box::new(item));
     } else {
-        for focus in sections.active {
+        for focus in sections.list {
             let delete_item = MenuItemBuilder::with_id(
                 format!("{DELETE_PREFIX}{}", focus.id.0),
                 format!("Delete \"{}\"…", focus.title),
@@ -191,24 +191,23 @@ fn build_menu(handle: &AppHandle<Wry>, focuses: &[Focus]) -> tauri::Result<Menu<
 }
 
 struct MenuFocusSections<'a> {
-    active: Vec<&'a Focus>,
+    list: Vec<&'a Focus>,
     expired: Vec<&'a Focus>,
 }
 
 fn partition_focuses_for_menu(focuses: &[Focus]) -> MenuFocusSections<'_> {
-    let mut active = Vec::new();
+    let mut list = Vec::new();
     let mut expired = Vec::new();
     for focus in focuses {
+        list.push(focus);
         if matches!(
             focus.timer.as_ref().map(|timer| &timer.status),
             Some(TimerStatus::Expired)
         ) {
             expired.push(focus);
-        } else {
-            active.push(focus);
         }
     }
-    MenuFocusSections { active, expired }
+    MenuFocusSections { list, expired }
 }
 
 fn handle_delete(app: AppHandle<Wry>, focus_id: String) {
@@ -290,7 +289,7 @@ mod tests {
     }
 
     #[test]
-    fn partitions_expired_focuses_into_expired_section() {
+    fn keeps_expired_focuses_in_main_list_and_expired_section() {
         let focuses = vec![
             focus("a", "Active", Some(TimerStatus::Running)),
             focus("b", "Expired", Some(TimerStatus::Expired)),
@@ -301,11 +300,11 @@ mod tests {
 
         assert_eq!(
             sections
-                .active
+                .list
                 .iter()
                 .map(|focus| focus.title.as_str())
                 .collect::<Vec<_>>(),
-            vec!["Active", "No timer"]
+            vec!["Active", "Expired", "No timer"]
         );
         assert_eq!(
             sections

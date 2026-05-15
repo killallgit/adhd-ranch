@@ -153,7 +153,11 @@ describe("App overlay", () => {
 
     const pig = await screen.findByRole("button", { name: /expired focus/i });
     expect(pig).toHaveClass("pig-sprite--expired");
-    expect(pig.querySelector(".pig-sprite-frame")).toHaveStyle({ filter: "hue-rotate(125deg)" });
+    expect(pig.querySelector(".pig-sprite-frame")).toHaveStyle({
+      filter:
+        "grayscale(1) saturate(0.15) brightness(1.55) drop-shadow(0 0 8px rgba(210, 240, 255, 0.55))",
+      opacity: "0.48",
+    });
   });
 
   it("opens animal detail when the tray asks to open a focus", async () => {
