@@ -1,5 +1,7 @@
 # 030 — Animal timer growth + expired visual + tray expired list
 
+Completed by PR #59. GitHub #30 is closed.
+
 ## Parent PRD
 
 PRD.md §FR3 (pig UI)

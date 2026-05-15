@@ -63,7 +63,7 @@ Unchanged. Each Focus is a directory under `~/.adhd-ranch/focuses/<slug>/` conta
 
 ### FR2 — Transparent overlay window
 
-- Full-screen transparent Tauri window: no decorations, always-on-top, covers the primary monitor.
+- Full-screen transparent Tauri overlay windows: no decorations, always-on-top, covering the enabled display span.
 - Click-through when not hovering a pig: Rust polling thread reads `NSEvent.mouseLocation` every 16ms, compares against pig bounding boxes (sent from frontend), calls `window.set_ignore_cursor_events(!is_over_pig)`.
 - Pigs receive click events normally; transparent background passes clicks to whatever is beneath.
 - File watcher (`notify`) on `~/.adhd-ranch/focuses/`; pig count re-renders on disk changes.
@@ -73,17 +73,17 @@ Unchanged. Each Focus is a directory under `~/.adhd-ranch/focuses/<slug>/` conta
 - One `PigSprite` per Focus, positioned at the sprite's current (x, y) on the overlay.
 - Pigs wander the full screen: slow drift (~35 px/s), smooth random direction changes every 3–8 s, gentle boundary steering (40px margin from edges).
 - Animation: 4 frames per direction (left/right), ticked at ~150ms (≈6.7fps).
-- Sprite: real pixel-art sprite sheet when assets are ready (4 directions × 4 frames in one PNG); placeholder CSS/SVG pig until then.
+- Sprite: real pixel-art pig sprite sheet (4 directions × 4 frames in one PNG).
 - Clicking a pig opens `PigDetail` popover near the pig (edge-clamped): Focus title + task list + `✗` per task.
 - `PigDetail` closes on click-outside.
-- **Timer growth (028 — domain + creation done; 030 — visual pending):** If a Focus has a `FocusTimer`, its pig grows from 1× to 3× sprite size linearly over the timer window. Pigs without a timer stay at 1×. Expired pigs show a distinct visual style. `growth_factor(elapsed, duration) → f32` is a pure domain function.
+- **Timer growth (028 + 030 done):** If a Focus has a `FocusTimer`, its current animal projection grows from 1× to 3× sprite size linearly over the timer window. Focuses without a timer stay at 1×. Expired animals show a distinct visual style and appear in the tray's Expired section. The only concrete animal today is still the pig sprite, so `PigSprite` and `PigDetail` remain valid component names until a broader animal-vocabulary refactor lands.
 
 ### FR4 — Menu bar item
 
 - Tray icon in the macOS menu bar.
 - Native NSMenu with:
   - List of current Focuses (each as a menu item showing title).
-  - Clicking a Focus item → brings the pig into view / opens its detail (TBD).
+  - Expired submenu lists expired Focuses; clicking one opens its detail card.
   - Separator.
   - "+ New Focus" → opens a small webview popover for title + description input.
   - Separator.
@@ -164,6 +164,6 @@ Retained. Every accepted/rejected proposal appended to `~/.adhd-ranch/decisions.
 3. **Phase 2 (done):** Transparent fullscreen window, click-through Rust polling thread, `PigSprite` placeholder, `usePigMovement`, `PigDetail` popover, tray icon + live focus list, typed errors, structured logging.
 4. **Phase 3 (done):** ~~New-focus creation from tray (014)~~, ~~delete from tray (015)~~, ~~configurable display spanning (017)~~, ~~real sprite sheet (016)~~.
 5. **Phase 3 polish (done):** ~~Larger pig hitbox + `buildHitRects` (018)~~, ~~PigDetail redesign — opaque, 340px, inline task add (019)~~, ~~drag-and-toss pig physics with friction (020)~~.
-6. **Phase 3 polish (done):** ~~Display subsystem refactor (024)~~, ~~Pig freeze regression fix + keep-still toggle (025)~~, ~~Settings/preferences consolidation (026)~~, ~~DisplaySpace seam for RanchAnimal movement (049)~~.
+6. **Phase 3 polish (done):** ~~Display subsystem refactor (024)~~, ~~Pig freeze regression fix + keep-still toggle (025)~~, ~~Settings/preferences consolidation (026)~~, ~~timer growth + expired tray list (030)~~, ~~DisplaySpace seam for RanchAnimal movement (049)~~.
 7. **Icebox:** all-monitors default on first launch (021), wrangle pig / wrangle all (022).
 8. **Phase 4 — Agent flow (v1.3):** Restore `/checkpoint` command + proposal queue UI (tray submenu or modal).
