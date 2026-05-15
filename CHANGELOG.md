@@ -6,6 +6,19 @@ All notable changes to adhd-ranch. Follows [Keep a Changelog](https://keepachang
 
 ## [Unreleased]
 
+### Added — 052 task timers and clock dropdown editing (PR #60, in flight)
+
+- `Task.timer: Option<FocusTimer>` — Tasks can carry independent countdown timers.
+- `task-timers.json` — optional per-Focus sidecar storing Task timers by task index; deleting a Task removes the matching timer entry.
+- Tauri/command API for starting and clearing Focus timers and Task timers from the detail UI.
+- `TimerDropdown` — compact clock/time control used by the Focus title and each Task row in `AnimalDetail`.
+- `AnimalDetail` replaces `PigDetail` for the clicked-animal card naming, including CSS/test IDs.
+
+### Changed — 052
+
+- Timer editing is now accessed by clicking the clock icon or current time instead of showing an always-visible picker.
+- Removed the heavy offset shadow behind `AnimalDetail` that produced a rounded/bubbly artifact around the card.
+
 ### Added — 034 focus/task invariants in domain (PR #40, in flight)
 
 - `crates/domain/src/error.rs` — new `DomainError` enum: `EmptyTitle`, `EmptyTaskText`
@@ -153,4 +166,3 @@ Regular Mac app pivot. Replaces the tray-popover model with a draggable floating
 - `settings.yaml`: caps, alerts, widget config
 - `.app` + `.dmg` packaging; tag-driven GitHub releases
 - CI: lint + typecheck + tests on push
-

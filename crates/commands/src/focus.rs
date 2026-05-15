@@ -109,6 +109,31 @@ impl Commands {
         Ok(())
     }
 
+    pub fn clear_timer(&self, focus_id: &str) -> Result<(), CommandError> {
+        self.store.clear_timer(focus_id)?;
+        Ok(())
+    }
+
+    pub fn start_task_timer(
+        &self,
+        focus_id: &str,
+        index: usize,
+        preset: TimerPreset,
+    ) -> Result<(), CommandError> {
+        let timer = FocusTimer {
+            duration_secs: preset.duration_secs(),
+            started_at: (self.clock_secs)(),
+            status: TimerStatus::Running,
+        };
+        self.store.update_task_timer(focus_id, index, &timer)?;
+        Ok(())
+    }
+
+    pub fn clear_task_timer(&self, focus_id: &str, index: usize) -> Result<(), CommandError> {
+        self.store.clear_task_timer(focus_id, index)?;
+        Ok(())
+    }
+
     pub fn caps(&self) -> Caps {
         self.settings.caps
     }
@@ -322,6 +347,52 @@ mod tests {
             .start_timer("does-not-exist", TimerPreset::Two)
             .unwrap_err();
         assert!(matches!(err, CommandError::NotFound(_)));
+    }
+
+    #[test]
+    fn clear_timer_removes_focus_timer() {
+        let (commands, _dir) = build_commands(1_700_000_500);
+        let created = commands
+            .create_focus(CreateFocusInput {
+                title: "Timed".into(),
+                description: String::new(),
+                timer_preset: Some(TimerPreset::Two),
+            })
+            .unwrap();
+
+        commands.clear_timer(&created.id).unwrap();
+
+        let focuses = commands.list_focuses().unwrap();
+        assert!(focuses[0].timer.is_none());
+    }
+
+    #[test]
+    fn start_task_timer_sets_running_timer_on_task() {
+        let started_at = 1_700_000_500_i64;
+        let (commands, _dir) = build_commands(started_at);
+        let created = commands
+            .create_focus(CreateFocusInput {
+                title: "Task timers".into(),
+                description: String::new(),
+                timer_preset: None,
+            })
+            .unwrap();
+        commands.append_task(&created.id, "one").unwrap();
+        commands.append_task(&created.id, "two").unwrap();
+
+        commands
+            .start_task_timer(&created.id, 1, TimerPreset::Four)
+            .unwrap();
+
+        let focuses = commands.list_focuses().unwrap();
+        assert!(focuses[0].tasks[0].timer.is_none());
+        let timer = focuses[0].tasks[1]
+            .timer
+            .as_ref()
+            .expect("task timer should be Some");
+        assert_eq!(timer.duration_secs, 240);
+        assert_eq!(timer.started_at, started_at);
+        assert_eq!(timer.status, TimerStatus::Running);
     }
 
     #[test]

@@ -1,14 +1,13 @@
 import { useEffect, useState } from "react";
 import { PIG_SIZE } from "../hooks/usePigMovement";
-import { type PresetSelection, isCustomValid, resolvePreset } from "../lib/timerPreset";
 import type { Focus } from "../types/focus";
 import type { TimerPreset } from "../types/timer";
-import { TimerPresetPicker } from "./TimerPresetPicker";
+import { TimerDropdown } from "./TimerDropdown";
 
-export interface PigDetailProps {
+export interface AnimalDetailProps {
   readonly focus: Focus;
-  readonly pigX: number;
-  readonly pigY: number;
+  readonly animalX: number;
+  readonly animalY: number;
   readonly animalSize?: number;
   readonly viewportW: number;
   readonly viewportH: number;
@@ -21,13 +20,16 @@ export interface PigDetailProps {
   readonly onToggleTask: (focusId: string, index: number, done: boolean) => void;
   readonly onDeleteFocus: (focusId: string) => void;
   readonly onStartTimer: (focusId: string, preset: TimerPreset) => void;
+  readonly onClearTimer: (focusId: string) => void;
+  readonly onStartTaskTimer: (focusId: string, index: number, preset: TimerPreset) => void;
+  readonly onClearTaskTimer: (focusId: string, index: number) => void;
 }
 
 const CARD_W = 340;
-export function PigDetail({
+export function AnimalDetail({
   focus,
-  pigX,
-  pigY,
+  animalX,
+  animalY,
   animalSize = PIG_SIZE,
   viewportW,
   viewportH,
@@ -40,38 +42,18 @@ export function PigDetail({
   onToggleTask,
   onDeleteFocus,
   onStartTimer,
-}: PigDetailProps) {
+  onClearTimer,
+  onStartTaskTimer,
+  onClearTaskTimer,
+}: AnimalDetailProps) {
   const [taskInput, setTaskInput] = useState("");
   const [titleDraft, setTitleDraft] = useState(focus.title);
   const [titleError, setTitleError] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const [timerSelection, setTimerSelection] = useState<PresetSelection>("Eight");
-  const [customMinutes, setCustomMinutes] = useState(10);
-  const [timerError, setTimerError] = useState<string | null>(null);
-
-  function handleStartTimer() {
-    if (timerSelection === "custom" && !isCustomValid(customMinutes)) {
-      setTimerError("custom timer must be at least 1 minute");
-      return;
-    }
-    const preset = resolvePreset(timerSelection, customMinutes);
-    if (preset === null) return;
-    setTimerError(null);
-    onStartTimer(focus.id, preset);
-    onClose();
-  }
-
   useEffect(() => {
     setTitleDraft(focus.title);
     setTitleError(false);
   }, [focus.title]);
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: re-run when switching to a different focus so picker state doesn't leak.
-  useEffect(() => {
-    setTimerSelection("Eight");
-    setCustomMinutes(10);
-    setTimerError(null);
-  }, [focus.id]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -81,9 +63,9 @@ export function PigDetail({
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
 
-  const rawX = pigX + animalSize + 8;
+  const rawX = animalX + animalSize + 8;
   const x = Math.min(rawX, viewportW - CARD_W - 16);
-  const y = Math.max(16, Math.min(pigY, viewportH - 200));
+  const y = Math.max(16, Math.min(animalY, viewportH - 200));
 
   function commitTitle(): boolean {
     const trimmed = titleDraft.trim();
@@ -114,45 +96,43 @@ export function PigDetail({
     onClose();
   }
 
-  const timerStatus = describeTimerStatus(focus.timer ?? null);
-
   return (
     <>
       <div
-        className="pig-detail-backdrop"
+        className="animal-detail-backdrop"
         onClick={onClose}
         onKeyDown={(e) => {
           if (e.key === "Escape") onClose();
         }}
         role="presentation"
       />
-      <div className="pig-detail" style={{ left: x, top: y, width: CARD_W }}>
+      <div className="animal-detail" style={{ left: x, top: y, width: CARD_W }}>
         {confirmingDelete ? (
           <div
-            data-testid="pig-detail-delete-confirm"
-            className="pig-detail-delete-confirm"
+            data-testid="animal-detail-delete-confirm"
+            className="animal-detail-delete-confirm"
             role="alert"
           >
             <span>Delete "{focus.title}"?</span>
             <button
               type="button"
-              className="pig-detail-delete-confirm-yes"
+              className="animal-detail-delete-confirm-yes"
               onClick={handleConfirmDelete}
             >
               Delete
             </button>
             <button
               type="button"
-              className="pig-detail-delete-confirm-no"
+              className="animal-detail-delete-confirm-no"
               onClick={() => setConfirmingDelete(false)}
             >
               Cancel
             </button>
           </div>
         ) : (
-          <header className="pig-detail-header">
+          <header className="animal-detail-header">
             <input
-              className="pig-detail-title-input"
+              className="animal-detail-title-input"
               aria-label="focus title"
               value={titleDraft}
               onChange={(e) => {
@@ -175,9 +155,16 @@ export function PigDetail({
                 }
               }}
             />
+            <TimerDropdown
+              key={focus.id}
+              timer={focus.timer}
+              ariaLabel={`edit focus timer: ${focus.title}`}
+              onStart={(preset) => onStartTimer(focus.id, preset)}
+              onClear={() => onClearTimer(focus.id)}
+            />
             <button
               type="button"
-              className="pig-detail-delete"
+              className="animal-detail-delete"
               aria-label={`delete focus ${focus.title}`}
               onClick={handleDeleteClick}
             >
@@ -186,14 +173,14 @@ export function PigDetail({
           </header>
         )}
         {titleError && (
-          <p className="pig-detail-title-error" role="alert">
+          <p className="animal-detail-title-error" role="alert">
             Title cannot be empty
           </p>
         )}
         {focus.tasks.length === 0 ? (
-          <p className="pig-detail-empty">No tasks yet.</p>
+          <p className="animal-detail-empty">No tasks yet.</p>
         ) : (
-          <ul className="pig-detail-tasks">
+          <ul className="animal-detail-tasks">
             {focus.tasks.map((task, index) => (
               <TaskEditor
                 key={task.id}
@@ -203,12 +190,14 @@ export function PigDetail({
                 onUpdateTask={onUpdateTask}
                 onToggleTask={onToggleTask}
                 onClearTask={onClearTask}
+                onStartTaskTimer={onStartTaskTimer}
+                onClearTaskTimer={onClearTaskTimer}
               />
             ))}
           </ul>
         )}
         <input
-          className="pig-detail-add-task"
+          className="animal-detail-add-task"
           placeholder="Add task…"
           value={taskInput}
           onChange={(e) => setTaskInput(e.target.value)}
@@ -219,45 +208,9 @@ export function PigDetail({
             }
           }}
         />
-        <div className="pig-detail-timer">
-          {timerStatus && <span className="pig-detail-timer-status">{timerStatus}</span>}
-          <TimerPresetPicker
-            selection={timerSelection}
-            customMinutes={customMinutes}
-            allowNone={false}
-            onSelectionChange={(v) => {
-              setTimerSelection(v);
-              if (timerError) setTimerError(null);
-            }}
-            onCustomMinutesChange={(v) => {
-              setCustomMinutes(v);
-              if (timerError) setTimerError(null);
-            }}
-          />
-          <button type="button" className="pig-detail-timer-start" onClick={handleStartTimer}>
-            {focus.timer && focus.timer.status === "Running" ? "Restart" : "Start"}
-          </button>
-          {timerError && (
-            <p className="pig-detail-timer-error" role="alert">
-              {timerError}
-            </p>
-          )}
-        </div>
       </div>
     </>
   );
-}
-
-function describeTimerStatus(timer: Focus["timer"] | null): string | null {
-  if (!timer) return null;
-  if (timer.status === "Expired") return "Expired";
-  const elapsedSecs = Math.max(0, Math.floor(Date.now() / 1000) - timer.started_at);
-  const remainingSecs = Math.max(0, timer.duration_secs - elapsedSecs);
-  const minutes = Math.floor(remainingSecs / 60)
-    .toString()
-    .padStart(2, "0");
-  const seconds = (remainingSecs % 60).toString().padStart(2, "0");
-  return `${minutes}:${seconds} remaining`;
 }
 
 interface TaskEditorProps {
@@ -267,6 +220,8 @@ interface TaskEditorProps {
   readonly onUpdateTask: (focusId: string, index: number, text: string) => void;
   readonly onToggleTask: (focusId: string, index: number, done: boolean) => void;
   readonly onClearTask: (index: number) => void;
+  readonly onStartTaskTimer: (focusId: string, index: number, preset: TimerPreset) => void;
+  readonly onClearTaskTimer: (focusId: string, index: number) => void;
 }
 
 function TaskEditor({
@@ -276,6 +231,8 @@ function TaskEditor({
   onUpdateTask,
   onToggleTask,
   onClearTask,
+  onStartTaskTimer,
+  onClearTaskTimer,
 }: TaskEditorProps) {
   const [draft, setDraft] = useState(task.text);
 
@@ -293,16 +250,16 @@ function TaskEditor({
   }
 
   return (
-    <li className={`pig-detail-task${task.done ? " pig-detail-task--done" : ""}`}>
+    <li className={`animal-detail-task${task.done ? " animal-detail-task--done" : ""}`}>
       <input
         type="checkbox"
-        className="pig-detail-task-check"
+        className="animal-detail-task-check"
         aria-label={`toggle task: ${task.text}`}
         checked={task.done}
         onChange={(e) => onToggleTask(focusId, index, e.target.checked)}
       />
       <input
-        className="pig-detail-task-input"
+        className="animal-detail-task-input"
         aria-label={`task text: ${task.text}`}
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
@@ -316,9 +273,16 @@ function TaskEditor({
           }
         }}
       />
+      <TimerDropdown
+        key={task.id}
+        timer={task.timer}
+        ariaLabel={`edit task timer: ${task.text}`}
+        onStart={(preset) => onStartTaskTimer(focusId, index, preset)}
+        onClear={() => onClearTaskTimer(focusId, index)}
+      />
       <button
         type="button"
-        className="pig-detail-task-clear"
+        className="animal-detail-task-clear"
         onClick={() => onClearTask(index)}
         aria-label={`clear task: ${task.text}`}
       >

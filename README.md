@@ -21,7 +21,8 @@ See `PRD.md`, `CONTEXT.md`, and `CLAUDE.md` for the full design and the programm
 1. Open the tray menu. Click **+ New Focus** and give it a title + short description. The description is retained for the deferred v1.3 routing agent.
 2. A pig appears for each Focus and wanders on the overlay.
 3. Click a pig to open its detail card. Add, edit, complete, or clear Tasks from there.
-4. Hand-edit `~/.adhd-ranch/focuses/<slug>/focus.md` whenever you want — the watcher reflects changes within a second. Adding `- [ ] something` adds a task, deleting a line removes it.
+4. Click the clock/time control on the Focus title or on any Task to start, restart, or clear a timer. Focus timers also drive animal growth and expired-focus alerts.
+5. Hand-edit `~/.adhd-ranch/focuses/<slug>/focus.md` whenever you want — the watcher reflects changes within a second. Adding `- [ ] something` adds a task, deleting a line removes it.
 
 ## Limits + alerts
 
@@ -52,7 +53,9 @@ Missing keys fall back to defaults. Settings changed through the app are persist
 ~/.adhd-ranch/
   focuses/
     <slug>/focus.md     YAML frontmatter + - [ ] bullets
-    <slug>/timer.json    optional countdown timer sidecar
+    <slug>/timer.json    optional focus countdown timer sidecar
+    <slug>/task-timers.json
+                         optional task countdown timer sidecar, indexed to task order
   proposals.jsonl       pending proposals, one per line
   decisions.jsonl       audit log of accept/reject (with edited flag)
   settings.yaml         optional caps + notification/widget/display config

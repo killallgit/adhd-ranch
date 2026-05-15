@@ -31,7 +31,7 @@ Solo developer (initially: the author) who:
 ## Goals (v1.2)
 
 1. Pixel pig sprites roam a fullscreen transparent overlay — one pig per Focus.
-2. Clicking a pig shows its name and Task list in a small popover. Tasks can be cleared from the popover.
+2. Clicking a pig shows its name and Task list in the `AnimalDetail` card. Tasks can be cleared from that card, and Focus/Task timers can be edited from clock/time controls.
 3. Manual Focus creation via menu bar item (simple native-style list). No agent flow in v1.2.
 4. Markdown is the source of truth — user can hand-edit any Focus file; pig count updates live via file watcher.
 5. Hard caps (5 Focuses, 7 Tasks per Focus) with overload alerts.
@@ -49,7 +49,7 @@ Solo developer (initially: the author) who:
 ## User stories
 
 - **US1.** I glance at my screen and see three pixel pigs wandering in the corners. I know immediately: three things are on my plate. I don't have to open anything.
-- **US2.** I click a pig. A small dark card appears near the pig: its name and a short task list. I tap `✗` next to a task. It disappears. Card closes when I click elsewhere.
+- **US2.** I click a pig. A small dark card appears near the pig: its name and a short task list. I tap `✗` next to a task. It disappears. I click a clock/time control to start or clear a timer. Card closes when I click elsewhere.
 - **US3.** I finish a Focus. I open the menu bar item, find it in the list, and delete it. Pig disappears from the screen.
 - **US4.** I add a Focus: click the menu bar item → "+ New Focus" → enter name + description. A new pig spawns and starts wandering.
 - **US5.** I hand-edit `~/.adhd-ranch/focuses/customer-x-bug/focus.md` in vim, append `- [ ] release staging`. Save. Pig's task list reflects it within seconds.
@@ -74,9 +74,10 @@ Unchanged. Each Focus is a directory under `~/.adhd-ranch/focuses/<slug>/` conta
 - Pigs wander the full screen: slow drift (~35 px/s), smooth random direction changes every 3–8 s, gentle boundary steering (40px margin from edges).
 - Animation: 4 frames per direction (left/right), ticked at ~150ms (≈6.7fps).
 - Sprite: real pixel-art pig sprite sheet (4 directions × 4 frames in one PNG).
-- Clicking a pig opens `PigDetail` popover near the pig (edge-clamped): Focus title + task list + `✗` per task.
-- `PigDetail` closes on click-outside.
-- **Timer growth (028 + 030 done):** If a Focus has a `FocusTimer`, its current animal projection grows from 1× to 3× sprite size linearly over the timer window. Focuses without a timer stay at 1×. Expired animals become ghostly, stop moving, face away, and appear in the tray's Expired section. Adding a new task to an expired Focus clears the expired timer and revives the animal. The only concrete animal today is still the pig sprite, so `PigSprite` and `PigDetail` remain valid component names until a broader animal-vocabulary refactor lands.
+- Clicking a pig opens the `AnimalDetail` panel near the pig (edge-clamped): Focus title + task list + `✗` per task.
+- Focus and Task timer editing is accessed by clicking the clock icon or current remaining time. No timer renders as a small clock; a running/expired timer renders as its current time/expired status.
+- `AnimalDetail` closes on click-outside.
+- **Timer growth (028 + 030 done):** If a Focus has a `FocusTimer`, its current animal projection grows from 1× to 3× sprite size linearly over the timer window. Focuses without a timer stay at 1×. Expired animals become ghostly, stop moving, face away, and appear in the tray's Expired section. Adding a new task to an expired Focus clears the expired timer and revives the animal. Task timers are independent per Task and currently affect only the `AnimalDetail` timer display. The only concrete animal today is still the pig sprite; the detail surface is animal-neutral as `AnimalDetail`.
 
 ### FR4 — Menu bar item
 
@@ -119,7 +120,7 @@ displays:
   enabled: 0
 ```
 
-Timer presets available at Focus creation: No timer / 2m / 4m / 8m / 16m / 32m / Custom (free integer minutes).
+Timer presets available at Focus creation and in `AnimalDetail` clock dropdowns: No timer / 2m / 4m / 8m / 16m / 32m / Custom (free integer minutes). `AnimalDetail` allows start/restart/clear for the Focus timer and each Task timer.
 
 ### FR8 — Audit log
 
@@ -161,9 +162,9 @@ Retained. Every accepted/rejected proposal appended to `~/.adhd-ranch/decisions.
 
 1. **Phase 0 (done):** Tauri skeleton, storage, HTTP API, markdown read/write, caps, file watcher, proposals queue.
 2. **Phase 1 (done):** Custom titlebar, app menu, always-on-top, regular Mac app.
-3. **Phase 2 (done):** Transparent fullscreen window, click-through Rust polling thread, `PigSprite` placeholder, `usePigMovement`, `PigDetail` popover, tray icon + live focus list, typed errors, structured logging.
+3. **Phase 2 (done):** Transparent fullscreen window, click-through Rust polling thread, `PigSprite` placeholder, `usePigMovement`, animal detail card, tray icon + live focus list, typed errors, structured logging.
 4. **Phase 3 (done):** ~~New-focus creation from tray (014)~~, ~~delete from tray (015)~~, ~~configurable display spanning (017)~~, ~~real sprite sheet (016)~~.
-5. **Phase 3 polish (done):** ~~Larger pig hitbox + `buildHitRects` (018)~~, ~~PigDetail redesign — opaque, 340px, inline task add (019)~~, ~~drag-and-toss pig physics with friction (020)~~.
+5. **Phase 3 polish (done):** ~~Larger pig hitbox + `buildHitRects` (018)~~, ~~AnimalDetail redesign — opaque, 340px, inline task add (019)~~, ~~drag-and-toss pig physics with friction (020)~~.
 6. **Phase 3 polish (done):** ~~Display subsystem refactor (024)~~, ~~Pig freeze regression fix + keep-still toggle (025)~~, ~~Settings/preferences consolidation (026)~~, ~~timer growth + expired tray list (030)~~, ~~DisplaySpace seam for RanchAnimal movement (049)~~.
 7. **Icebox:** all-monitors default on first launch (021), wrangle pig / wrangle all (022).
 8. **Phase 4 — Agent flow (v1.3):** Restore `/checkpoint` command + proposal queue UI (tray submenu or modal).

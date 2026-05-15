@@ -33,6 +33,8 @@ pub struct Task {
     pub text: String,
     #[serde(default)]
     pub done: bool,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub timer: Option<FocusTimer>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -82,6 +84,7 @@ mod tests {
                 id: "abc:0".into(),
                 text: "step one".into(),
                 done: false,
+                timer: None,
             }],
             timer: None,
         };

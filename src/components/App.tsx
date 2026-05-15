@@ -10,7 +10,7 @@ import { ranchAnimalScale } from "../hooks/useRanchAnimalScale";
 import { useViewport } from "../hooks/useViewport";
 import type { Focus } from "../types/focus";
 import type { TimerPreset } from "../types/timer";
-import { PigDetail } from "./PigDetail";
+import { AnimalDetail } from "./AnimalDetail";
 import { PigSprite } from "./PigSprite";
 
 export type ReportWriteFailure = (op: string, outcome: WriteOutcome) => void;
@@ -77,6 +77,7 @@ export function App({ focusReader, focusWriter, onWriteFailure }: AppProps) {
       id: `optimistic-${focusId}-${selectedFocus.tasks.length}-${Date.now()}`,
       text,
       done: false,
+      timer: null,
     };
     setOptimisticFocuses({
       source: readerFocuses,
@@ -110,6 +111,18 @@ export function App({ focusReader, focusWriter, onWriteFailure }: AppProps) {
 
   async function handleStartTimer(focusId: string, preset: TimerPreset) {
     onWriteFailure("start_timer", await focusWriter.startTimer(focusId, preset));
+  }
+
+  async function handleClearTimer(focusId: string) {
+    onWriteFailure("clear_timer", await focusWriter.clearTimer(focusId));
+  }
+
+  async function handleStartTaskTimer(focusId: string, index: number, preset: TimerPreset) {
+    onWriteFailure("start_task_timer", await focusWriter.startTaskTimer(focusId, index, preset));
+  }
+
+  async function handleClearTaskTimer(focusId: string, index: number) {
+    onWriteFailure("clear_task_timer", await focusWriter.clearTaskTimer(focusId, index));
   }
 
   return (
@@ -151,10 +164,10 @@ export function App({ focusReader, focusWriter, onWriteFailure }: AppProps) {
         />
       ))}
       {selectedPig && selectedFocus && (
-        <PigDetail
+        <AnimalDetail
           focus={selectedFocus}
-          pigX={selectedPig.x}
-          pigY={selectedPig.y}
+          animalX={selectedPig.x}
+          animalY={selectedPig.y}
           animalSize={PIG_SIZE * (animalScales.get(selectedPig.id) ?? 1)}
           viewportW={screenW}
           viewportH={screenH}
@@ -167,6 +180,9 @@ export function App({ focusReader, focusWriter, onWriteFailure }: AppProps) {
           onToggleTask={handleToggleTask}
           onDeleteFocus={handleDeleteFocus}
           onStartTimer={handleStartTimer}
+          onClearTimer={handleClearTimer}
+          onStartTaskTimer={handleStartTaskTimer}
+          onClearTaskTimer={handleClearTaskTimer}
         />
       )}
     </div>

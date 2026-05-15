@@ -58,6 +58,14 @@ pub trait FocusStore: Send + Sync {
     fn update_task(&self, focus_id: &str, index: usize, text: &str) -> Result<(), FocusStoreError>;
     fn toggle_task(&self, focus_id: &str, index: usize, done: bool) -> Result<(), FocusStoreError>;
     fn update_timer(&self, focus_id: &str, timer: &FocusTimer) -> Result<(), FocusStoreError>;
+    fn clear_timer(&self, focus_id: &str) -> Result<(), FocusStoreError>;
+    fn update_task_timer(
+        &self,
+        focus_id: &str,
+        index: usize,
+        timer: &FocusTimer,
+    ) -> Result<(), FocusStoreError>;
+    fn clear_task_timer(&self, focus_id: &str, index: usize) -> Result<(), FocusStoreError>;
 }
 
 pub struct MarkdownFocusStore {
@@ -79,6 +87,10 @@ impl MarkdownFocusStore {
 
     fn timer_json(&self, focus_id: &str) -> PathBuf {
         self.root.join(focus_id).join("timer.json")
+    }
+
+    fn task_timers_json(&self, focus_id: &str) -> PathBuf {
+        self.root.join(focus_id).join("task-timers.json")
     }
 
     fn read_focus(&self, focus_id: &str) -> Result<String, FocusStoreError> {
@@ -127,6 +139,15 @@ impl FocusStore for MarkdownFocusStore {
                 // so the UI degrades gracefully; user can fix the sidecar by
                 // recreating the focus.
                 focus.timer = serde_json::from_str(&raw).ok();
+            }
+            let task_timers_path = entry.path().join("task-timers.json");
+            if task_timers_path.is_file() {
+                let raw = fs::read_to_string(&task_timers_path)?;
+                if let Ok(timers) = serde_json::from_str::<Vec<Option<FocusTimer>>>(&raw) {
+                    for (task, timer) in focus.tasks.iter_mut().zip(timers) {
+                        task.timer = timer;
+                    }
+                }
             }
             out.push(focus);
         }
@@ -206,6 +227,7 @@ impl FocusStore for MarkdownFocusStore {
             .map_err(|e| map_document_error(focus_id, e))?
             .into_raw();
         atomic_write(&self.focus_md(focus_id), next.as_bytes())?;
+        self.remove_task_timer_index(focus_id, index)?;
         Ok(())
     }
 
@@ -243,9 +265,98 @@ impl FocusStore for MarkdownFocusStore {
             Err(e) => Err(e.into()),
         }
     }
+
+    fn clear_timer(&self, focus_id: &str) -> Result<(), FocusStoreError> {
+        let dir = self.root.join(focus_id);
+        if !dir.is_dir() {
+            return Err(FocusStoreError::NotFound(focus_id.to_string()));
+        }
+        match fs::remove_file(self.timer_json(focus_id)) {
+            Ok(()) => Ok(()),
+            Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(()),
+            Err(err) => Err(err.into()),
+        }
+    }
+
+    fn update_task_timer(
+        &self,
+        focus_id: &str,
+        index: usize,
+        timer: &FocusTimer,
+    ) -> Result<(), FocusStoreError> {
+        let task_count = self.task_count(focus_id)?;
+        if index >= task_count {
+            return Err(FocusStoreError::TaskIndexOutOfRange {
+                focus_id: focus_id.to_string(),
+                index,
+            });
+        }
+        let mut timers = self.read_task_timers(focus_id)?;
+        timers.resize(task_count, None);
+        timers[index] = Some(timer.clone());
+        self.write_task_timers(focus_id, &timers)
+    }
+
+    fn clear_task_timer(&self, focus_id: &str, index: usize) -> Result<(), FocusStoreError> {
+        let task_count = self.task_count(focus_id)?;
+        if index >= task_count {
+            return Err(FocusStoreError::TaskIndexOutOfRange {
+                focus_id: focus_id.to_string(),
+                index,
+            });
+        }
+        let mut timers = self.read_task_timers(focus_id)?;
+        timers.resize(task_count, None);
+        timers[index] = None;
+        self.write_task_timers(focus_id, &timers)
+    }
 }
 
 impl MarkdownFocusStore {
+    fn task_count(&self, focus_id: &str) -> Result<usize, FocusStoreError> {
+        let raw = self.read_focus(focus_id)?;
+        let focus = parse_focus_md(&raw).map_err(|error| FocusStoreError::Parse {
+            path: self.focus_md(focus_id),
+            error,
+        })?;
+        Ok(focus.tasks.len())
+    }
+
+    fn read_task_timers(&self, focus_id: &str) -> Result<Vec<Option<FocusTimer>>, FocusStoreError> {
+        match fs::read_to_string(self.task_timers_json(focus_id)) {
+            Ok(raw) => Ok(serde_json::from_str(&raw).unwrap_or_default()),
+            Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(Vec::new()),
+            Err(err) => Err(err.into()),
+        }
+    }
+
+    fn write_task_timers(
+        &self,
+        focus_id: &str,
+        timers: &[Option<FocusTimer>],
+    ) -> Result<(), FocusStoreError> {
+        let path = self.task_timers_json(focus_id);
+        if timers.iter().all(Option::is_none) {
+            return match fs::remove_file(path) {
+                Ok(()) => Ok(()),
+                Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(()),
+                Err(err) => Err(err.into()),
+            };
+        }
+        let bytes = serde_json::to_vec(timers).map_err(io::Error::other)?;
+        atomic_write(&path, &bytes)?;
+        Ok(())
+    }
+
+    fn remove_task_timer_index(&self, focus_id: &str, index: usize) -> Result<(), FocusStoreError> {
+        let mut timers = self.read_task_timers(focus_id)?;
+        if index < timers.len() {
+            timers.remove(index);
+            self.write_task_timers(focus_id, &timers)?;
+        }
+        Ok(())
+    }
+
     fn clear_expired_timer(&self, focus_id: &str) -> Result<(), FocusStoreError> {
         let path = self.timer_json(focus_id);
         let raw = match fs::read_to_string(&path) {
@@ -710,6 +821,67 @@ mod tests {
         };
         let err = store.update_timer("does-not-exist", &timer).unwrap_err();
         assert!(matches!(err, FocusStoreError::NotFound(_)));
+    }
+
+    #[test]
+    fn clear_timer_removes_timer_sidecar() {
+        let dir = TempDir::new().unwrap();
+        let store = MarkdownFocusStore::new(dir.path());
+        let timer = FocusTimer {
+            duration_secs: 60,
+            started_at: 1_000,
+            status: adhd_ranch_domain::TimerStatus::Running,
+        };
+        let slug = store
+            .create_focus(
+                &NewFocus::new("With timer", "").unwrap(),
+                "id-1",
+                "2026-04-30T12:00:00Z",
+                Some(timer),
+            )
+            .unwrap();
+
+        store.clear_timer(&slug).unwrap();
+
+        let focuses = store.list().unwrap();
+        assert!(focuses[0].timer.is_none());
+    }
+
+    #[test]
+    fn task_timer_sidecar_maps_to_task_by_index() {
+        let dir = TempDir::new().unwrap();
+        write_focus(dir.path(), "a", &focus_md("a", &["one", "two"]));
+        let store = MarkdownFocusStore::new(dir.path());
+        let timer = FocusTimer {
+            duration_secs: 240,
+            started_at: 1_700_000_000,
+            status: adhd_ranch_domain::TimerStatus::Running,
+        };
+
+        store.update_task_timer("a", 1, &timer).unwrap();
+
+        let focuses = store.list().unwrap();
+        assert!(focuses[0].tasks[0].timer.is_none());
+        assert_eq!(focuses[0].tasks[1].timer, Some(timer));
+    }
+
+    #[test]
+    fn delete_task_removes_matching_task_timer_index() {
+        let dir = TempDir::new().unwrap();
+        write_focus(dir.path(), "a", &focus_md("a", &["one", "two"]));
+        let store = MarkdownFocusStore::new(dir.path());
+        let timer = FocusTimer {
+            duration_secs: 240,
+            started_at: 1_700_000_000,
+            status: adhd_ranch_domain::TimerStatus::Running,
+        };
+        store.update_task_timer("a", 0, &timer).unwrap();
+
+        store.delete_task("a", 0).unwrap();
+
+        let focuses = store.list().unwrap();
+        assert_eq!(focuses[0].tasks.len(), 1);
+        assert!(focuses[0].tasks[0].timer.is_none());
     }
 
     #[test]

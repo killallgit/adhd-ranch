@@ -16,6 +16,7 @@ These are not required before 031. Pick one when we choose to spend a slice on i
 - [047](047-storage-transaction-seam.md) — Storage transaction seam for Proposal lifecycle
 - [050](050-settings-update-workflow.md) — Settings update workflow module
 - [051](051-ranch-animal-vocabulary-seam.md) — RanchAnimal vocabulary seam for future animal types
+- [053](053-task-timer-expiry-workflow.md) — Task timer expiry workflow
 
 Completed issue files live in `issues/done/`. Do not pick up files from `issues/done/` or `issues/icebox/`.
 

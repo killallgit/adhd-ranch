@@ -57,6 +57,9 @@ function noopFocusWriter(): FocusWriter {
     updateTask: vi.fn().mockResolvedValue(ok),
     toggleTask: vi.fn().mockResolvedValue(ok),
     startTimer: vi.fn().mockResolvedValue(ok),
+    clearTimer: vi.fn().mockResolvedValue(ok),
+    startTaskTimer: vi.fn().mockResolvedValue(ok),
+    clearTaskTimer: vi.fn().mockResolvedValue(ok),
   };
 }
 
@@ -100,7 +103,7 @@ describe("App overlay", () => {
       expect(screen.getByText("Customer X bug")).toBeInTheDocument();
     });
 
-    // Click the pig to open PigDetail
+    // Click the pig to open AnimalDetail
     await userEvent.click(screen.getByText("Customer X bug"));
 
     const input = screen.getByPlaceholderText("Add task…");
