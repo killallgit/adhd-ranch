@@ -8,7 +8,7 @@ PRD.md §FR3 (pig UI) — write feedback path
 
 Today every `FocusWriter` method ends in `.catch(logErr("op_name"))`, so the promise resolves to `void` even on failure. `App.tsx` then wraps each call in `try/catch { /* already logged */ }` — both layers swallow rejections. UI cannot tell a rename succeeded vs silently dropped, and there is no feedback path for the user.
 
-Introduce a discriminated `WriteOutcome` returned from every writer method. Callers branch on the result. Console logging stays as the visible failure surface for now; user-visible toast is deferred to issue 029 (`NotificationSource`).
+Introduce a discriminated `WriteOutcome` returned from every writer method. Callers branch on the result. Console logging stays as the visible failure surface for now; user-visible notification handling is a future slice.
 
 ### `WriteOutcome` shape (`src/api/focusWriter.ts`)
 
@@ -56,13 +56,13 @@ Every `FocusWriter` method returns a typed `WriteOutcome`; no rejection escapes 
 
 ## Acceptance criteria
 
-- [ ] `WriteOutcome` defined in `src/api/focusWriter.ts`
-- [ ] `tauriFocusWriter` returns `WriteOutcome` for all 7 methods
-- [ ] `fixtureFocusWriter` exists with a configurable failure injector
-- [ ] `App.tsx` removes all `try/catch` around writer calls; branches on `outcome.ok`
-- [ ] Vitest covers: `ok: true` path, `ipc` failure, `domain` failure (one per writer method is enough)
-- [ ] No `.catch(logErr(...))` left in writer
-- [ ] `task check` green
+- [x] `WriteOutcome` defined in `src/api/focusWriter.ts`
+- [x] `tauriFocusWriter` returns `WriteOutcome` for all writer methods
+- [x] `fixtureFocusWriter` exists with a configurable failure injector
+- [x] `App.tsx` removes all `try/catch` around writer calls; branches on `outcome.ok`
+- [x] Vitest covers: `ok: true` path, `ipc` failure, `domain` failure
+- [x] No `.catch(logErr(...))` left in writer
+- [x] `task check` green
 
 ## Blocked by
 
@@ -70,7 +70,7 @@ None.
 
 ## Hands off to
 
-Issue 029 (`NotificationSource`): once that lands, surface `outcome.ok === false` as a notification kind instead of console.
+Future notification UI: surface `outcome.ok === false` through a user-visible notification instead of console-only reporting.
 
 ## User stories addressed
 

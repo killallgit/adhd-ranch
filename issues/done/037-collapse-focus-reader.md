@@ -29,13 +29,13 @@ The Focus catalog flows through one reader interface (`PolledReader<T>`) and one
 
 ## Acceptance criteria
 
-- [ ] `src/api/focuses.ts` defines no second-class `FocusReader` interface (either deleted or aliased to `PolledReader<readonly Focus[]>`).
-- [ ] `src/hooks/useFocuses.ts` deleted.
-- [ ] `src/hooks/useFocuses.test.tsx` deleted or folded into `usePolledReader.test.tsx`.
-- [ ] `tauriFocusReader` and `fixtureFocusReader` return `PolledReader<readonly Focus[]>`.
-- [ ] `App.tsx` and `useAppState.ts` use `usePolledReader` directly with a call-site rename of `value` → `focuses`.
-- [ ] All other tests in `src/` still green; no behavior change visible to the user.
-- [ ] `task check` green.
+- [x] `src/api/focuses.ts` defines no second-class `FocusReader` interface (either deleted or aliased to `PolledReader<readonly Focus[]>`).
+- [x] `src/hooks/useFocuses.ts` deleted.
+- [x] `src/hooks/useFocuses.test.tsx` deleted or folded into `usePolledReader.test.tsx`.
+- [x] `tauriFocusReader` and `fixtureFocusReader` return `PolledReader<readonly Focus[]>`.
+- [x] `App.tsx` and `useAppState.ts` use `usePolledReader` directly with a call-site rename of `value` → `focuses`.
+- [x] All other tests in `src/` still green; no behavior change visible to the user.
+- [x] `task check` green.
 
 ## Blocked by
 

@@ -57,11 +57,11 @@ One `createTauriReader<Raw, Out>` factory backs all Tauri-side `PolledReader<T>`
 
 ## Acceptance criteria
 
-- [ ] `src/api/tauriReader.ts` exposes `createTauriReader<Raw, Out>`.
-- [ ] `tauriFocusReader`, `tauriProposalReader`, and the Tauri caps reader use it.
-- [ ] No duplicated `invoke + listen + unsubscribe` plumbing remains in `src/api/`.
-- [ ] All existing reader tests still green.
-- [ ] `task check` green.
+- [x] `src/api/tauriReader.ts` exposes `createTauriReader<Raw, Out>`.
+- [x] `tauriFocusReader`, `tauriProposalReader`, and the Tauri caps reader use it.
+- [x] No duplicated `invoke + listen + unsubscribe` plumbing remains in `src/api/`.
+- [x] All existing reader tests still green.
+- [x] `task check` green.
 
 ## Blocked by
 

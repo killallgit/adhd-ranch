@@ -20,6 +20,8 @@ export interface PigSpriteProps {
   readonly direction: PigDirection;
   readonly frame: number;
   readonly name: string;
+  readonly scale?: number;
+  readonly expired?: boolean;
   readonly onClick: () => void;
   readonly onDragStart: (x: number, y: number) => void;
   readonly onDragMove: (x: number, y: number) => void;
@@ -33,6 +35,8 @@ export function PigSprite({
   direction,
   frame,
   name,
+  scale = 1,
+  expired = false,
   onClick,
   onDragStart,
   onDragMove,
@@ -42,7 +46,8 @@ export function PigSprite({
   const bob = BOB_OFFSETS[frame % BOB_OFFSETS.length];
   const col = frame % SHEET_COLS;
   const row = DIRECTION_ROW[direction];
-  const sheetSize = PIG_SIZE * SHEET_COLS;
+  const size = PIG_SIZE * scale;
+  const sheetSize = size * SHEET_COLS;
 
   const startPosRef = useRef<{ x: number; y: number } | null>(null);
   const isDraggingRef = useRef(false);
@@ -50,7 +55,7 @@ export function PigSprite({
   return (
     <button
       type="button"
-      className="pig-sprite"
+      className={`pig-sprite${expired ? " pig-sprite--expired" : ""}`}
       style={{
         left: x,
         top: y + bob,
@@ -103,9 +108,10 @@ export function PigSprite({
         style={{
           backgroundImage: `url(${pigSheet})`,
           backgroundSize: `${sheetSize}px ${sheetSize}px`,
-          backgroundPosition: `-${col * PIG_SIZE}px -${row * PIG_SIZE}px`,
-          width: PIG_SIZE,
-          height: PIG_SIZE,
+          backgroundPosition: `-${col * size}px -${row * size}px`,
+          width: size,
+          height: size,
+          filter: expired ? "hue-rotate(125deg)" : undefined,
         }}
       />
       <span className="pig-name">{name}</span>

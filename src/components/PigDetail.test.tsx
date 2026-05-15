@@ -84,6 +84,25 @@ describe("PigDetail title editing", () => {
     expect(onRenameFocus).toHaveBeenCalledWith("pig-a", "New Title");
   });
 
+  it("commits new title and closes the card on Enter", async () => {
+    const { onClose, onRenameFocus } = renderDetail();
+    const input = screen.getByLabelText("focus title");
+    await userEvent.clear(input);
+    await userEvent.type(input, "New Title{Enter}");
+    expect(onRenameFocus).toHaveBeenCalledWith("pig-a", "New Title");
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("does not close on Enter when the title is empty", async () => {
+    const { onClose, onRenameFocus } = renderDetail();
+    const input = screen.getByLabelText("focus title");
+    await userEvent.clear(input);
+    await userEvent.type(input, "{Enter}");
+    expect(onRenameFocus).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByText("Title cannot be empty")).toBeInTheDocument();
+  });
+
   it("empty title reverts and shows error", async () => {
     const { onRenameFocus } = renderDetail();
     const input = screen.getByLabelText("focus title") as HTMLInputElement;
@@ -113,11 +132,12 @@ describe("PigDetail task editing", () => {
   });
 
   it("commits new task text on Enter", async () => {
-    const { onUpdateTask } = renderDetail({ focus: focusWithTasks });
+    const { onClose, onUpdateTask } = renderDetail({ focus: focusWithTasks });
     const input = screen.getByLabelText("task text: alpha");
     await userEvent.clear(input);
     await userEvent.type(input, "alpha-renamed{Enter}");
     expect(onUpdateTask).toHaveBeenCalledWith("pig-a", 0, "alpha-renamed");
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it("checkbox toggle calls onToggleTask", async () => {
@@ -159,17 +179,40 @@ describe("PigDetail delete focus", () => {
 });
 
 describe("PigDetail timer picker", () => {
+  it("shows remaining time for a running timer", () => {
+    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(1_030_000);
+    renderDetail({
+      focus: {
+        ...baseFocus,
+        timer: { duration_secs: 120, started_at: 1_000, status: "Running" },
+      },
+    });
+    expect(screen.getByText("01:30 remaining")).toBeInTheDocument();
+    nowSpy.mockRestore();
+  });
+
+  it("shows Expired for an expired timer", () => {
+    renderDetail({
+      focus: {
+        ...baseFocus,
+        timer: { duration_secs: 120, started_at: 1_000, status: "Expired" },
+      },
+    });
+    expect(screen.getByText("Expired")).toBeInTheDocument();
+  });
+
   it("renders Start button + preset select", () => {
     renderDetail();
     expect(screen.getByRole("button", { name: "Start" })).toBeInTheDocument();
     expect(screen.getByTestId("timer-preset-select")).toBeInTheDocument();
   });
 
-  it("Start with named preset calls onStartTimer with preset literal", async () => {
-    const { onStartTimer } = renderDetail();
+  it("Start with named preset calls onStartTimer with preset literal and closes", async () => {
+    const { onStartTimer, onClose } = renderDetail();
     await userEvent.selectOptions(screen.getByTestId("timer-preset-select"), "ThirtyTwo");
     await userEvent.click(screen.getByRole("button", { name: "Start" }));
     expect(onStartTimer).toHaveBeenCalledWith("pig-a", "ThirtyTwo");
+    expect(onClose).toHaveBeenCalled();
   });
 
   it("Start with custom preset wraps minutes", async () => {
@@ -183,13 +226,14 @@ describe("PigDetail timer picker", () => {
   });
 
   it("rejects custom < 1 minute", async () => {
-    const { onStartTimer } = renderDetail();
+    const { onStartTimer, onClose } = renderDetail();
     await userEvent.selectOptions(screen.getByTestId("timer-preset-select"), "custom");
     const input = screen.getByTestId("custom-timer-input");
     await userEvent.clear(input);
     await userEvent.type(input, "0");
     await userEvent.click(screen.getByRole("button", { name: "Start" }));
     expect(onStartTimer).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
     expect(screen.getByText(/at least 1 minute/i)).toBeInTheDocument();
   });
 

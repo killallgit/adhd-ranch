@@ -44,11 +44,11 @@ All of the above belong to issue 029.
 
 ## Acceptance criteria
 
-- [ ] `crates/domain/src/timer_ticker.rs` exposes `tick` and `TimerTransition`
-- [ ] `crates/domain/src/lib.rs` re-exports both
-- [ ] Table-driven tests cover: no-timer focus skipped, `Running` not yet expired skipped, `Running` exactly at expiry transitioned, `Running` past expiry transitioned, already-`Expired` skipped, multiple transitions in one tick returned in input order
-- [ ] No tokio, no async, no I/O imports in the new module
-- [ ] `task check` green
+- [x] `crates/domain/src/timer_ticker.rs` exposes `tick` and `TimerTransition`
+- [x] `crates/domain/src/lib.rs` re-exports both
+- [x] Table-driven tests cover: no-timer focus skipped, `Running` not yet expired skipped, `Running` exactly at expiry transitioned, `Running` past expiry transitioned, already-`Expired` skipped, multiple transitions in one tick returned in input order
+- [x] No tokio, no async, no I/O imports in the new module
+- [x] `task check` green
 
 ## Blocked by
 

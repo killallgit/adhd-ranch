@@ -99,7 +99,7 @@ notifications:
   tasks_over_cap: true
 ```
 
-Missing `notifications:` section → all sources default `true`. The old `alerts:` section is no longer parsed; existing users who had `system_notifications: false` re-toggle via tray (031). Clean break — single-user app, no migration shim.
+Missing `notifications:` section → all sources default `true`. The old `alerts:` section is no longer parsed; existing users who had `system_notifications: false` re-toggle via Preferences (031). Clean break — single-user app, no migration shim.
 
 ## Completion promise
 
@@ -107,19 +107,19 @@ When a focus timer reaches zero, `TimerStatus` transitions to `Expired` (persist
 
 ## Acceptance criteria
 
-- [ ] `NotificationSource` trait, `NotificationSettings`, `all_sources()` in `crates/domain/src/notification.rs`
-- [ ] `TimerExpiredSource`, `FocusesOverCapSource`, `TasksOverCapSource` implement `NotificationSource`
-- [ ] `Alerts` struct deleted; `Settings.alerts` field removed
-- [ ] `Settings.notifications` field; round-trips through `settings.yaml`
-- [ ] `FocusStore::update_timer` defined; `MarkdownFocusStore` writes atomically
-- [ ] `CapEvaluator` consults `NotificationSettings::is_enabled` per source (focuses, tasks gated independently)
-- [ ] Background tokio interval (1 Hz) consumes `adhd_ranch_domain::tick(now, &focuses)`; for each returned `TimerTransition`, sets `TimerStatus::Expired` exactly once per timer
-- [ ] Interval task contains no inline expiry arithmetic — detection is delegated to `tick`
-- [ ] Tauri event `timer-expired` emitted with `focus_id` and `focus_title`
-- [ ] System notification fires when `timer_expired` source is enabled; suppressed when disabled
-- [ ] Cap notifications fire/suppress per their respective source toggles
-- [ ] Existing cap tests adapted and green
-- [ ] `task check` green
+- [x] `NotificationSource` trait, `NotificationSettings`, `all_sources()` in `crates/domain/src/notification.rs`
+- [x] `TimerExpiredSource`, `FocusesOverCapSource`, `TasksOverCapSource` implement `NotificationSource`
+- [x] `Alerts` struct deleted; `Settings.alerts` field removed
+- [x] `Settings.notifications` field; round-trips through `settings.yaml`
+- [x] `FocusStore::update_timer` defined; `MarkdownFocusStore` writes atomically
+- [x] `CapEvaluator` consults `NotificationSettings::is_enabled` per source (focuses, tasks gated independently)
+- [x] Background tokio interval (1 Hz) consumes `adhd_ranch_domain::tick(now, &focuses)`; for each returned `TimerTransition`, sets `TimerStatus::Expired` exactly once per timer
+- [x] Interval task contains no inline expiry arithmetic — detection is delegated to `tick`
+- [x] Tauri event `timer-expired` emitted with `focus_id` and `focus_title`
+- [x] System notification fires when `timer_expired` source is enabled; suppressed when disabled
+- [x] Cap notifications fire/suppress per their respective source toggles
+- [x] Existing cap tests adapted and green
+- [x] `task check` green
 
 ## Blocked by
 

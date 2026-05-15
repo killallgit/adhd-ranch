@@ -92,20 +92,29 @@ function initPig(focus: Focus, displaySpace: DisplaySpace, now: number): PigStat
   };
 }
 
-export function buildHitRects(pigs: PigState[], dpr: number): PigHitRect[] {
+export function buildHitRects(
+  pigs: PigState[],
+  dpr: number,
+  animalScales: ReadonlyMap<string, number> = new Map(),
+): PigHitRect[] {
   return pigs.map((p) => ({
     x: (p.x - HITBOX_PADDING / 2) * dpr,
     y: (p.y - HITBOX_PADDING / 2) * dpr,
-    size: (PIG_SIZE + HITBOX_PADDING) * dpr,
+    size: (PIG_SIZE * (animalScales.get(p.id) ?? 1) + HITBOX_PADDING) * dpr,
   }));
 }
 
-function syncRects(pigs: PigState[], wide: boolean, displaySpace: DisplaySpace): void {
+function syncRects(
+  pigs: PigState[],
+  wide: boolean,
+  displaySpace: DisplaySpace,
+  animalScales: ReadonlyMap<string, number> = new Map(),
+): void {
   const scale = displaySpace.hitTestScale;
   // Wide rect (detail open or dragging) keeps overlay interactive across the full viewport.
   const rects = wide
     ? [{ x: 0, y: 0, size: Math.max(displaySpace.span.w, displaySpace.span.h) * scale * 2 }]
-    : buildHitRects(pigs, scale);
+    : buildHitRects(pigs, scale, animalScales);
   updatePigRects(rects).catch(() => {});
 }
 
@@ -124,6 +133,7 @@ function defaultDisplaySpace(): DisplaySpace {
 export function usePigMovement(
   focuses: readonly Focus[],
   selectedId: string | null,
+  animalScales: ReadonlyMap<string, number> = new Map(),
 ): PigMovementResult {
   const [pigs, setPigs] = useState<PigState[]>([]);
   const pigsRef = useRef<PigState[]>([]);
@@ -139,6 +149,7 @@ export function usePigMovement(
   });
   // DisplaySpace is updated when Rust emits display-space.
   const displaySpaceRef = useRef<DisplaySpace>(displaySpace);
+  const animalScalesRef = useRef<ReadonlyMap<string, number>>(animalScales);
   const spawnedFromFallbackRef = useRef<Set<string>>(new Set());
 
   // Drag state — refs to avoid stale closures in the rAF loop.
@@ -148,6 +159,7 @@ export function usePigMovement(
 
   // Keep selectedId ref in sync so the rAF loop sees the latest value without restarting.
   selectedIdRef.current = selectedId;
+  animalScalesRef.current = animalScales;
 
   const setDisplaySpace = useCallback((space: DisplaySpace) => {
     displaySpaceRef.current = space;
@@ -165,7 +177,7 @@ export function usePigMovement(
     // Widen hit-rect immediately so the overlay stays interactive during the drag.
     // Without this there is a ~67ms window where the window is click-through,
     // which breaks pointer capture when crossing monitor boundaries.
-    syncRects(pigsRef.current, true, displaySpaceRef.current);
+    syncRects(pigsRef.current, true, displaySpaceRef.current, animalScalesRef.current);
   }, []);
 
   const moveDrag = useCallback((x: number, y: number) => {
@@ -228,7 +240,7 @@ export function usePigMovement(
       const next = prev.map((p) => (p.id === pigId ? { ...p, vx, vy } : p));
       pigsRef.current = next;
       // Restore narrow rects immediately so hit-test is precise again.
-      syncRects(next, false, displaySpaceRef.current);
+      syncRects(next, false, displaySpaceRef.current, animalScalesRef.current);
       return next;
     });
 
@@ -248,7 +260,7 @@ export function usePigMovement(
         const usingFallback = displaySpace === fallbackDisplaySpaceRef.current;
         if (existing && (!fallbackIds.has(f.id) || usingFallback)) {
           if (fallbackIds.has(f.id)) nextFallbackIds.add(f.id);
-          return existing;
+          return existing.name === f.title ? existing : { ...existing, name: f.title };
         }
 
         const pig = initPig(f, displaySpace, now);
@@ -304,7 +316,7 @@ export function usePigMovement(
       frameCountRef.current += 1;
       if (frameCountRef.current % RECT_UPDATE_EVERY === 0) {
         const wide = selectedIdRef.current !== null || dragIdRef.current !== null;
-        syncRects(updated, wide, displaySpace);
+        syncRects(updated, wide, displaySpace, animalScalesRef.current);
       }
 
       rafRef.current = requestAnimationFrame(loop);

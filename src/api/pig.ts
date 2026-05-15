@@ -17,6 +17,12 @@ export async function subscribeGatherPigs(cb: () => void): Promise<Unsubscribe> 
   return listen("gather-pigs", () => cb());
 }
 
+export async function subscribeOpenFocusDetail(
+  cb: (focusId: string) => void,
+): Promise<Unsubscribe> {
+  return listen<string>("open-focus-detail", (event) => cb(event.payload));
+}
+
 export async function subscribeDisplaySpace(
   cb: (space: DisplaySpace) => void,
 ): Promise<Unsubscribe> {

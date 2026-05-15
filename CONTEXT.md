@@ -95,7 +95,7 @@ created_at: 2026-04-30T12:00:00Z
 
 ## Core interaction loop (v1.2)
 
-Steps 1–7 fully implemented. Step 8 (display spanning) partially implemented — single-monitor works; cross-monitor drag and portrait-monitor boundary behaviour still broken (PR #27, issue #024).
+Steps 1–8 are implemented. Display spanning uses a Rust-emitted DisplaySpace model so monitor geometry policy is local to the display module, while RanchAnimal movement consumes normalized visible monitor regions instead of the raw overlay span.
 
 1. **Pigs roam the screen.** One pig per Focus, wandering at 60px/s with random direction changes; minimum velocity floor so pigs never look frozen. 4-direction pixel-art sprite sheet (016). Hit-box is 16px larger than sprite (018).
 2. **Click a pig.** Pig freezes. `PigDetail` card opens near the pig (340px, opaque dark background, 16px padding): Focus title + scrollable Task list with `✗` per Task + "Add task…" input at bottom. Enter appends a task inline. Click-outside or Escape closes; pig resumes (019).
@@ -104,7 +104,7 @@ Steps 1–7 fully implemented. Step 8 (display spanning) partially implemented �
 5. **Add a task.** Type in "Add task…" input in PigDetail → Enter → `append_task` Tauri command → markdown updated.
 6. **Create a Focus.** *(014)* Menu bar item → "+ New Focus" → small webview form → `create_focus` → new pig spawns. Timer dropdown (No timer / 2m / 4m / 8m / 16m / 32m / Custom) optionally attaches a `FocusTimer` (028).
 7. **Delete a Focus.** *(015)* Menu bar item → Focus submenu → "Delete…" → `delete_focus` → pig disappears. (Optional confirmation tracked in issue `#027`.)
-8. **Configure displays.** *(017)* Tray Displays section — check/uncheck monitors. Enabled monitors share one spanning overlay window; pigs spawn on the primary display. Persists in `settings.yaml`. **Partially broken (PR #27, issue #024):** `display/` module refactor landed — coordinate math fixed, window now correctly sized, monitor names disambiguated, single-monitor fully works. Cross-monitor drag still unreliable on 270°-rotated portrait monitors: the drag_active lock helps but boundary behaviour near the monitor edge needs more work.
+8. **Configure displays.** *(017, 049)* Tray Displays section — check/uncheck monitors. Enabled monitors share one spanning overlay window; RanchAnimals spawn in the primary display region and move only inside normalized visible monitor regions. Persists in `settings.yaml`. The display module owns monitor geometry, and React owns movement over the emitted DisplaySpace model.
 
 ## Agent proposal flow (v1.3 — deferred)
 
@@ -125,9 +125,9 @@ No provider config. No API keys.
 Two artifacts, macOS-only for v1, no user PATH management:
 
 1. **`Adhd Ranch.app`** — Tauri v2 macOS bundle. Drag to `/Applications`.
-2. **`adhd-ranch` skill** — unpacks to `~/.claude/skills/adhd-ranch/` (global, every project) with `SKILL.md`. The slash command lives at `~/.claude/commands/checkpoint.md`.
+2. **`adhd-ranch` skill** — deferred v1.3 proposal-flow artifact. It unpacks to `~/.claude/skills/adhd-ranch/` (global, every project) with `SKILL.md`. The slash command lives at `~/.claude/commands/checkpoint.md`.
 
-App and skill are independent: app works UI-only without the skill; skill is useless without the running app (the slash command will error if `~/.adhd-ranch/run/port` is missing or the health check fails — "adhd-ranch not running, please start the app").
+App and skill are independent: the v1.2 app works UI-only without the skill; in v1.3 the skill is useless without the running app (the slash command will error if `~/.adhd-ranch/run/port` is missing or the health check fails — "adhd-ranch not running, please start the app").
 
 ## Application
 
@@ -148,14 +148,19 @@ No separate CLI, no shell scripts. Rust core is the single implementation of rea
 
 ## Writers
 
-1. **User** — widget UI or hand-edit markdown.
+Current v1.2 writers:
+
+1. **User** — pig detail UI, preferences UI, tray/new-focus UI, or hand-edit markdown.
+
+Deferred v1.3 writer:
+
 2. **In-session agent via `/checkpoint`** — HTTP POST `/proposals`, then user accepts/rejects.
 
 That's it. No hooks, no fallbacks.
 
 ## IPC
 
-App exposes a localhost HTTP API on `127.0.0.1:<ephemeral-port>`. Port written to `~/.adhd-ranch/run/port` on bind; clients read it. HTTP only — no file fallback. If the app is down, `/checkpoint` errors clearly. Auth: none in v1 (localhost-only bind).
+App exposes a localhost HTTP API on `127.0.0.1:<ephemeral-port>`. Port written to `~/.adhd-ranch/run/port` on bind; clients read it. HTTP only — no file fallback. Auth: none in v1 (localhost-only bind). In the deferred v1.3 `/checkpoint` flow, the slash command should error clearly if the app is down.
 
 ## Caps & overload alerting
 
@@ -174,15 +179,21 @@ App enforces caps at write time. When a write would exceed a cap, it succeeds bu
 caps:
   max_focuses: 5
   max_tasks_per_focus: 7
-alerts:
-  system_notifications: true
+notifications:
+  timer_expired: true
+  focuses_over_cap: true
+  tasks_over_cap: true
 widget:
   always_on_top: true
+  confirm_delete: true
+displays:
+  enabled: 0
 ```
 
-Changes apply at app startup; restart the app to pick up edits.
+Settings changed through the app are persisted immediately. Manual file edits are picked up on app restart.
 
 ## Scope
 
-- **v1**: macOS only. User creates Focuses (widget button or hand-edit). User runs `/checkpoint` in Claude Code sessions to enqueue proposals. User accepts or rejects in widget.
+- **v1.2**: macOS only. User creates Focuses from the app or hand-edit. Pigs roam the overlay, show Tasks, and reflect markdown changes. Agent proposals are not part of the current UI.
+- **v1.3 (deferred)**: `/checkpoint` slash command + proposal queue UI; accepted proposals may add Tasks or create Focuses.
 - **v2 (deferred)**: external aggregators (Jira, GitHub), additional triggers (slash command for new-focus, hooks, scheduled), cross-platform, `merge_focus` and `complete_task` proposal kinds, optional `/usr/local/bin` symlink, schema migrations.

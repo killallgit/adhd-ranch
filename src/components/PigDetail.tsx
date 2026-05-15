@@ -9,6 +9,7 @@ export interface PigDetailProps {
   readonly focus: Focus;
   readonly pigX: number;
   readonly pigY: number;
+  readonly animalSize?: number;
   readonly viewportW: number;
   readonly viewportH: number;
   readonly confirmDelete: boolean;
@@ -23,12 +24,11 @@ export interface PigDetailProps {
 }
 
 const CARD_W = 340;
-const CARD_OFFSET_X = PIG_SIZE + 8;
-
 export function PigDetail({
   focus,
   pigX,
   pigY,
+  animalSize = PIG_SIZE,
   viewportW,
   viewportH,
   confirmDelete,
@@ -58,6 +58,7 @@ export function PigDetail({
     if (preset === null) return;
     setTimerError(null);
     onStartTimer(focus.id, preset);
+    onClose();
   }
 
   useEffect(() => {
@@ -80,21 +81,22 @@ export function PigDetail({
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
 
-  const rawX = pigX + CARD_OFFSET_X;
+  const rawX = pigX + animalSize + 8;
   const x = Math.min(rawX, viewportW - CARD_W - 16);
   const y = Math.max(16, Math.min(pigY, viewportH - 200));
 
-  function commitTitle() {
+  function commitTitle(): boolean {
     const trimmed = titleDraft.trim();
     if (trimmed === "") {
       setTitleDraft(focus.title);
       setTitleError(true);
-      return;
+      return false;
     }
     setTitleError(false);
     if (trimmed !== focus.title) {
       onRenameFocus(focus.id, trimmed);
     }
+    return true;
   }
 
   function handleDeleteClick() {
@@ -111,6 +113,8 @@ export function PigDetail({
     onDeleteFocus(focus.id);
     onClose();
   }
+
+  const timerStatus = describeTimerStatus(focus.timer ?? null);
 
   return (
     <>
@@ -155,10 +159,15 @@ export function PigDetail({
                 setTitleDraft(e.target.value);
                 if (titleError) setTitleError(false);
               }}
-              onBlur={commitTitle}
+              onBlur={() => {
+                commitTitle();
+              }}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
-                  e.currentTarget.blur();
+                  e.preventDefault();
+                  if (commitTitle()) {
+                    onClose();
+                  }
                 } else if (e.key === "Escape") {
                   setTitleDraft(focus.title);
                   setTitleError(false);
@@ -211,6 +220,7 @@ export function PigDetail({
           }}
         />
         <div className="pig-detail-timer">
+          {timerStatus && <span className="pig-detail-timer-status">{timerStatus}</span>}
           <TimerPresetPicker
             selection={timerSelection}
             customMinutes={customMinutes}
@@ -236,6 +246,18 @@ export function PigDetail({
       </div>
     </>
   );
+}
+
+function describeTimerStatus(timer: Focus["timer"] | null): string | null {
+  if (!timer) return null;
+  if (timer.status === "Expired") return "Expired";
+  const elapsedSecs = Math.max(0, Math.floor(Date.now() / 1000) - timer.started_at);
+  const remainingSecs = Math.max(0, timer.duration_secs - elapsedSecs);
+  const minutes = Math.floor(remainingSecs / 60)
+    .toString()
+    .padStart(2, "0");
+  const seconds = (remainingSecs % 60).toString().padStart(2, "0");
+  return `${minutes}:${seconds} remaining`;
 }
 
 interface TaskEditorProps {

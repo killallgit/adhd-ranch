@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use adhd_ranch_domain::{cap_state, Focus, Settings};
+use adhd_ranch_domain::{cap_state, Focus, Settings, TimerStatus};
 use adhd_ranch_storage::FocusStore;
 use tauri::image::Image;
 use tauri::menu::{IsMenuItem, Menu, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder};
@@ -14,7 +14,9 @@ const NO_FOCUSES_ID: &str = "tray-no-focuses";
 const NEW_FOCUS_ID: &str = "tray-new-focus";
 const GATHER_PIGS_ID: &str = "tray-gather-pigs";
 const DELETE_PREFIX: &str = "tray-delete-";
+const OPEN_FOCUS_PREFIX: &str = "tray-open-focus-";
 const TRAY_OPEN_PREFS_ID: &str = "tray-open-prefs";
+const OPEN_FOCUS_DETAIL_EVENT: &str = "open-focus-detail";
 #[cfg(debug_assertions)]
 const DEVTOOLS_ID: &str = "tray-devtools";
 
@@ -66,6 +68,10 @@ pub fn setup(
                 let focus_id = focus_id.to_string();
                 let app_handle = app.clone();
                 std::thread::spawn(move || handle_delete(app_handle, focus_id));
+            } else if let Some(focus_id) = id.strip_prefix(OPEN_FOCUS_PREFIX) {
+                if let Some(win) = app.get_webview_window("overlay-0") {
+                    let _ = win.emit(OPEN_FOCUS_DETAIL_EVENT, focus_id.to_string());
+                }
             }
         });
 
@@ -122,13 +128,15 @@ fn build_menu(handle: &AppHandle<Wry>, focuses: &[Focus]) -> tauri::Result<Menu<
     items.push(Box::new(new_focus));
     items.push(Box::new(PredefinedMenuItem::separator(handle)?));
 
-    if focuses.is_empty() {
+    let sections = partition_focuses_for_menu(focuses);
+
+    if sections.active.is_empty() && sections.expired.is_empty() {
         let item = MenuItemBuilder::with_id(NO_FOCUSES_ID, "No focuses yet")
             .enabled(false)
             .build(handle)?;
         items.push(Box::new(item));
     } else {
-        for focus in focuses.iter() {
+        for focus in sections.active {
             let delete_item = MenuItemBuilder::with_id(
                 format!("{DELETE_PREFIX}{}", focus.id.0),
                 format!("Delete \"{}\"…", focus.title),
@@ -138,6 +146,28 @@ fn build_menu(handle: &AppHandle<Wry>, focuses: &[Focus]) -> tauri::Result<Menu<
                 .item(&delete_item)
                 .build()?;
             items.push(Box::new(submenu));
+        }
+        if !sections.expired.is_empty() {
+            items.push(Box::new(PredefinedMenuItem::separator(handle)?));
+            let expired_items = sections
+                .expired
+                .iter()
+                .map(|focus| {
+                    MenuItemBuilder::with_id(
+                        format!("{OPEN_FOCUS_PREFIX}{}", focus.id.0),
+                        focus.title.clone(),
+                    )
+                    .build(handle)
+                })
+                .collect::<tauri::Result<Vec<_>>>()?;
+            let expired_refs: Vec<&dyn IsMenuItem<Wry>> = expired_items
+                .iter()
+                .map(|item| item as &dyn IsMenuItem<Wry>)
+                .collect();
+            let expired_submenu = SubmenuBuilder::new(handle, "Expired")
+                .items(&expired_refs)
+                .build()?;
+            items.push(Box::new(expired_submenu));
         }
     }
 
@@ -158,6 +188,27 @@ fn build_menu(handle: &AppHandle<Wry>, focuses: &[Focus]) -> tauri::Result<Menu<
 
     let item_refs: Vec<&dyn IsMenuItem<Wry>> = items.iter().map(|b| b.as_ref()).collect();
     Menu::with_items(handle, &item_refs)
+}
+
+struct MenuFocusSections<'a> {
+    active: Vec<&'a Focus>,
+    expired: Vec<&'a Focus>,
+}
+
+fn partition_focuses_for_menu(focuses: &[Focus]) -> MenuFocusSections<'_> {
+    let mut active = Vec::new();
+    let mut expired = Vec::new();
+    for focus in focuses {
+        if matches!(
+            focus.timer.as_ref().map(|timer| &timer.status),
+            Some(TimerStatus::Expired)
+        ) {
+            expired.push(focus);
+        } else {
+            active.push(focus);
+        }
+    }
+    MenuFocusSections { active, expired }
 }
 
 fn handle_delete(app: AppHandle<Wry>, focus_id: String) {
@@ -216,4 +267,53 @@ fn red_icon() -> Image<'static> {
         .flat_map(|_| [220u8, 38, 38, 255])
         .collect();
     Image::new_owned(rgba, SIZE, SIZE)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use adhd_ranch_domain::{FocusId, FocusTimer};
+
+    fn focus(id: &str, title: &str, status: Option<TimerStatus>) -> Focus {
+        Focus {
+            id: FocusId(id.to_string()),
+            title: title.to_string(),
+            description: String::new(),
+            created_at: String::new(),
+            tasks: Vec::new(),
+            timer: status.map(|status| FocusTimer {
+                duration_secs: 120,
+                started_at: 1_000,
+                status,
+            }),
+        }
+    }
+
+    #[test]
+    fn partitions_expired_focuses_into_expired_section() {
+        let focuses = vec![
+            focus("a", "Active", Some(TimerStatus::Running)),
+            focus("b", "Expired", Some(TimerStatus::Expired)),
+            focus("c", "No timer", None),
+        ];
+
+        let sections = partition_focuses_for_menu(&focuses);
+
+        assert_eq!(
+            sections
+                .active
+                .iter()
+                .map(|focus| focus.title.as_str())
+                .collect::<Vec<_>>(),
+            vec!["Active", "No timer"]
+        );
+        assert_eq!(
+            sections
+                .expired
+                .iter()
+                .map(|focus| focus.title.as_str())
+                .collect::<Vec<_>>(),
+            vec!["Expired"]
+        );
+    }
 }

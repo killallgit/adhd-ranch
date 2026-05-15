@@ -108,12 +108,15 @@ Localhost-only, ephemeral port. Retained for `/checkpoint` flow (v1.3). No chang
 caps:
   max_focuses: 5
   max_tasks_per_focus: 7
-alerts:
-  system_notifications: true
+notifications:
+  timer_expired: true
+  focuses_over_cap: true
+  tasks_over_cap: true
 widget:
   always_on_top: true
-notifications:
-  timer_expired: true   # per-source toggle; extensible via NotificationSource trait (029 pending)
+  confirm_delete: true
+displays:
+  enabled: 0
 ```
 
 Timer presets available at Focus creation: No timer / 2m / 4m / 8m / 16m / 32m / Custom (free integer minutes).
@@ -149,8 +152,8 @@ Retained. Every accepted/rejected proposal appended to `~/.adhd-ranch/decisions.
 ## Open questions / risks
 
 - **R1.** Click-through latency: 16ms Rust poll + IPC round-trip should feel transparent, but needs real-device testing.
-- **R2.** ~~NSEvent.mouseLocation coordinate space~~ — resolved for single-monitor. `drag_active: AtomicBool` in hit-test thread prevents click-through race during drag. Cross-monitor drag still unreliable on 270°-rotated portrait setup (PR #27).
-- **R3.** ~~Multiple monitors: pigs spawn on primary monitor only.~~ 024 `display/` refactor: coordinate math fixed (logical units throughout), `compute_span` tested, window correctly sized via builder, pigs confined to primary display via `display-region` event. Cross-monitor drag and portrait-monitor boundary behaviour still rough — tracked in PR #27.
+- **R2.** ~~NSEvent.mouseLocation coordinate space~~ — resolved for single-monitor. `drag_active: AtomicBool` in hit-test thread prevents click-through race during drag. Real-device mixed-monitor drag still needs periodic validation.
+- **R3.** ~~Multiple monitors: pigs spawn on primary monitor only.~~ 024 `display/` refactor fixed logical coordinate math and window sizing. 049 added DisplaySpace: Rust owns monitor geometry, React movement consumes normalized visible monitor regions, and RanchAnimals cannot wander into invisible gaps inside the overlay span.
 - **R4.** Pig positions on resize: if screen resolution changes (external monitor connect/disconnect), pigs reset to safe positions.
 - **R5.** Always-on-top + fullscreen apps: at kCGFloatingWindowLevel (3), pigs disappear behind fullscreen apps. Acceptable for v1.2.
 
@@ -161,10 +164,6 @@ Retained. Every accepted/rejected proposal appended to `~/.adhd-ranch/decisions.
 3. **Phase 2 (done):** Transparent fullscreen window, click-through Rust polling thread, `PigSprite` placeholder, `usePigMovement`, `PigDetail` popover, tray icon + live focus list, typed errors, structured logging.
 4. **Phase 3 (done):** ~~New-focus creation from tray (014)~~, ~~delete from tray (015)~~, ~~configurable display spanning (017)~~, ~~real sprite sheet (016)~~.
 5. **Phase 3 polish (done):** ~~Larger pig hitbox + `buildHitRects` (018)~~, ~~PigDetail redesign — opaque, 340px, inline task add (019)~~, ~~drag-and-toss pig physics with friction (020)~~.
-6. **Phase 3 polish (in progress):**
-   - **#024** Display subsystem refactor — `display/` module tree landed (PR #27, draft). Single-monitor fully working. Cross-monitor drag + portrait boundary still broken. **Blocks 021, 022.**
-   - **#025** Pig freeze regression fix + keep-still toggle.
-   - **#021** All-monitors default on first launch. *Blocked by 024.*
-   - **#026** Settings submenu consolidation.
-   - **#022** Wrangle pig / wrangle all. *Blocked by 024.*
-7. **Phase 4 — Agent flow (v1.3):** Restore `/checkpoint` command + proposal queue UI (tray submenu or modal).
+6. **Phase 3 polish (done):** ~~Display subsystem refactor (024)~~, ~~Pig freeze regression fix + keep-still toggle (025)~~, ~~Settings/preferences consolidation (026)~~, ~~DisplaySpace seam for RanchAnimal movement (049)~~.
+7. **Icebox:** all-monitors default on first launch (021), wrangle pig / wrangle all (022).
+8. **Phase 4 — Agent flow (v1.3):** Restore `/checkpoint` command + proposal queue UI (tray submenu or modal).

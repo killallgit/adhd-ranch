@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { renderHook, waitFor } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import type { Focus } from "../types/focus";
 import {
   DRAG_THRESHOLD,
   HITBOX_PADDING,
@@ -7,8 +9,16 @@ import {
   TOSS_VELOCITY_WINDOW_MS,
   buildHitRects,
   computeTossVelocity,
+  usePigMovement,
 } from "./usePigMovement";
 import type { PigState, PointerSample } from "./usePigMovement";
+
+vi.mock("../api/pig", () => ({
+  setPigDragActive: vi.fn().mockResolvedValue(undefined),
+  subscribeDisplaySpace: vi.fn().mockResolvedValue(() => {}),
+  subscribeGatherPigs: vi.fn().mockResolvedValue(() => {}),
+  updatePigRects: vi.fn().mockResolvedValue(undefined),
+}));
 
 const makePig = (overrides?: Partial<PigState>): PigState => ({
   id: "test",
@@ -67,6 +77,13 @@ describe("buildHitRects", () => {
   it("returns one rect per pig", () => {
     const pigs = [makePig({ id: "a" }), makePig({ id: "b" }), makePig({ id: "c" })];
     expect(buildHitRects(pigs, 1)).toHaveLength(3);
+  });
+
+  it("uses scaled animal bounds when scale is supplied", () => {
+    const [rect] = buildHitRects([makePig()], 1, new Map([["test", 3]]));
+    expect(rect?.x).toBe(100 - HITBOX_PADDING / 2);
+    expect(rect?.y).toBe(200 - HITBOX_PADDING / 2);
+    expect(rect?.size).toBe(PIG_SIZE * 3 + HITBOX_PADDING);
   });
 });
 
@@ -145,5 +162,39 @@ describe("computeTossVelocity", () => {
     const speed = Math.sqrt(result.vx ** 2 + result.vy ** 2);
     expect(speed).toBeCloseTo(PIG_SPEED * 6);
     expect(result.vx).toBeCloseTo(result.vy);
+  });
+});
+
+describe("usePigMovement", () => {
+  it("refreshes an existing animal label when its focus title changes", async () => {
+    const rafSpy = vi.spyOn(window, "requestAnimationFrame").mockReturnValue(0);
+    const cancelRafSpy = vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => {});
+    const focus: Focus = {
+      id: "a",
+      title: "Original name",
+      description: "",
+      created_at: "",
+      tasks: [],
+    };
+
+    const { result, rerender, unmount } = renderHook(
+      ({ focuses }: { focuses: readonly Focus[] }) => usePigMovement(focuses, null),
+      { initialProps: { focuses: [focus] } },
+    );
+
+    await waitFor(() => expect(result.current.pigs[0]?.name).toBe("Original name"));
+    const firstPosition = {
+      x: result.current.pigs[0]?.x,
+      y: result.current.pigs[0]?.y,
+    };
+
+    rerender({ focuses: [{ ...focus, title: "Updated name" }] });
+
+    await waitFor(() => expect(result.current.pigs[0]?.name).toBe("Updated name"));
+    expect(result.current.pigs[0]).toMatchObject(firstPosition);
+
+    unmount();
+    rafSpy.mockRestore();
+    cancelRafSpy.mockRestore();
   });
 });

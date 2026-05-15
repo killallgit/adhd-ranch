@@ -6,29 +6,18 @@ Each issue is a self-contained vertical slice an AFK coding agent ("ralph") can 
 
 Complete these before picking up any other open issue. All are unblocked and independent — grab any order.
 
-- [029](029-timer-expiry-and-notification-interface.md) — Timer expiry + NotificationSource interface (GH #29)
 - [030](030-pig-growth-expired-visual-tray-list.md) — Pig scale growth + expired visual + tray list (GH #30)
-- [031](031-notification-settings-tray.md) — Notification settings in tray (GH #31) — **blocked by 029**
+- [031](031-notification-source-settings.md) — Notification source settings registry (GH #31)
 
 ### Architecture queue (deepening, AFK except where noted)
 
-Frontend reader collapse:
-
-- [037](037-collapse-focus-reader.md) — Collapse `FocusReader` into `PolledReader<Focus[]>` — **done**
-- [038](038-collapse-proposal-reader.md) — Collapse `ProposalReader` into `PolledReader<Proposal[]>` — **done**
-- [039](039-unify-caps-on-polled-reader.md) — Unify `useCaps` on `usePolledReader<Caps>` — **done**
-- [040](040-generic-tauri-reader-factory.md) — Generic `tauriReader<T>` factory — **done**
-
 Domain seams:
 
-- [041](041-focus-writer-write-outcome.md) — `FocusWriter` returns `WriteOutcome` (hands off to 029)
-- [043](043-proposal-lifecycle-atomicity-design.md) — `ProposalLifecycle::accept` atomicity — **done** by [ADR-0003](../docs/adr/0003-storage-transaction-seam-for-proposal-lifecycle.md)
-- [044](044-domain-timer-ticker.md) — Carve domain `TimerTicker` pure module — **done** (merged, consumed by 029)
 - [046](046-timer-expiry-service-extraction.md) — Timer expiry workflow module
 - [047](047-storage-transaction-seam.md) — Storage transaction seam for Proposal lifecycle
-- [048](048-focus-document-mutation-module.md) — FocusDocument mutation module
-- [049](049-display-space-pig-movement-seam.md) — Display-space seam for Pig movement
 - [050](050-settings-update-workflow.md) — Settings update workflow module
+
+Completed issue files live in `issues/done/`. Do not pick up files from `issues/done/` or `issues/icebox/`.
 
 Closed without implementation:
 
