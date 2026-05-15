@@ -58,6 +58,7 @@ export function PigDetail({
     if (preset === null) return;
     setTimerError(null);
     onStartTimer(focus.id, preset);
+    onClose();
   }
 
   useEffect(() => {

@@ -187,11 +187,12 @@ describe("PigDetail timer picker", () => {
     expect(screen.getByTestId("timer-preset-select")).toBeInTheDocument();
   });
 
-  it("Start with named preset calls onStartTimer with preset literal", async () => {
-    const { onStartTimer } = renderDetail();
+  it("Start with named preset calls onStartTimer with preset literal and closes", async () => {
+    const { onStartTimer, onClose } = renderDetail();
     await userEvent.selectOptions(screen.getByTestId("timer-preset-select"), "ThirtyTwo");
     await userEvent.click(screen.getByRole("button", { name: "Start" }));
     expect(onStartTimer).toHaveBeenCalledWith("pig-a", "ThirtyTwo");
+    expect(onClose).toHaveBeenCalled();
   });
 
   it("Start with custom preset wraps minutes", async () => {
@@ -205,13 +206,14 @@ describe("PigDetail timer picker", () => {
   });
 
   it("rejects custom < 1 minute", async () => {
-    const { onStartTimer } = renderDetail();
+    const { onStartTimer, onClose } = renderDetail();
     await userEvent.selectOptions(screen.getByTestId("timer-preset-select"), "custom");
     const input = screen.getByTestId("custom-timer-input");
     await userEvent.clear(input);
     await userEvent.type(input, "0");
     await userEvent.click(screen.getByRole("button", { name: "Start" }));
     expect(onStartTimer).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
     expect(screen.getByText(/at least 1 minute/i)).toBeInTheDocument();
   });
 
