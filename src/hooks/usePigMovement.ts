@@ -260,7 +260,7 @@ export function usePigMovement(
         const usingFallback = displaySpace === fallbackDisplaySpaceRef.current;
         if (existing && (!fallbackIds.has(f.id) || usingFallback)) {
           if (fallbackIds.has(f.id)) nextFallbackIds.add(f.id);
-          return existing;
+          return existing.name === f.title ? existing : { ...existing, name: f.title };
         }
 
         const pig = initPig(f, displaySpace, now);

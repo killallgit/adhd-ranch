@@ -85,17 +85,18 @@ export function PigDetail({
   const x = Math.min(rawX, viewportW - CARD_W - 16);
   const y = Math.max(16, Math.min(pigY, viewportH - 200));
 
-  function commitTitle() {
+  function commitTitle(): boolean {
     const trimmed = titleDraft.trim();
     if (trimmed === "") {
       setTitleDraft(focus.title);
       setTitleError(true);
-      return;
+      return false;
     }
     setTitleError(false);
     if (trimmed !== focus.title) {
       onRenameFocus(focus.id, trimmed);
     }
+    return true;
   }
 
   function handleDeleteClick() {
@@ -158,10 +159,15 @@ export function PigDetail({
                 setTitleDraft(e.target.value);
                 if (titleError) setTitleError(false);
               }}
-              onBlur={commitTitle}
+              onBlur={() => {
+                commitTitle();
+              }}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
-                  e.currentTarget.blur();
+                  e.preventDefault();
+                  if (commitTitle()) {
+                    onClose();
+                  }
                 } else if (e.key === "Escape") {
                   setTitleDraft(focus.title);
                   setTitleError(false);

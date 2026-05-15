@@ -84,6 +84,25 @@ describe("PigDetail title editing", () => {
     expect(onRenameFocus).toHaveBeenCalledWith("pig-a", "New Title");
   });
 
+  it("commits new title and closes the card on Enter", async () => {
+    const { onClose, onRenameFocus } = renderDetail();
+    const input = screen.getByLabelText("focus title");
+    await userEvent.clear(input);
+    await userEvent.type(input, "New Title{Enter}");
+    expect(onRenameFocus).toHaveBeenCalledWith("pig-a", "New Title");
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("does not close on Enter when the title is empty", async () => {
+    const { onClose, onRenameFocus } = renderDetail();
+    const input = screen.getByLabelText("focus title");
+    await userEvent.clear(input);
+    await userEvent.type(input, "{Enter}");
+    expect(onRenameFocus).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByText("Title cannot be empty")).toBeInTheDocument();
+  });
+
   it("empty title reverts and shows error", async () => {
     const { onRenameFocus } = renderDetail();
     const input = screen.getByLabelText("focus title") as HTMLInputElement;
@@ -113,11 +132,12 @@ describe("PigDetail task editing", () => {
   });
 
   it("commits new task text on Enter", async () => {
-    const { onUpdateTask } = renderDetail({ focus: focusWithTasks });
+    const { onClose, onUpdateTask } = renderDetail({ focus: focusWithTasks });
     const input = screen.getByLabelText("task text: alpha");
     await userEvent.clear(input);
     await userEvent.type(input, "alpha-renamed{Enter}");
     expect(onUpdateTask).toHaveBeenCalledWith("pig-a", 0, "alpha-renamed");
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it("checkbox toggle calls onToggleTask", async () => {
