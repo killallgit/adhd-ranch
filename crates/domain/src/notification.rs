@@ -34,6 +34,16 @@ impl NotificationSource for TimerExpiredSource {
     }
 }
 
+pub struct TaskTimerExpiredSource;
+impl NotificationSource for TaskTimerExpiredSource {
+    fn key(&self) -> &'static str {
+        "task_timer_expired"
+    }
+    fn label(&self) -> &'static str {
+        "Task timer expired"
+    }
+}
+
 pub struct FocusesOverCapSource;
 impl NotificationSource for FocusesOverCapSource {
     fn key(&self) -> &'static str {
@@ -57,6 +67,7 @@ impl NotificationSource for TasksOverCapSource {
 pub fn all_sources() -> Vec<Box<dyn NotificationSource>> {
     vec![
         Box::new(TimerExpiredSource),
+        Box::new(TaskTimerExpiredSource),
         Box::new(FocusesOverCapSource),
         Box::new(TasksOverCapSource),
     ]
@@ -70,6 +81,7 @@ mod tests {
     fn unknown_source_defaults_to_enabled() {
         let s = NotificationSettings::default();
         assert!(s.is_enabled(&TimerExpiredSource));
+        assert!(s.is_enabled(&TaskTimerExpiredSource));
         assert!(s.is_enabled(&FocusesOverCapSource));
         assert!(s.is_enabled(&TasksOverCapSource));
     }
@@ -90,17 +102,23 @@ mod tests {
     }
 
     #[test]
-    fn all_sources_lists_three_known_keys() {
+    fn all_sources_lists_known_keys() {
         let keys: Vec<&'static str> = all_sources().iter().map(|s| s.key()).collect();
         assert_eq!(
             keys,
-            vec!["timer_expired", "focuses_over_cap", "tasks_over_cap"]
+            vec![
+                "timer_expired",
+                "task_timer_expired",
+                "focuses_over_cap",
+                "tasks_over_cap"
+            ]
         );
     }
 
     #[test]
     fn source_labels_are_human_readable() {
         assert_eq!(TimerExpiredSource.label(), "Timer expired");
+        assert_eq!(TaskTimerExpiredSource.label(), "Task timer expired");
         assert_eq!(FocusesOverCapSource.label(), "Too many focuses");
         assert_eq!(TasksOverCapSource.label(), "Too many tasks in a focus");
     }

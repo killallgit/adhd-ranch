@@ -6,6 +6,17 @@ All notable changes to adhd-ranch. Follows [Keep a Changelog](https://keepachang
 
 ## [Unreleased]
 
+### Added — 053 task timer expiry workflow
+
+- Task timers now participate in the background expiry workflow: expired Task timers persist `status: Expired` in `task-timers.json`.
+- `task_timer_expired` notification source with a platform-neutral notification sink path.
+- `task-timer-expired` Tauri event for Task timer expiry payloads.
+
+### Changed — 053
+
+- Timer expiry orchestration moved into a testable commands-layer workflow; Tauri now adapts the workflow to platform notifications and UI events.
+- Task timer expiry remains scoped to `AnimalDetail` and notifications; it does not affect animal rendering, tray expired state, or Focus timer status.
+
 ### Added — 052 task timers and clock dropdown editing (PR #60, in flight)
 
 - `Task.timer: Option<FocusTimer>` — Tasks can carry independent countdown timers.

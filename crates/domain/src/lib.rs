@@ -21,7 +21,7 @@ pub use focus::{Focus, FocusId, Task, TaskText};
 pub use monitor::MonitorInfo;
 pub use notification::{
     all_sources, FocusesOverCapSource, NotificationSettings, NotificationSource,
-    TasksOverCapSource, TimerExpiredSource,
+    TaskTimerExpiredSource, TasksOverCapSource, TimerExpiredSource,
 };
 pub use parse::{parse_focus_md, ParseError};
 pub use pig_rect::{PigRect, RectUpdater};
@@ -29,4 +29,4 @@ pub use proposal::{NewFocus, Proposal, ProposalId, ProposalKind, ProposalValidat
 pub use settings::{Caps, DisplayConfig, Settings, Widget};
 pub use slug::slugify;
 pub use timer::{growth_factor, timer_remaining_secs, FocusTimer, TimerPreset, TimerStatus};
-pub use timer_ticker::{tick, TimerTransition};
+pub use timer_ticker::{tick, TimerTransition, TimerTransitionTarget};

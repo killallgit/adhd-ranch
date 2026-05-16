@@ -8,12 +8,16 @@ pub mod error;
 pub mod focus;
 pub mod lifecycle;
 pub mod proposal;
+pub mod timer_expiry;
 
 pub use caps::{CapEvaluator, CapNotifier};
 pub use error::CommandError;
 pub use focus::{CreateFocusInput, CreatedFocus};
 pub use lifecycle::ProposalLifecycle;
 pub use proposal::{CreateProposalInput, CreatedProposal, DecisionOutcome, ProposalEdit};
+pub use timer_expiry::{
+    NotificationRequest, NotificationSink, TimerExpiryEvent, TimerExpiryWorkflow,
+};
 
 pub type Clock = Arc<dyn Fn() -> String + Send + Sync>;
 pub type ClockSecs = Arc<dyn Fn() -> i64 + Send + Sync>;

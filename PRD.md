@@ -77,7 +77,7 @@ Unchanged. Each Focus is a directory under `~/.adhd-ranch/focuses/<slug>/` conta
 - Clicking a pig opens the `AnimalDetail` panel near the pig (edge-clamped): Focus title + task list + `✗` per task.
 - Focus and Task timer editing is accessed by clicking the clock icon or current remaining time. No timer renders as a small clock; a running/expired timer renders as its current time/expired status.
 - `AnimalDetail` closes on click-outside.
-- **Timer growth (028 + 030 done):** If a Focus has a `FocusTimer`, its current animal projection grows from 1× to 3× sprite size linearly over the timer window. Focuses without a timer stay at 1×. Expired animals become ghostly, stop moving, face away, and appear in the tray's Expired section. Adding a new task to an expired Focus clears the expired timer and revives the animal. Task timers are independent per Task and currently affect only the `AnimalDetail` timer display. The only concrete animal today is still the pig sprite; the detail surface is animal-neutral as `AnimalDetail`.
+- **Timer growth (028 + 030 done):** If a Focus has a `FocusTimer`, its current animal projection grows from 1× to 3× sprite size linearly over the timer window. Focuses without a timer stay at 1×. Expired animals become ghostly, stop moving, face away, and appear in the tray's Expired section. Adding a new task to an expired Focus clears the expired timer and revives the animal. Task timers are independent per Task: when they expire, `status: Expired` is persisted, `AnimalDetail` renders the Task timer as Expired, and the `task_timer_expired` notification source can emit through the platform notification sink. Task timer expiry does not affect animal rendering, tray expired state, or Focus timer status. The only concrete animal today is still the pig sprite; the detail surface is animal-neutral as `AnimalDetail`.
 
 ### FR4 — Menu bar item
 
@@ -111,6 +111,7 @@ caps:
   max_tasks_per_focus: 7
 notifications:
   timer_expired: true
+  task_timer_expired: true
   focuses_over_cap: true
   tasks_over_cap: true
 widget:
