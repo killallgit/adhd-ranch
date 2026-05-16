@@ -19,7 +19,7 @@ function failingProposalReader(error: Error): PolledReader<readonly Proposal[]> 
 }
 
 describe("useAppState", () => {
-  it("starts loading with default caps", () => {
+  it("starts loading with default caps", async () => {
     const focuses: Focus[] = [];
     const proposals: Proposal[] = [];
     const { result } = renderHook(() =>
@@ -31,6 +31,9 @@ describe("useAppState", () => {
     );
     expect(result.current.status).toBe("loading");
     expect(result.current.caps).toEqual(DEFAULT_CAPS);
+    await waitFor(() => {
+      expect(result.current.status).toBe("ready");
+    });
   });
 
   it("becomes ready when both focuses and proposals resolve", async () => {

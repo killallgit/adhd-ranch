@@ -83,7 +83,7 @@ describe("AnimalDetail title editing", () => {
     const input = screen.getByLabelText("focus title");
     await userEvent.clear(input);
     await userEvent.type(input, "New Title");
-    input.blur();
+    await userEvent.tab();
     expect(onRenameFocus).toHaveBeenCalledWith("pig-a", "New Title");
   });
 

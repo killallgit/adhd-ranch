@@ -64,7 +64,7 @@ function noopFocusWriter(): FocusWriter {
 }
 
 describe("App overlay", () => {
-  it("renders the overlay root", () => {
+  it("renders the overlay root", async () => {
     render(
       <App
         focusReader={createFixtureFocusReader([])}
@@ -73,6 +73,7 @@ describe("App overlay", () => {
       />,
     );
     expect(document.querySelector(".overlay-root")).toBeInTheDocument();
+    await act(async () => {});
   });
 
   it("spawns a pig for each focus", async () => {
@@ -131,26 +132,29 @@ describe("App overlay", () => {
 
   it("renders a timed focus with the current animal scale", async () => {
     const nowSpy = vi.spyOn(Date, "now").mockReturnValue(1_060_000);
-    render(
-      <App
-        focusReader={createFixtureFocusReader([
-          {
-            id: "timed",
-            title: "Timer focus",
-            description: "",
-            created_at: "",
-            tasks: [],
-            timer: { duration_secs: 120, started_at: 1_000, status: "Running" },
-          },
-        ])}
-        focusWriter={noopFocusWriter()}
-        onWriteFailure={() => {}}
-      />,
-    );
+    try {
+      render(
+        <App
+          focusReader={createFixtureFocusReader([
+            {
+              id: "timed",
+              title: "Timer focus",
+              description: "",
+              created_at: "",
+              tasks: [],
+              timer: { duration_secs: 120, started_at: 1_000, status: "Running" },
+            },
+          ])}
+          focusWriter={noopFocusWriter()}
+          onWriteFailure={() => {}}
+        />,
+      );
 
-    const pig = await screen.findByRole("button", { name: /timer focus/i });
-    expect(pig.querySelector(".pig-sprite-frame")).toHaveStyle({ width: "96px", height: "96px" });
-    nowSpy.mockRestore();
+      const pig = await screen.findByRole("button", { name: /timer focus/i });
+      expect(pig.querySelector(".pig-sprite-frame")).toHaveStyle({ width: "96px", height: "96px" });
+    } finally {
+      nowSpy.mockRestore();
+    }
   });
 
   it("renders an expired focus with an expired animal visual", async () => {
