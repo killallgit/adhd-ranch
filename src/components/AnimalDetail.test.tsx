@@ -184,14 +184,17 @@ describe("AnimalDetail delete focus", () => {
 describe("AnimalDetail timer picker", () => {
   it("shows remaining time for a running timer", () => {
     const nowSpy = vi.spyOn(Date, "now").mockReturnValue(1_030_000);
-    renderDetail({
-      focus: {
-        ...baseFocus,
-        timer: { duration_secs: 120, started_at: 1_000, status: "Running" },
-      },
-    });
-    expect(screen.getByRole("button", { name: /edit focus timer/i })).toHaveTextContent("01:30");
-    nowSpy.mockRestore();
+    try {
+      renderDetail({
+        focus: {
+          ...baseFocus,
+          timer: { duration_secs: 120, started_at: 1_000, status: "Running" },
+        },
+      });
+      expect(screen.getByRole("button", { name: /edit focus timer/i })).toHaveTextContent("01:30");
+    } finally {
+      nowSpy.mockRestore();
+    }
   });
 
   it("shows Expired for an expired timer", () => {
@@ -247,6 +250,23 @@ describe("AnimalDetail timer picker", () => {
     expect(onStartTimer).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
     expect(screen.getByText(/at least 1 minute/i)).toBeInTheDocument();
+  });
+
+  it("clears custom validation errors when toggling the timer dropdown", async () => {
+    renderDetail();
+    const trigger = screen.getByRole("button", { name: /edit focus timer/i });
+    await userEvent.click(trigger);
+    await userEvent.selectOptions(screen.getByTestId("timer-preset-select"), "custom");
+    const input = screen.getByTestId("custom-timer-input");
+    await userEvent.clear(input);
+    await userEvent.type(input, "0");
+    await userEvent.click(screen.getByRole("button", { name: "Start" }));
+    expect(screen.getByText(/at least 1 minute/i)).toBeInTheDocument();
+
+    await userEvent.click(trigger);
+    await userEvent.click(trigger);
+
+    expect(screen.queryByText(/at least 1 minute/i)).not.toBeInTheDocument();
   });
 
   it("button reads Restart when timer is Running", () => {

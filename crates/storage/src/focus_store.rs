@@ -216,7 +216,9 @@ impl FocusStore for MarkdownFocusStore {
             .append_task(text)
             .into_raw();
         atomic_write(&self.focus_md(focus_id), next.as_bytes())?;
-        self.clear_expired_timer(focus_id)?;
+        if let Err(err) = self.clear_expired_timer(focus_id) {
+            log::warn!("failed to clear expired timer after appending task to {focus_id}: {err}");
+        }
         Ok(())
     }
 
@@ -227,7 +229,11 @@ impl FocusStore for MarkdownFocusStore {
             .map_err(|e| map_document_error(focus_id, e))?
             .into_raw();
         atomic_write(&self.focus_md(focus_id), next.as_bytes())?;
-        self.remove_task_timer_index(focus_id, index)?;
+        if let Err(err) = self.remove_task_timer_index(focus_id, index) {
+            log::warn!(
+                "failed to remove task timer {index} after deleting task from {focus_id}: {err}"
+            );
+        }
         Ok(())
     }
 
@@ -540,6 +546,19 @@ mod tests {
     }
 
     #[test]
+    fn append_task_keeps_success_when_timer_cleanup_fails() {
+        let dir = TempDir::new().unwrap();
+        write_focus(dir.path(), "a", &focus_md("a", &["existing"]));
+        fs::create_dir(dir.path().join("a/timer.json")).unwrap();
+        let store = MarkdownFocusStore::new(dir.path());
+
+        store.append_task("a", "still appended").unwrap();
+
+        let content = fs::read_to_string(dir.path().join("a/focus.md")).unwrap();
+        assert!(content.contains("- [ ] still appended"));
+    }
+
+    #[test]
     fn append_task_errors_on_missing_focus() {
         let dir = TempDir::new().unwrap();
         let store = MarkdownFocusStore::new(dir.path());
@@ -577,6 +596,20 @@ mod tests {
         let store = MarkdownFocusStore::new(dir.path());
         let err = store.delete_task("missing", 0).unwrap_err();
         assert!(matches!(err, FocusStoreError::NotFound(_)));
+    }
+
+    #[test]
+    fn delete_task_keeps_success_when_task_timer_cleanup_fails() {
+        let dir = TempDir::new().unwrap();
+        write_focus(dir.path(), "a", &focus_md("a", &["one", "two"]));
+        fs::create_dir(dir.path().join("a/task-timers.json")).unwrap();
+        let store = MarkdownFocusStore::new(dir.path());
+
+        store.delete_task("a", 1).unwrap();
+
+        let content = fs::read_to_string(dir.path().join("a/focus.md")).unwrap();
+        assert!(content.contains("- [ ] one"));
+        assert!(!content.contains("- [ ] two"));
     }
 
     #[test]

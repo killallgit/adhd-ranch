@@ -31,7 +31,7 @@ Task timers have a defined expiry behavior that is persisted, tested, and reflec
 
 ## Blocked by
 
-052.
+052
 
 ## User stories addressed
 

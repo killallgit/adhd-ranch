@@ -35,7 +35,10 @@ export function TimerDropdown({ timer, ariaLabel, onStart, onClear }: TimerDropd
         className={`timer-trigger${timer ? " timer-trigger--set" : ""}`}
         aria-label={ariaLabel}
         aria-expanded={open}
-        onClick={() => setOpen((value) => !value)}
+        onClick={() => {
+          setOpen((value) => !value);
+          setError(null);
+        }}
       >
         {timer ? formatTimer(timer) : <span aria-hidden="true">◷</span>}
       </button>

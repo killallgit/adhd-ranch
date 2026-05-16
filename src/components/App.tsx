@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
-import type { FocusWriter, WriteOutcome } from "../api/focusWriter";
-import { subscribeOpenFocusDetail } from "../api/pig";
+import { useState } from "react";
+import type { FocusWriter } from "../api/focusWriter";
 import type { PolledReader } from "../api/polledReader";
 import { useConfirmDelete } from "../hooks/useConfirmDelete";
 import { useDebugOverlay } from "../hooks/useDebugOverlay";
+import { type ReportWriteFailure, useFocusController } from "../hooks/useFocusController";
+import { useOpenFocusDetailRequest } from "../hooks/useOpenFocusDetailRequest";
 import { PIG_SIZE, usePigMovement } from "../hooks/usePigMovement";
 import { usePolledReader } from "../hooks/usePolledReader";
 import { ranchAnimalScale } from "../hooks/useRanchAnimalScale";
@@ -12,8 +13,6 @@ import type { Focus } from "../types/focus";
 import type { TimerPreset } from "../types/timer";
 import { AnimalDetail } from "./AnimalDetail";
 import { PigSprite } from "./PigSprite";
-
-export type ReportWriteFailure = (op: string, outcome: WriteOutcome) => void;
 
 export interface AppProps {
   readonly focusReader: PolledReader<readonly Focus[]>;
@@ -24,6 +23,7 @@ export interface AppProps {
 const EMPTY_FOCUSES: readonly Focus[] = [];
 
 export function App({ focusReader, focusWriter, onWriteFailure }: AppProps) {
+  const focusController = useFocusController(focusWriter, onWriteFailure);
   const focusState = usePolledReader(focusReader);
   const readerFocuses = focusState.status === "ready" ? focusState.value : EMPTY_FOCUSES;
   const [optimisticFocuses, setOptimisticFocuses] = useState<{
@@ -51,27 +51,17 @@ export function App({ focusReader, focusWriter, onWriteFailure }: AppProps) {
   const selectedPig = pigs.find((p) => p.id === selectedId);
   const selectedFocus = focuses.find((f) => f.id === selectedId);
 
-  useEffect(() => {
-    const unsubscribe = subscribeOpenFocusDetail((focusId) => {
-      if (focuses.some((focus) => focus.id === focusId)) {
-        setSelectedId(focusId);
-      }
-    }).catch(() => () => {});
-    return () => {
-      unsubscribe.then((fn) => fn());
-    };
-  }, [focuses]);
+  useOpenFocusDetailRequest(focuses, setSelectedId);
 
   async function handleClearTask(index: number) {
     if (!selectedFocus) return;
-    onWriteFailure("delete_task", await focusWriter.deleteTask(selectedFocus.id, index));
+    await focusController.deleteTask(selectedFocus.id, index);
   }
 
   async function handleAddTask(text: string) {
     if (!selectedFocus) return;
     const focusId = selectedFocus.id;
-    const outcome = await focusWriter.appendTask(focusId, text);
-    onWriteFailure("append_task", outcome);
+    const outcome = await focusController.appendTask(focusId, text);
     if (!outcome.ok) return;
     const newTask = {
       id: `optimistic-${focusId}-${selectedFocus.tasks.length}-${Date.now()}`,
@@ -94,35 +84,35 @@ export function App({ focusReader, focusWriter, onWriteFailure }: AppProps) {
   }
 
   async function handleRenameFocus(focusId: string, title: string) {
-    onWriteFailure("rename_focus", await focusWriter.renameFocus(focusId, title));
+    await focusController.renameFocus(focusId, title);
   }
 
   async function handleUpdateTask(focusId: string, index: number, text: string) {
-    onWriteFailure("update_task", await focusWriter.updateTask(focusId, index, text));
+    await focusController.updateTask(focusId, index, text);
   }
 
   async function handleToggleTask(focusId: string, index: number, done: boolean) {
-    onWriteFailure("toggle_task", await focusWriter.toggleTask(focusId, index, done));
+    await focusController.toggleTask(focusId, index, done);
   }
 
   async function handleDeleteFocus(focusId: string) {
-    onWriteFailure("delete_focus", await focusWriter.deleteFocus(focusId));
+    await focusController.deleteFocus(focusId);
   }
 
   async function handleStartTimer(focusId: string, preset: TimerPreset) {
-    onWriteFailure("start_timer", await focusWriter.startTimer(focusId, preset));
+    await focusController.startTimer(focusId, preset);
   }
 
   async function handleClearTimer(focusId: string) {
-    onWriteFailure("clear_timer", await focusWriter.clearTimer(focusId));
+    await focusController.clearTimer(focusId);
   }
 
   async function handleStartTaskTimer(focusId: string, index: number, preset: TimerPreset) {
-    onWriteFailure("start_task_timer", await focusWriter.startTaskTimer(focusId, index, preset));
+    await focusController.startTaskTimer(focusId, index, preset);
   }
 
   async function handleClearTaskTimer(focusId: string, index: number) {
-    onWriteFailure("clear_task_timer", await focusWriter.clearTaskTimer(focusId, index));
+    await focusController.clearTaskTimer(focusId, index);
   }
 
   return (
