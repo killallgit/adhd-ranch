@@ -32,7 +32,13 @@ A pending suggestion from the in-session agent at `/checkpoint` time. Three kind
 
 ### FocusTimer
 
-An optional countdown attached to a Focus or Task. Stores `duration_secs`, `started_at` (unix timestamp), and `status` (`Running` | `Expired`). Focus-level timers drive pig scale growth (1.0× at creation → 3.0× at expiry) and expired-focus alerts. Task-level timers expire independently: the background expiry workflow persists `status: Expired`, `AnimalDetail` displays the Task timer as Expired, and the `task_timer_expired` notification source can emit through the platform notification sink. Task timer expiry does not affect animal rendering, tray expired state, or Focus timer status. Ephemeral in the sense that pinned/frozen state is not persisted, but timers themselves survive restarts.
+An optional countdown attached to a Focus or Task. Stores `duration_secs`, `started_at` (unix timestamp), and `status` (`Running` | `Expired`).
+
+Focus-level timers drive pig scale growth from 1.0× at creation to 3.0× at expiry, plus expired-focus alerts.
+
+Task-level timers expire independently. The background expiry workflow persists `status: Expired`, `AnimalDetail` displays the Task timer as Expired, and the `task_timer_expired` notification source can emit through the platform notification sink. Task timer expiry does not affect animal rendering, tray expired state, or Focus timer status.
+
+Timers persist across restarts.
 
 ### TimerPreset
 
