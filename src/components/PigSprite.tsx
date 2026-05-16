@@ -111,7 +111,10 @@ export function PigSprite({
           backgroundPosition: `-${col * size}px -${row * size}px`,
           width: size,
           height: size,
-          filter: expired ? "hue-rotate(125deg)" : undefined,
+          filter: expired
+            ? "grayscale(1) saturate(0.15) brightness(1.55) drop-shadow(0 0 8px rgba(210, 240, 255, 0.55))"
+            : undefined,
+          opacity: expired ? 0.48 : undefined,
         }}
       />
       <span className="pig-name">{name}</span>

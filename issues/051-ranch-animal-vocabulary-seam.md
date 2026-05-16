@@ -10,14 +10,14 @@ Prepare the frontend and shared type names for future animal types without chang
 
 Today several modules use `Pig` names for two different things:
 
-- concrete pig assets or components, such as `PigSprite`, `PigDetail`, and the pig sprite sheet
+- concrete pig assets or components, such as `PigSprite` and the pig sprite sheet
 - animal-neutral overlay behavior, such as movement state, hit rectangles, scale, drag/toss, and focus-to-animal projection
 
 The concrete pig names are fine while pigs are the only rendered animal. The shared behavior should move toward `RanchAnimal` vocabulary so future animal types can be added without a broad naming scramble.
 
 ### Target shape
 
-- Keep `PigSprite` and `PigDetail` until there is a second concrete animal or a designed animal picker.
+- Keep `PigSprite` while pigs are the only rendered animal; the detail surface is already animal-neutral as `AnimalDetail`.
 - Prefer `RanchAnimal` names for new shared movement, scaling, hit-test, and projection helpers.
 - Introduce aliases/adapters where needed so the refactor can be incremental and reviewable.
 - Do not change storage format, focus IDs, tray labels, or user-visible copy in this slice.

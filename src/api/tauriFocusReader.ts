@@ -1,4 +1,5 @@
 import type { Focus } from "../types/focus";
+import type { FocusTimer } from "../types/generated/FocusTimer";
 import type { PolledReader } from "./polledReader";
 import { createTauriReader } from "./tauriReader";
 
@@ -8,6 +9,7 @@ interface RustFocus {
   readonly description: string;
   readonly created_at: string;
   readonly tasks: readonly { id: string; text: string; done?: boolean }[];
+  readonly timer?: FocusTimer | null;
 }
 
 function fromRust(raw: RustFocus): Focus {
@@ -17,6 +19,7 @@ function fromRust(raw: RustFocus): Focus {
     description: raw.description,
     created_at: raw.created_at,
     tasks: raw.tasks.map((t) => ({ id: t.id, text: t.text, done: t.done ?? false })),
+    timer: raw.timer ?? null,
   };
 }
 

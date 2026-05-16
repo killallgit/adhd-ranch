@@ -81,4 +81,40 @@ describe("tauriFocusWriter", () => {
       preset: { Custom: 15 },
     });
   });
+
+  it("clearTimer forwards focusId", async () => {
+    mockInvoke.mockResolvedValueOnce(undefined);
+    const writer = createTauriFocusWriter();
+
+    await writer.clearTimer("focus-1");
+
+    expect(mockInvoke).toHaveBeenCalledWith("clear_timer", {
+      focusId: "focus-1",
+    });
+  });
+
+  it("startTaskTimer forwards focusId + index + preset", async () => {
+    mockInvoke.mockResolvedValueOnce(undefined);
+    const writer = createTauriFocusWriter();
+
+    await writer.startTaskTimer("focus-1", 2, "Eight");
+
+    expect(mockInvoke).toHaveBeenCalledWith("start_task_timer", {
+      focusId: "focus-1",
+      index: 2,
+      preset: "Eight",
+    });
+  });
+
+  it("clearTaskTimer forwards focusId + index", async () => {
+    mockInvoke.mockResolvedValueOnce(undefined);
+    const writer = createTauriFocusWriter();
+
+    await writer.clearTaskTimer("focus-1", 2);
+
+    expect(mockInvoke).toHaveBeenCalledWith("clear_task_timer", {
+      focusId: "focus-1",
+      index: 2,
+    });
+  });
 });

@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { Focus } from "../types/focus";
-import { PigDetail } from "./PigDetail";
+import { AnimalDetail } from "./AnimalDetail";
 
 const baseFocus: Focus = {
   id: "pig-a",
@@ -13,11 +13,11 @@ const baseFocus: Focus = {
   tasks: [],
 };
 
-function renderDetail(overrides?: Partial<React.ComponentProps<typeof PigDetail>>) {
+function renderDetail(overrides?: Partial<React.ComponentProps<typeof AnimalDetail>>) {
   const props = {
     focus: baseFocus,
-    pigX: 100,
-    pigY: 100,
+    animalX: 100,
+    animalY: 100,
     viewportW: 1920,
     viewportH: 1080,
     confirmDelete: true,
@@ -29,13 +29,16 @@ function renderDetail(overrides?: Partial<React.ComponentProps<typeof PigDetail>
     onToggleTask: vi.fn(),
     onDeleteFocus: vi.fn(),
     onStartTimer: vi.fn(),
+    onClearTimer: vi.fn(),
+    onStartTaskTimer: vi.fn(),
+    onClearTaskTimer: vi.fn(),
     ...overrides,
   };
-  render(<PigDetail {...props} />);
+  render(<AnimalDetail {...props} />);
   return props;
 }
 
-describe("PigDetail add-task input", () => {
+describe("AnimalDetail add-task input", () => {
   it("renders an add task input with placeholder", () => {
     renderDetail();
     expect(screen.getByPlaceholderText("Add task…")).toBeInTheDocument();
@@ -69,7 +72,7 @@ describe("PigDetail add-task input", () => {
   });
 });
 
-describe("PigDetail title editing", () => {
+describe("AnimalDetail title editing", () => {
   it("renders title as editable input", () => {
     renderDetail();
     expect(screen.getByLabelText("focus title")).toHaveValue("Ship it");
@@ -80,7 +83,7 @@ describe("PigDetail title editing", () => {
     const input = screen.getByLabelText("focus title");
     await userEvent.clear(input);
     await userEvent.type(input, "New Title");
-    input.blur();
+    await userEvent.tab();
     expect(onRenameFocus).toHaveBeenCalledWith("pig-a", "New Title");
   });
 
@@ -113,7 +116,7 @@ describe("PigDetail title editing", () => {
   });
 });
 
-describe("PigDetail task editing", () => {
+describe("AnimalDetail task editing", () => {
   const focusWithTasks: Focus = {
     id: "pig-a",
     title: "Ship it",
@@ -152,12 +155,12 @@ describe("PigDetail task editing", () => {
   });
 });
 
-describe("PigDetail delete focus", () => {
+describe("AnimalDetail delete focus", () => {
   it("with confirmDelete=true shows inline confirm before deleting", async () => {
     const { onDeleteFocus } = renderDetail({ confirmDelete: true });
     await userEvent.click(screen.getByLabelText("delete focus Ship it"));
     expect(onDeleteFocus).not.toHaveBeenCalled();
-    expect(screen.getByTestId("pig-detail-delete-confirm")).toBeInTheDocument();
+    expect(screen.getByTestId("animal-detail-delete-confirm")).toBeInTheDocument();
     await userEvent.click(screen.getByText("Delete"));
     expect(onDeleteFocus).toHaveBeenCalledWith("pig-a");
   });
@@ -166,7 +169,7 @@ describe("PigDetail delete focus", () => {
     const { onDeleteFocus } = renderDetail({ confirmDelete: true });
     await userEvent.click(screen.getByLabelText("delete focus Ship it"));
     await userEvent.click(screen.getByText("Cancel"));
-    expect(screen.queryByTestId("pig-detail-delete-confirm")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("animal-detail-delete-confirm")).not.toBeInTheDocument();
     expect(onDeleteFocus).not.toHaveBeenCalled();
   });
 
@@ -178,17 +181,20 @@ describe("PigDetail delete focus", () => {
   });
 });
 
-describe("PigDetail timer picker", () => {
+describe("AnimalDetail timer picker", () => {
   it("shows remaining time for a running timer", () => {
     const nowSpy = vi.spyOn(Date, "now").mockReturnValue(1_030_000);
-    renderDetail({
-      focus: {
-        ...baseFocus,
-        timer: { duration_secs: 120, started_at: 1_000, status: "Running" },
-      },
-    });
-    expect(screen.getByText("01:30 remaining")).toBeInTheDocument();
-    nowSpy.mockRestore();
+    try {
+      renderDetail({
+        focus: {
+          ...baseFocus,
+          timer: { duration_secs: 120, started_at: 1_000, status: "Running" },
+        },
+      });
+      expect(screen.getByRole("button", { name: /edit focus timer/i })).toHaveTextContent("01:30");
+    } finally {
+      nowSpy.mockRestore();
+    }
   });
 
   it("shows Expired for an expired timer", () => {
@@ -198,25 +204,33 @@ describe("PigDetail timer picker", () => {
         timer: { duration_secs: 120, started_at: 1_000, status: "Expired" },
       },
     });
-    expect(screen.getByText("Expired")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /edit focus timer/i })).toHaveTextContent("Expired");
   });
 
-  it("renders Start button + preset select", () => {
+  it("renders a clock icon when no timer is set", () => {
     renderDetail();
-    expect(screen.getByRole("button", { name: "Start" })).toBeInTheDocument();
-    expect(screen.getByTestId("timer-preset-select")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /edit focus timer/i })).toBeInTheDocument();
+    expect(screen.queryByTestId("timer-preset-select")).not.toBeInTheDocument();
   });
 
-  it("Start with named preset calls onStartTimer with preset literal and closes", async () => {
-    const { onStartTimer, onClose } = renderDetail();
+  it("opens the timer dropdown from the clock button", async () => {
+    renderDetail();
+    await userEvent.click(screen.getByRole("button", { name: /edit focus timer/i }));
+    expect(screen.getByTestId("timer-preset-select")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Start" })).toBeInTheDocument();
+  });
+
+  it("Start with named preset calls onStartTimer with preset literal", async () => {
+    const { onStartTimer } = renderDetail();
+    await userEvent.click(screen.getByRole("button", { name: /edit focus timer/i }));
     await userEvent.selectOptions(screen.getByTestId("timer-preset-select"), "ThirtyTwo");
     await userEvent.click(screen.getByRole("button", { name: "Start" }));
     expect(onStartTimer).toHaveBeenCalledWith("pig-a", "ThirtyTwo");
-    expect(onClose).toHaveBeenCalled();
   });
 
   it("Start with custom preset wraps minutes", async () => {
     const { onStartTimer } = renderDetail();
+    await userEvent.click(screen.getByRole("button", { name: /edit focus timer/i }));
     await userEvent.selectOptions(screen.getByTestId("timer-preset-select"), "custom");
     const input = screen.getByTestId("custom-timer-input");
     await userEvent.clear(input);
@@ -227,6 +241,7 @@ describe("PigDetail timer picker", () => {
 
   it("rejects custom < 1 minute", async () => {
     const { onStartTimer, onClose } = renderDetail();
+    await userEvent.click(screen.getByRole("button", { name: /edit focus timer/i }));
     await userEvent.selectOptions(screen.getByTestId("timer-preset-select"), "custom");
     const input = screen.getByTestId("custom-timer-input");
     await userEvent.clear(input);
@@ -237,6 +252,23 @@ describe("PigDetail timer picker", () => {
     expect(screen.getByText(/at least 1 minute/i)).toBeInTheDocument();
   });
 
+  it("clears custom validation errors when toggling the timer dropdown", async () => {
+    renderDetail();
+    const trigger = screen.getByRole("button", { name: /edit focus timer/i });
+    await userEvent.click(trigger);
+    await userEvent.selectOptions(screen.getByTestId("timer-preset-select"), "custom");
+    const input = screen.getByTestId("custom-timer-input");
+    await userEvent.clear(input);
+    await userEvent.type(input, "0");
+    await userEvent.click(screen.getByRole("button", { name: "Start" }));
+    expect(screen.getByText(/at least 1 minute/i)).toBeInTheDocument();
+
+    await userEvent.click(trigger);
+    await userEvent.click(trigger);
+
+    expect(screen.queryByText(/at least 1 minute/i)).not.toBeInTheDocument();
+  });
+
   it("button reads Restart when timer is Running", () => {
     renderDetail({
       focus: {
@@ -244,7 +276,19 @@ describe("PigDetail timer picker", () => {
         timer: { duration_secs: 600, started_at: 0, status: "Running" },
       },
     });
+    expect(screen.queryByRole("button", { name: "Restart" })).not.toBeInTheDocument();
+  });
+
+  it("shows Restart and Clear inside the dropdown when timer is Running", async () => {
+    renderDetail({
+      focus: {
+        ...baseFocus,
+        timer: { duration_secs: 600, started_at: 0, status: "Running" },
+      },
+    });
+    await userEvent.click(screen.getByRole("button", { name: /edit focus timer/i }));
     expect(screen.getByRole("button", { name: "Restart" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Clear" })).toBeInTheDocument();
   });
 
   it("resets picker state when focus changes", async () => {
@@ -255,10 +299,10 @@ describe("PigDetail timer picker", () => {
           <button type="button" data-testid="swap" onClick={() => setFocusId("pig-b")}>
             swap
           </button>
-          <PigDetail
+          <AnimalDetail
             focus={{ ...baseFocus, id: focusId }}
-            pigX={100}
-            pigY={100}
+            animalX={100}
+            animalY={100}
             viewportW={1920}
             viewportH={1080}
             confirmDelete={true}
@@ -270,17 +314,36 @@ describe("PigDetail timer picker", () => {
             onToggleTask={vi.fn()}
             onDeleteFocus={vi.fn()}
             onStartTimer={vi.fn()}
+            onClearTimer={vi.fn()}
+            onStartTaskTimer={vi.fn()}
+            onClearTaskTimer={vi.fn()}
           />
         </>
       );
     }
     render(<Harness />);
 
+    await userEvent.click(screen.getByRole("button", { name: /edit focus timer/i }));
     await userEvent.selectOptions(screen.getByTestId("timer-preset-select"), "Sixteen");
     expect(screen.getByTestId("timer-preset-select")).toHaveValue("Sixteen");
 
     await userEvent.click(screen.getByTestId("swap"));
 
+    await userEvent.click(screen.getByRole("button", { name: /edit focus timer/i }));
     expect(screen.getByTestId("timer-preset-select")).toHaveValue("Eight");
+  });
+
+  it("starts a task timer from the task clock dropdown", async () => {
+    const focusWithTask: Focus = {
+      ...baseFocus,
+      tasks: [{ id: "t1", text: "alpha", done: false }],
+    };
+    const { onStartTaskTimer } = renderDetail({ focus: focusWithTask });
+
+    await userEvent.click(screen.getByRole("button", { name: /edit task timer: alpha/i }));
+    await userEvent.selectOptions(screen.getByTestId("timer-preset-select"), "Two");
+    await userEvent.click(screen.getByRole("button", { name: "Start" }));
+
+    expect(onStartTaskTimer).toHaveBeenCalledWith("pig-a", 0, "Two");
   });
 });

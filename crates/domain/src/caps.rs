@@ -45,6 +45,7 @@ mod tests {
                     id: format!("{id}:{i}"),
                     text: format!("t{i}"),
                     done: false,
+                    timer: None,
                 })
                 .collect(),
             timer: None,

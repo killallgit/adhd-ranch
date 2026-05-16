@@ -148,6 +148,42 @@ pub fn start_timer(
 }
 
 #[tauri::command]
+pub fn clear_timer(focus_id: String, state: State<'_, CommandsState>) -> Result<(), CommandError> {
+    state
+        .0
+        .clear_timer(&focus_id)
+        .inspect(|_| log::info!("timer cleared on {focus_id}"))
+        .inspect_err(|e| log::error!("clear_timer({focus_id:?}): {e}"))
+}
+
+#[tauri::command]
+pub fn start_task_timer(
+    focus_id: String,
+    index: usize,
+    preset: TimerPreset,
+    state: State<'_, CommandsState>,
+) -> Result<(), CommandError> {
+    state
+        .0
+        .start_task_timer(&focus_id, index, preset)
+        .inspect(|_| log::info!("task timer started on {focus_id}:{index}"))
+        .inspect_err(|e| log::error!("start_task_timer({focus_id:?}, {index}): {e}"))
+}
+
+#[tauri::command]
+pub fn clear_task_timer(
+    focus_id: String,
+    index: usize,
+    state: State<'_, CommandsState>,
+) -> Result<(), CommandError> {
+    state
+        .0
+        .clear_task_timer(&focus_id, index)
+        .inspect(|_| log::info!("task timer cleared on {focus_id}:{index}"))
+        .inspect_err(|e| log::error!("clear_task_timer({focus_id:?}, {index}): {e}"))
+}
+
+#[tauri::command]
 pub fn get_caps(state: State<'_, CommandsState>) -> Caps {
     state.0.caps()
 }

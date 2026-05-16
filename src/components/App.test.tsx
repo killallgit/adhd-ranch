@@ -57,11 +57,14 @@ function noopFocusWriter(): FocusWriter {
     updateTask: vi.fn().mockResolvedValue(ok),
     toggleTask: vi.fn().mockResolvedValue(ok),
     startTimer: vi.fn().mockResolvedValue(ok),
+    clearTimer: vi.fn().mockResolvedValue(ok),
+    startTaskTimer: vi.fn().mockResolvedValue(ok),
+    clearTaskTimer: vi.fn().mockResolvedValue(ok),
   };
 }
 
 describe("App overlay", () => {
-  it("renders the overlay root", () => {
+  it("renders the overlay root", async () => {
     render(
       <App
         focusReader={createFixtureFocusReader([])}
@@ -70,6 +73,7 @@ describe("App overlay", () => {
       />,
     );
     expect(document.querySelector(".overlay-root")).toBeInTheDocument();
+    await act(async () => {});
   });
 
   it("spawns a pig for each focus", async () => {
@@ -100,7 +104,7 @@ describe("App overlay", () => {
       expect(screen.getByText("Customer X bug")).toBeInTheDocument();
     });
 
-    // Click the pig to open PigDetail
+    // Click the pig to open AnimalDetail
     await userEvent.click(screen.getByText("Customer X bug"));
 
     const input = screen.getByPlaceholderText("Add task…");
@@ -109,28 +113,48 @@ describe("App overlay", () => {
     expect(writer.appendTask).toHaveBeenCalledWith("a", "write tests");
   });
 
-  it("renders a timed focus with the current animal scale", async () => {
-    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(1_060_000);
+  it("shows an added task in the open detail card after append succeeds", async () => {
     render(
       <App
-        focusReader={createFixtureFocusReader([
-          {
-            id: "timed",
-            title: "Timer focus",
-            description: "",
-            created_at: "",
-            tasks: [],
-            timer: { duration_secs: 120, started_at: 1_000, status: "Running" },
-          },
-        ])}
+        focusReader={createFixtureFocusReader(sample)}
         focusWriter={noopFocusWriter()}
         onWriteFailure={() => {}}
       />,
     );
 
-    const pig = await screen.findByRole("button", { name: /timer focus/i });
-    expect(pig.querySelector(".pig-sprite-frame")).toHaveStyle({ width: "96px", height: "96px" });
-    nowSpy.mockRestore();
+    await screen.findByText("Customer X bug");
+    await userEvent.click(screen.getByText("Customer X bug"));
+
+    await userEvent.type(screen.getByPlaceholderText("Add task…"), "write tests{Enter}");
+
+    expect(await screen.findByLabelText("task text: write tests")).toHaveValue("write tests");
+  });
+
+  it("renders a timed focus with the current animal scale", async () => {
+    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(1_060_000);
+    try {
+      render(
+        <App
+          focusReader={createFixtureFocusReader([
+            {
+              id: "timed",
+              title: "Timer focus",
+              description: "",
+              created_at: "",
+              tasks: [],
+              timer: { duration_secs: 120, started_at: 1_000, status: "Running" },
+            },
+          ])}
+          focusWriter={noopFocusWriter()}
+          onWriteFailure={() => {}}
+        />,
+      );
+
+      const pig = await screen.findByRole("button", { name: /timer focus/i });
+      expect(pig.querySelector(".pig-sprite-frame")).toHaveStyle({ width: "96px", height: "96px" });
+    } finally {
+      nowSpy.mockRestore();
+    }
   });
 
   it("renders an expired focus with an expired animal visual", async () => {
@@ -153,7 +177,11 @@ describe("App overlay", () => {
 
     const pig = await screen.findByRole("button", { name: /expired focus/i });
     expect(pig).toHaveClass("pig-sprite--expired");
-    expect(pig.querySelector(".pig-sprite-frame")).toHaveStyle({ filter: "hue-rotate(125deg)" });
+    expect(pig.querySelector(".pig-sprite-frame")).toHaveStyle({
+      filter:
+        "grayscale(1) saturate(0.15) brightness(1.55) drop-shadow(0 0 8px rgba(210, 240, 255, 0.55))",
+      opacity: "0.48",
+    });
   });
 
   it("opens animal detail when the tray asks to open a focus", async () => {

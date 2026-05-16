@@ -454,14 +454,14 @@ body,
   text-overflow: ellipsis;
 }
 
-.pig-detail-backdrop {
+.animal-detail-backdrop {
   position: fixed;
   inset: 0;
   pointer-events: auto;
   background: transparent;
 }
 
-.pig-detail {
+.animal-detail {
   position: absolute;
   pointer-events: auto;
   background: #141414;
@@ -471,18 +471,17 @@ body,
   min-width: 340px;
   color: #f5f5f7;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
   z-index: 10;
 }
 
-.pig-detail-header {
+.animal-detail-header {
   display: flex;
   align-items: center;
   gap: 6px;
   margin: 0 0 8px;
 }
 
-.pig-detail-title-input {
+.animal-detail-title-input {
   flex: 1;
   background: transparent;
   border: 1px solid transparent;
@@ -496,22 +495,22 @@ body,
   min-width: 0;
 }
 
-.pig-detail-title-input:hover {
+.animal-detail-title-input:hover {
   border-color: rgba(255, 255, 255, 0.08);
 }
 
-.pig-detail-title-input:focus {
+.animal-detail-title-input:focus {
   border-color: rgba(255, 255, 255, 0.3);
   background: transparent;
 }
 
-.pig-detail-title-error {
+.animal-detail-title-error {
   margin: 0 0 6px;
   color: #ff8a80;
   font-size: 11px;
 }
 
-.pig-detail-delete {
+.animal-detail-delete {
   background: transparent;
   border: none;
   color: inherit;
@@ -522,11 +521,11 @@ body,
   flex-shrink: 0;
 }
 
-.pig-detail-delete:hover {
+.animal-detail-delete:hover {
   opacity: 1;
 }
 
-.pig-detail-delete-confirm {
+.animal-detail-delete-confirm {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -534,12 +533,12 @@ body,
   font-size: 12px;
 }
 
-.pig-detail-delete-confirm span {
+.animal-detail-delete-confirm span {
   flex: 1;
   min-width: 0;
 }
 
-.pig-detail-delete-confirm button {
+.animal-detail-delete-confirm button {
   background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 4px;
@@ -549,18 +548,18 @@ body,
   font-size: 11px;
 }
 
-.pig-detail-delete-confirm-yes {
+.animal-detail-delete-confirm-yes {
   border-color: rgba(255, 138, 128, 0.6) !important;
   color: #ff8a80 !important;
 }
 
-.pig-detail-empty {
+.animal-detail-empty {
   margin: 0;
   font-size: 12px;
   opacity: 0.6;
 }
 
-.pig-detail-tasks {
+.animal-detail-tasks {
   list-style: none;
   margin: 0 0 10px;
   padding: 0;
@@ -571,26 +570,26 @@ body,
   overflow-y: auto;
 }
 
-.pig-detail-task {
+.animal-detail-task {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 6px;
 }
 
-.pig-detail-task-text {
+.animal-detail-task-text {
   font-size: 12px;
   opacity: 0.9;
   flex: 1;
 }
 
-.pig-detail-task-check {
+.animal-detail-task-check {
   flex-shrink: 0;
   margin: 0;
   cursor: pointer;
 }
 
-.pig-detail-task-input {
+.animal-detail-task-input {
   flex: 1;
   background: transparent;
   border: 1px solid transparent;
@@ -603,21 +602,21 @@ body,
   min-width: 0;
 }
 
-.pig-detail-task-input:hover {
+.animal-detail-task-input:hover {
   border-color: rgba(255, 255, 255, 0.08);
 }
 
-.pig-detail-task-input:focus {
+.animal-detail-task-input:focus {
   border-color: rgba(255, 255, 255, 0.3);
   background: rgba(255, 255, 255, 0.04);
 }
 
-.pig-detail-task--done .pig-detail-task-input {
+.animal-detail-task--done .animal-detail-task-input {
   text-decoration: line-through;
   opacity: 0.5;
 }
 
-.pig-detail-task-clear {
+.animal-detail-task-clear {
   background: transparent;
   border: none;
   color: inherit;
@@ -628,11 +627,101 @@ body,
   flex-shrink: 0;
 }
 
-.pig-detail-task-clear:hover {
+.animal-detail-task-clear:hover {
   opacity: 1;
 }
 
-.pig-detail-add-task {
+.timer-dropdown {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.timer-trigger {
+  min-width: 24px;
+  height: 22px;
+  padding: 0 5px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.04);
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  line-height: 20px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.timer-trigger--set {
+  min-width: 48px;
+  color: #ffd166;
+  border-color: rgba(255, 209, 102, 0.28);
+}
+
+.timer-trigger:hover,
+.timer-trigger[aria-expanded="true"] {
+  border-color: rgba(255, 255, 255, 0.32);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.timer-dropdown-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 150px;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 7px;
+  background: #1d1d20;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+}
+
+.timer-dropdown-menu select,
+.timer-dropdown-menu input {
+  width: 100%;
+  min-width: 0;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 5px;
+  color: #f5f5f7;
+  font: inherit;
+  font-size: 12px;
+  padding: 3px 5px;
+}
+
+.timer-dropdown-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.timer-dropdown-actions button {
+  flex: 1;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 5px;
+  color: inherit;
+  cursor: pointer;
+  font-size: 11px;
+  padding: 3px 6px;
+}
+
+.timer-dropdown-clear {
+  color: #ff8a80 !important;
+  border-color: rgba(255, 138, 128, 0.35) !important;
+}
+
+.timer-dropdown-error {
+  margin: 0;
+  color: #ff8a80;
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.animal-detail-add-task {
   width: 100%;
   margin-top: 10px;
   background: rgba(255, 255, 255, 0.06);
@@ -645,22 +734,22 @@ body,
   box-sizing: border-box;
 }
 
-.pig-detail-add-task::placeholder {
+.animal-detail-add-task::placeholder {
   opacity: 0.45;
 }
 
-.pig-detail-add-task:focus {
+.animal-detail-add-task:focus {
   border-color: rgba(255, 255, 255, 0.3);
 }
 
-.pig-detail-timer {
+.animal-detail-timer {
   display: flex;
   align-items: center;
   gap: 6px;
   margin-top: 10px;
 }
 
-.pig-detail-timer-status {
+.animal-detail-timer-status {
   color: #ff8a80;
   font-size: 12px;
   font-weight: 600;

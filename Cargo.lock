@@ -70,6 +70,7 @@ version = "0.0.0"
 dependencies = [
  "adhd-ranch-domain",
  "fs2",
+ "log",
  "notify",
  "notify-debouncer-mini",
  "serde",

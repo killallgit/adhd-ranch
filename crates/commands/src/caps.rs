@@ -186,6 +186,20 @@ mod tests {
         ) -> Result<(), FocusStoreError> {
             unimplemented!()
         }
+        fn clear_timer(&self, _focus_id: &str) -> Result<(), FocusStoreError> {
+            unimplemented!()
+        }
+        fn update_task_timer(
+            &self,
+            _focus_id: &str,
+            _index: usize,
+            _timer: &adhd_ranch_domain::FocusTimer,
+        ) -> Result<(), FocusStoreError> {
+            unimplemented!()
+        }
+        fn clear_task_timer(&self, _focus_id: &str, _index: usize) -> Result<(), FocusStoreError> {
+            unimplemented!()
+        }
     }
 
     fn focus_with_tasks(id: &str, count: usize) -> Focus {
@@ -199,6 +213,7 @@ mod tests {
                     id: format!("{id}:{i}"),
                     text: format!("t{i}"),
                     done: false,
+                    timer: None,
                 })
                 .collect(),
             timer: None,

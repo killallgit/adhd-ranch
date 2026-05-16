@@ -32,11 +32,11 @@ A pending suggestion from the in-session agent at `/checkpoint` time. Three kind
 
 ### FocusTimer
 
-An optional countdown attached to a Focus at creation time. Stores `duration_secs`, `started_at` (unix timestamp), and `status` (`Running` | `Expired`). Drives pig scale growth (1.0× at creation → 3.0× at expiry) and expiry alerts. Ephemeral in the sense that pinned/frozen state is not persisted, but the timer itself survives restarts.
+An optional countdown attached to a Focus or Task. Stores `duration_secs`, `started_at` (unix timestamp), and `status` (`Running` | `Expired`). Focus-level timers drive pig scale growth (1.0× at creation → 3.0× at expiry) and expired-focus alerts. Task-level timers are persisted and displayed in `AnimalDetail`, but do not yet feed the background expiry notification workflow. Ephemeral in the sense that pinned/frozen state is not persisted, but timers themselves survive restarts.
 
 ### TimerPreset
 
-A named duration choice offered at Focus creation: 2m, 4m, 8m, 16m, 32m, or Custom (free integer minutes). Maps to `duration_secs` in `FocusTimer`.
+A named duration choice offered for Focus and Task timers: 2m, 4m, 8m, 16m, 32m, or Custom (free integer minutes). Maps to `duration_secs` in `FocusTimer`.
 
 ### TaskText
 
@@ -53,7 +53,8 @@ Focus = a self-contained directory under `~/.adhd-ranch/focuses/<slug>/`:
 ```
 focuses/<slug>/
   focus.md            # frontmatter (id, title, description, created_at) + Tasks body
-  timer.json          # optional; present only when Focus was created with a TimerPreset
+  timer.json          # optional Focus timer
+  task-timers.json    # optional Task timers, indexed to task order
 ```
 
 Top-level state:
@@ -82,7 +83,8 @@ created_at: 2026-04-30T12:00:00Z
 
 - Tasks = top-level checkbox bullets in body. One bullet = one Task. Plain text only — no metadata fields.
 - `description` is the load-bearing field for routing — agent reads it to decide if a summary belongs.
-- `timer.json` sidecar: `{ "duration_secs": N, "started_at": T, "status": "Running"|"Expired" }`. Written atomically; if write fails, focus dir is rolled back. Loaded alongside `focus.md` on every `list()` call.
+- `timer.json` sidecar: `{ "duration_secs": N, "started_at": T, "status": "Running"|"Expired" }`. Written atomically; if write fails during focus creation, focus dir is rolled back. Loaded alongside `focus.md` on every `list()` call.
+- `task-timers.json` sidecar: JSON array of optional `FocusTimer` values. Array index matches the parsed task index; deleting a Task removes the matching timer entry. Corrupted or missing task timer sidecars degrade to no task timers.
 - User hand-edits anywhere; file watcher reflects changes.
 - Atomic write via tmpfile + rename. `flock` per file.
 
@@ -98,11 +100,11 @@ created_at: 2026-04-30T12:00:00Z
 Steps 1–8 are implemented. Display spanning uses a Rust-emitted DisplaySpace model so monitor geometry policy is local to the display module, while RanchAnimal movement consumes normalized visible monitor regions instead of the raw overlay span.
 
 1. **Pigs roam the screen.** One pig per Focus, wandering at 60px/s with random direction changes; minimum velocity floor so pigs never look frozen. 4-direction pixel-art sprite sheet (016). Hit-box is 16px larger than sprite (018).
-2. **Click a pig.** Pig freezes. `PigDetail` card opens near the pig (340px, opaque dark background, 16px padding): Focus title + scrollable Task list with `✗` per Task + "Add task…" input at bottom. Enter appends a task inline. Click-outside or Escape closes; pig resumes (019).
-3. **Drag a pig.** Click-and-hold then move > 4px enters drag mode — pig follows cursor. Release sends pig flying in that direction; friction decelerates it; bounces at screen edges. Pure click (< 4px movement) still opens PigDetail (020).
+2. **Click a pig.** Pig freezes. `AnimalDetail` card opens near the pig (340px, opaque dark background, 16px padding): Focus title + scrollable Task list with `✗` per Task + "Add task…" input at bottom. Clock/time controls on the Focus title and each Task open compact timer dropdowns. Enter appends a task inline. Click-outside or Escape closes; pig resumes (019, 052).
+3. **Drag a pig.** Click-and-hold then move > 4px enters drag mode — pig follows cursor. Release sends pig flying in that direction; friction decelerates it; bounces at screen edges. Pure click (< 4px movement) still opens AnimalDetail (020).
 4. **Clear a task.** Tap `✗` → `delete_task` Tauri command → markdown updated → pig's task list reflects change.
-5. **Add a task.** Type in "Add task…" input in PigDetail → Enter → `append_task` Tauri command → markdown updated.
-6. **Create a Focus.** *(014)* Menu bar item → "+ New Focus" → small webview form → `create_focus` → new pig spawns. Timer dropdown (No timer / 2m / 4m / 8m / 16m / 32m / Custom) optionally attaches a `FocusTimer` (028).
+5. **Add a task.** Type in "Add task…" input in AnimalDetail → Enter → `append_task` Tauri command → markdown updated.
+6. **Create a Focus.** *(014)* Menu bar item → "+ New Focus" → small webview form → `create_focus` → new pig spawns. Timer dropdown (No timer / 2m / 4m / 8m / 16m / 32m / Custom) optionally attaches a `FocusTimer` (028). Focus and Task timers can later be started or cleared from `AnimalDetail` (052).
 7. **Delete a Focus.** *(015)* Menu bar item → Focus submenu → "Delete…" → `delete_focus` → pig disappears. (Optional confirmation tracked in issue `#027`.)
 8. **Configure displays.** *(017, 049)* Tray Displays section — check/uncheck monitors. Enabled monitors share one spanning overlay window; RanchAnimals spawn in the primary display region and move only inside normalized visible monitor regions. Persists in `settings.yaml`. The display module owns monitor geometry, and React owns movement over the emitted DisplaySpace model.
 

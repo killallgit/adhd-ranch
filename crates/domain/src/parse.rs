@@ -105,6 +105,7 @@ fn parse_tasks(body: &str, focus_id: &str) -> Vec<Task> {
             id: format!("{focus_id}:{index}"),
             text,
             done,
+            timer: None,
         })
         .collect()
 }

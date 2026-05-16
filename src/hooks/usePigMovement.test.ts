@@ -34,6 +34,15 @@ const makePig = (overrides?: Partial<PigState>): PigState => ({
   ...overrides,
 });
 
+const focus = (overrides?: Partial<Focus>): Focus => ({
+  id: "a",
+  title: "Alpha",
+  description: "",
+  created_at: "",
+  tasks: [],
+  ...overrides,
+});
+
 function makeSamples(points: { x: number; y: number; t: number }[]): PointerSample[] {
   return points;
 }
@@ -169,17 +178,11 @@ describe("usePigMovement", () => {
   it("refreshes an existing animal label when its focus title changes", async () => {
     const rafSpy = vi.spyOn(window, "requestAnimationFrame").mockReturnValue(0);
     const cancelRafSpy = vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => {});
-    const focus: Focus = {
-      id: "a",
-      title: "Original name",
-      description: "",
-      created_at: "",
-      tasks: [],
-    };
+    const originalFocus = focus({ title: "Original name" });
 
     const { result, rerender, unmount } = renderHook(
       ({ focuses }: { focuses: readonly Focus[] }) => usePigMovement(focuses, null),
-      { initialProps: { focuses: [focus] } },
+      { initialProps: { focuses: [originalFocus] } },
     );
 
     await waitFor(() => expect(result.current.pigs[0]?.name).toBe("Original name"));
@@ -188,10 +191,50 @@ describe("usePigMovement", () => {
       y: result.current.pigs[0]?.y,
     };
 
-    rerender({ focuses: [{ ...focus, title: "Updated name" }] });
+    rerender({ focuses: [{ ...originalFocus, title: "Updated name" }] });
 
     await waitFor(() => expect(result.current.pigs[0]?.name).toBe("Updated name"));
     expect(result.current.pigs[0]).toMatchObject(firstPosition);
+
+    unmount();
+    rafSpy.mockRestore();
+    cancelRafSpy.mockRestore();
+  });
+
+  it("stops expired animals and faces them away", async () => {
+    const rafSpy = vi.spyOn(window, "requestAnimationFrame").mockReturnValue(0);
+    const cancelRafSpy = vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => {});
+    const runningFocus = focus({
+      timer: { duration_secs: 120, started_at: 1_000, status: "Running" },
+    });
+
+    const { result, rerender, unmount } = renderHook(
+      ({ focuses }: { focuses: readonly Focus[] }) => usePigMovement(focuses, null),
+      { initialProps: { focuses: [runningFocus] } },
+    );
+
+    await waitFor(() => expect(result.current.pigs[0]?.id).toBe("a"));
+    const firstPosition = {
+      x: result.current.pigs[0]?.x,
+      y: result.current.pigs[0]?.y,
+    };
+
+    rerender({
+      focuses: [
+        {
+          ...runningFocus,
+          timer: { duration_secs: 120, started_at: 1_000, status: "Expired" },
+        },
+      ],
+    });
+
+    await waitFor(() => expect(result.current.pigs[0]?.direction).toBe("back"));
+    expect(result.current.pigs[0]).toMatchObject({
+      ...firstPosition,
+      vx: 0,
+      vy: 0,
+      direction: "back",
+    });
 
     unmount();
     rafSpy.mockRestore();
