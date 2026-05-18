@@ -4,6 +4,7 @@ import type { Settings } from "../types/settings";
 
 const NOTIFICATION_SOURCES = [
   { key: "timer_expired", label: "Timer expired" },
+  { key: "task_timer_expired", label: "Task timer expired" },
   { key: "focuses_over_cap", label: "Too many focuses" },
   { key: "tasks_over_cap", label: "Too many tasks in a focus" },
 ] as const;

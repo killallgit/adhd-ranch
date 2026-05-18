@@ -5,27 +5,53 @@ use crate::timer::{timer_remaining_secs, TimerStatus};
 pub struct TimerTransition {
     pub focus_id: String,
     pub focus_title: String,
+    pub target: TimerTransitionTarget,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TimerTransitionTarget {
+    Focus,
+    Task { index: usize, text: String },
 }
 
 pub fn tick(now_secs: i64, focuses: &[Focus]) -> Vec<TimerTransition> {
-    focuses
-        .iter()
-        .filter_map(|f| {
-            let timer = f.timer.as_ref()?;
+    let mut transitions = Vec::new();
+    for f in focuses {
+        if let Some(timer) = f.timer.as_ref() {
             // Persisted Expired status is the dedup lock — without this gate, a focus
             // would re-fire a transition every tick after the first expiry.
+            if matches!(timer.status, TimerStatus::Running)
+                && timer_remaining_secs(timer, now_secs).is_none()
+            {
+                transitions.push(TimerTransition {
+                    focus_id: f.id.0.clone(),
+                    focus_title: f.title.clone(),
+                    target: TimerTransitionTarget::Focus,
+                });
+            }
+        }
+
+        for (index, task) in f.tasks.iter().enumerate() {
+            let Some(timer) = task.timer.as_ref() else {
+                continue;
+            };
             if !matches!(timer.status, TimerStatus::Running) {
-                return None;
+                continue;
             }
             if timer_remaining_secs(timer, now_secs).is_some() {
-                return None;
+                continue;
             }
-            Some(TimerTransition {
+            transitions.push(TimerTransition {
                 focus_id: f.id.0.clone(),
                 focus_title: f.title.clone(),
-            })
-        })
-        .collect()
+                target: TimerTransitionTarget::Task {
+                    index,
+                    text: task.text.clone(),
+                },
+            });
+        }
+    }
+    transitions
 }
 
 #[cfg(test)]
@@ -66,10 +92,12 @@ mod tests {
                 TimerTransition {
                     focus_id: "a".to_string(),
                     focus_title: "Alpha".to_string(),
+                    target: TimerTransitionTarget::Focus,
                 },
                 TimerTransition {
                     focus_id: "d".to_string(),
                     focus_title: "Delta".to_string(),
+                    target: TimerTransitionTarget::Focus,
                 },
             ]
         );
@@ -84,6 +112,7 @@ mod tests {
             vec![TimerTransition {
                 focus_id: "focus-1".to_string(),
                 focus_title: "Ship feature".to_string(),
+                target: TimerTransitionTarget::Focus,
             }]
         );
     }
@@ -123,7 +152,74 @@ mod tests {
             vec![TimerTransition {
                 focus_id: "focus-1".to_string(),
                 focus_title: "Ship feature".to_string(),
+                target: TimerTransitionTarget::Focus,
             }]
         );
+    }
+
+    #[test]
+    fn running_task_timer_past_expiry_returns_task_transition() {
+        let mut f = focus_with("focus-1", "Ship feature", None);
+        f.tasks.push(crate::focus::Task {
+            id: "task-1".to_string(),
+            text: "Write tests".to_string(),
+            done: false,
+            timer: Some(running(60, 1_000)),
+        });
+
+        assert_eq!(
+            tick(1_100, std::slice::from_ref(&f)),
+            vec![TimerTransition {
+                focus_id: "focus-1".to_string(),
+                focus_title: "Ship feature".to_string(),
+                target: TimerTransitionTarget::Task {
+                    index: 0,
+                    text: "Write tests".to_string(),
+                },
+            }]
+        );
+    }
+
+    #[test]
+    fn task_without_timer_is_skipped() {
+        let mut f = focus_with("focus-1", "Ship feature", None);
+        f.tasks.push(crate::focus::Task {
+            id: "task-1".to_string(),
+            text: "Write tests".to_string(),
+            done: false,
+            timer: None,
+        });
+
+        assert_eq!(tick(1_100, std::slice::from_ref(&f)), vec![]);
+    }
+
+    #[test]
+    fn already_expired_task_timer_is_skipped() {
+        let mut f = focus_with("focus-1", "Ship feature", None);
+        f.tasks.push(crate::focus::Task {
+            id: "task-1".to_string(),
+            text: "Write tests".to_string(),
+            done: false,
+            timer: Some(FocusTimer {
+                duration_secs: 60,
+                started_at: 1_000,
+                status: TimerStatus::Expired,
+            }),
+        });
+
+        assert_eq!(tick(1_100, std::slice::from_ref(&f)), vec![]);
+    }
+
+    #[test]
+    fn running_task_timer_before_expiry_is_skipped() {
+        let mut f = focus_with("focus-1", "Ship feature", None);
+        f.tasks.push(crate::focus::Task {
+            id: "task-1".to_string(),
+            text: "Write tests".to_string(),
+            done: false,
+            timer: Some(running(60, 1_000)),
+        });
+
+        assert_eq!(tick(1_030, std::slice::from_ref(&f)), vec![]);
     }
 }

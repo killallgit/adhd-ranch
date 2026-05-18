@@ -899,6 +899,51 @@ mod tests {
     }
 
     #[test]
+    fn update_task_timer_persists_expired_status_by_focus_and_task_index() {
+        let dir = TempDir::new().unwrap();
+        write_focus(dir.path(), "a", &focus_md("a", &["one", "two"]));
+        let store = MarkdownFocusStore::new(dir.path());
+        let running = FocusTimer {
+            duration_secs: 240,
+            started_at: 1_700_000_000,
+            status: adhd_ranch_domain::TimerStatus::Running,
+        };
+        store.update_task_timer("a", 1, &running).unwrap();
+
+        let expired = FocusTimer {
+            status: adhd_ranch_domain::TimerStatus::Expired,
+            ..running
+        };
+        store.update_task_timer("a", 1, &expired).unwrap();
+
+        let focuses = store.list().unwrap();
+        assert!(focuses[0].tasks[0].timer.is_none());
+        assert_eq!(focuses[0].tasks[1].timer, Some(expired));
+    }
+
+    #[test]
+    fn update_task_timer_errors_when_index_out_of_range() {
+        let dir = TempDir::new().unwrap();
+        write_focus(dir.path(), "a", &focus_md("a", &["one"]));
+        let store = MarkdownFocusStore::new(dir.path());
+        let timer = FocusTimer {
+            duration_secs: 240,
+            started_at: 1_700_000_000,
+            status: adhd_ranch_domain::TimerStatus::Expired,
+        };
+
+        let err = store.update_task_timer("a", 1, &timer).unwrap_err();
+
+        assert!(matches!(
+            err,
+            FocusStoreError::TaskIndexOutOfRange {
+                focus_id,
+                index: 1
+            } if focus_id == "a"
+        ));
+    }
+
+    #[test]
     fn delete_task_removes_matching_task_timer_index() {
         let dir = TempDir::new().unwrap();
         write_focus(dir.path(), "a", &focus_md("a", &["one", "two"]));

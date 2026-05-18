@@ -32,7 +32,13 @@ A pending suggestion from the in-session agent at `/checkpoint` time. Three kind
 
 ### FocusTimer
 
-An optional countdown attached to a Focus or Task. Stores `duration_secs`, `started_at` (unix timestamp), and `status` (`Running` | `Expired`). Focus-level timers drive pig scale growth (1.0× at creation → 3.0× at expiry) and expired-focus alerts. Task-level timers are persisted and displayed in `AnimalDetail`, but do not yet feed the background expiry notification workflow. Ephemeral in the sense that pinned/frozen state is not persisted, but timers themselves survive restarts.
+An optional countdown attached to a Focus or Task. Stores `duration_secs`, `started_at` (unix timestamp), and `status` (`Running` | `Expired`).
+
+Focus-level timers drive pig scale growth from 1.0× at creation to 3.0× at expiry, plus expired-focus alerts.
+
+Task-level timers expire independently. The background expiry workflow persists `status: Expired`, `AnimalDetail` displays the Task timer as Expired, and the `task_timer_expired` notification source can emit through the platform notification sink. Task timer expiry does not affect animal rendering, tray expired state, or Focus timer status.
+
+Timers persist across restarts.
 
 ### TimerPreset
 
@@ -84,7 +90,7 @@ created_at: 2026-04-30T12:00:00Z
 - Tasks = top-level checkbox bullets in body. One bullet = one Task. Plain text only — no metadata fields.
 - `description` is the load-bearing field for routing — agent reads it to decide if a summary belongs.
 - `timer.json` sidecar: `{ "duration_secs": N, "started_at": T, "status": "Running"|"Expired" }`. Written atomically; if write fails during focus creation, focus dir is rolled back. Loaded alongside `focus.md` on every `list()` call.
-- `task-timers.json` sidecar: JSON array of optional `FocusTimer` values. Array index matches the parsed task index; deleting a Task removes the matching timer entry. Corrupted or missing task timer sidecars degrade to no task timers.
+- `task-timers.json` sidecar: JSON array of optional `FocusTimer` values. Array index matches the parsed task index; deleting a Task removes the matching timer entry. Expiry writes update the indexed timer to `status: Expired` atomically. Corrupted or missing task timer sidecars degrade to no task timers.
 - User hand-edits anywhere; file watcher reflects changes.
 - Atomic write via tmpfile + rename. `flock` per file.
 
@@ -183,6 +189,7 @@ caps:
   max_tasks_per_focus: 7
 notifications:
   timer_expired: true
+  task_timer_expired: true
   focuses_over_cap: true
   tasks_over_cap: true
 widget:

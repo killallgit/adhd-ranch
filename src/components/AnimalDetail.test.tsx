@@ -346,4 +346,24 @@ describe("AnimalDetail timer picker", () => {
 
     expect(onStartTaskTimer).toHaveBeenCalledWith("pig-a", 0, "Two");
   });
+
+  it("shows Expired for a persisted expired task timer", () => {
+    const focusWithExpiredTaskTimer: Focus = {
+      ...baseFocus,
+      tasks: [
+        {
+          id: "t1",
+          text: "alpha",
+          done: false,
+          timer: { duration_secs: 120, started_at: 1_000, status: "Expired" },
+        },
+      ],
+    };
+
+    renderDetail({ focus: focusWithExpiredTaskTimer });
+
+    expect(screen.getByRole("button", { name: /edit task timer: alpha/i })).toHaveTextContent(
+      "Expired",
+    );
+  });
 });

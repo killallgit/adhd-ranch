@@ -184,6 +184,35 @@ describe("App overlay", () => {
     });
   });
 
+  it("does not render expired animal visual for an expired task timer", async () => {
+    render(
+      <App
+        focusReader={createFixtureFocusReader([
+          {
+            id: "task-expired",
+            title: "Task expired focus",
+            description: "",
+            created_at: "",
+            tasks: [
+              {
+                id: "task-1",
+                text: "Write tests",
+                done: false,
+                timer: { duration_secs: 120, started_at: 1_000, status: "Expired" },
+              },
+            ],
+            timer: null,
+          },
+        ])}
+        focusWriter={noopFocusWriter()}
+        onWriteFailure={() => {}}
+      />,
+    );
+
+    const pig = await screen.findByRole("button", { name: /task expired focus/i });
+    expect(pig).not.toHaveClass("pig-sprite--expired");
+  });
+
   it("opens animal detail when the tray asks to open a focus", async () => {
     const listeners = new Map<string, (event: { payload: string }) => void>();
     vi.mocked(listen).mockImplementation((event, cb) => {
