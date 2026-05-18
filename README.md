@@ -8,8 +8,11 @@ See `PRD.md`, `CONTEXT.md`, and `CLAUDE.md` for the full design and the programm
 
 ## Quick install (end-user)
 
-1. Download the latest `.dmg` from [Releases](../../releases) and drag `Adhd Ranch.app` into `/Applications`.
-2. The v1 build is **not codesigned** — Gatekeeper will block the first launch. Either right-click the app → Open (Open button appears), or:
+1. Download the latest package for your platform from [Releases](../../releases):
+   - macOS: `.dmg`
+   - Windows: `_x64-setup.exe` or `_arm64-setup.exe`
+   - Linux: `.AppImage` or `.deb`
+2. The v1 builds are **not codesigned**. macOS Gatekeeper will block the first launch. Either right-click the app → Open (Open button appears), or:
    ```sh
    xattr -dr com.apple.quarantine "/Applications/Adhd Ranch.app"
    ```
@@ -73,7 +76,12 @@ task check     # PR gate: lint + typecheck + tests
 task build     # release .app + .dmg in src-tauri/target/release/bundle/
 ```
 
-Tagged release: push a `v*` tag (e.g. `v0.1.0`) → `.github/workflows/release.yml` runs on a macOS runner and attaches the `.dmg` to the GitHub release.
+Release builds are created by `.github/workflows/release.yml`.
+
+- Manual release: GitHub Actions → **release** → Run workflow → enter a SemVer version without `v`, for example `0.1.0`. Leave `draft` unchecked to publish it immediately, or check it for a private review pass.
+- Tagged release: push a `v*` tag, for example `v0.1.0`.
+- Packages built: macOS universal `.dmg`, Windows x64 NSIS installer, Windows ARM64 NSIS installer, Linux x64 `.AppImage`, and Linux x64 `.deb`.
+- `SHA256SUMS.txt` is attached to each release for package integrity checks, and GitHub provenance attestations are generated for the release packages.
 
 ## Layout
 
