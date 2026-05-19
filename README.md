@@ -78,8 +78,8 @@ task build     # release .app + .dmg in src-tauri/target/release/bundle/
 
 Release builds are created by `.github/workflows/release.yml`.
 
-- Manual release: GitHub Actions → **release** → Run workflow → enter a SemVer version without `v`, for example `0.1.0`. Leave `draft` unchecked to publish it immediately, or check it for a private review pass.
-- Tagged release: push a `v*` tag, for example `v0.1.0`.
+- Normal release: create and publish a GitHub Release with a `v*` tag, for example `v0.1.0`. Publishing the release triggers the cross-platform build and attaches the packages back to that release.
+- Manual repair path: GitHub Actions → **release** → Run workflow → enter a SemVer version without `v`, for example `0.1.0`. Leave `draft` unchecked to publish it immediately, or check it for a private review pass.
 - Packages built: macOS universal `.dmg`, Windows x64 NSIS installer, Windows ARM64 NSIS installer, Linux x64 `.AppImage`, and Linux x64 `.deb`.
 - `SHA256SUMS.txt` is attached to each release for package integrity checks, and GitHub provenance attestations are generated for the release packages.
 
