@@ -1,6 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
-  "release-type": "rust",
+  "release-type": "simple",
   "bootstrap-sha": "b8a67c26adecb5036130d5e67af3aec5f98109b9",
   "include-component-in-tag": false,
   "packages": {
@@ -8,6 +8,11 @@
       "package-name": "adhd-ranch",
       "changelog-path": "CHANGELOG.md",
       "extra-files": [
+        {
+          "type": "toml",
+          "path": "Cargo.toml",
+          "jsonpath": "$.workspace.package.version"
+        },
         {
           "type": "json",
           "path": "package.json",
