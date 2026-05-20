@@ -76,9 +76,10 @@ task check     # PR gate: lint + typecheck + tests
 task build     # release .app + .dmg in src-tauri/target/release/bundle/
 ```
 
-Release builds are created by `.github/workflows/release.yml`.
+Releases are proposed by `.github/workflows/release-please.yml` and packaged by `.github/workflows/release.yml`.
 
-- Normal release: create and publish a GitHub Release with a `v*` tag, for example `v0.1.0`. Publishing the release triggers the cross-platform build and attaches the packages back to that release.
+- Normal release: merge the Release Please PR. It bumps versions, updates `CHANGELOG.md`, creates a `v*` GitHub Release, and publishing that release triggers the cross-platform build.
+- Release Please needs a `GH_TOKEN` repository secret backed by a PAT or GitHub App token with contents and pull-request write access. The default `GITHUB_TOKEN` is intentionally not used because releases it creates do not trigger the packaging workflow.
 - Manual repair path: GitHub Actions → **release** → Run workflow → enter a SemVer version without `v`, for example `0.1.0`. Leave `draft` unchecked to publish it immediately, or check it for a private review pass.
 - Packages built: macOS universal `.dmg`, Windows x64 NSIS installer, Windows ARM64 NSIS installer, Linux x64 `.AppImage`, and Linux x64 `.deb`.
 - `SHA256SUMS.txt` is attached to each release for package integrity checks, and GitHub provenance attestations are generated for the release packages.
