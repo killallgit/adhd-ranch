@@ -34,6 +34,23 @@ describe("TimerDropdown", () => {
     expect(onStart).toHaveBeenCalledWith({ Custom: 25 });
   });
 
+  it("commits only once when an outside click also blurs the dropdown", async () => {
+    const onStart = vi.fn();
+    render(
+      <>
+        <TimerDropdown ariaLabel="edit timer" onStart={onStart} />
+        <button type="button">outside</button>
+      </>,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "edit timer" }));
+    await userEvent.selectOptions(screen.getByTestId("timer-preset-select"), "ThirtyTwo");
+    await userEvent.click(screen.getByRole("button", { name: "outside" }));
+
+    expect(onStart).toHaveBeenCalledTimes(1);
+    expect(onStart).toHaveBeenCalledWith("ThirtyTwo");
+  });
+
   it("does not auto-commit when moving focus inside the dropdown", async () => {
     const onStart = vi.fn();
     render(<TimerDropdown ariaLabel="edit timer" onStart={onStart} />);

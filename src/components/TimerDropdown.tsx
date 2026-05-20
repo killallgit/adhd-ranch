@@ -12,6 +12,7 @@ export interface TimerDropdownProps {
 
 export function TimerDropdown({ timer, ariaLabel, onStart, onClear }: TimerDropdownProps) {
   const rootRef = useRef<HTMLDivElement>(null);
+  const pointerCommitRef = useRef(false);
   const [open, setOpen] = useState(false);
   const [selection, setSelection] = useState<PresetSelection>("Eight");
   const [customMinutes, setCustomMinutes] = useState(10);
@@ -35,7 +36,11 @@ export function TimerDropdown({ timer, ariaLabel, onStart, onClear }: TimerDropd
       const target = e.target;
       if (!(target instanceof Node)) return;
       if (rootRef.current?.contains(target)) return;
+      pointerCommitRef.current = true;
       start();
+      window.setTimeout(() => {
+        pointerCommitRef.current = false;
+      }, 0);
     }
     window.addEventListener("pointerdown", handlePointerDown, true);
     return () => window.removeEventListener("pointerdown", handlePointerDown, true);
@@ -48,6 +53,7 @@ export function TimerDropdown({ timer, ariaLabel, onStart, onClear }: TimerDropd
       onBlur={(e) => {
         const next = e.relatedTarget;
         if (!open || (next instanceof Node && e.currentTarget.contains(next))) return;
+        if (pointerCommitRef.current) return;
         start();
       }}
       onKeyDown={(e) => {

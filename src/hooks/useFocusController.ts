@@ -28,7 +28,13 @@ export function useFocusController(
 ): FocusController {
   return useMemo(() => {
     async function run(op: string, write: () => Promise<WriteOutcome>): Promise<WriteOutcome> {
-      const outcome = await write();
+      let outcome: WriteOutcome;
+      try {
+        outcome = await write();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        outcome = { ok: false, kind: "ipc", message };
+      }
       onWriteFailure(op, outcome);
       return outcome;
     }

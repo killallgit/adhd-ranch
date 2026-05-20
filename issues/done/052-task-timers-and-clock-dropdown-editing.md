@@ -10,7 +10,7 @@ Users can edit timers by clicking the clock/time control itself. Focus timers re
 
 Implementation notes:
 
-- `Task` gains optional `timer: FocusTimer`.
+- `Task` gains optional `timer: Option<FocusTimer>`.
 - Focus timers continue to persist in `timer.json`.
 - Task timers persist in `task-timers.json`, indexed to the parsed Task order.
 - `Commands` and Tauri bridge expose start/clear operations for Focus timers and Task timers.

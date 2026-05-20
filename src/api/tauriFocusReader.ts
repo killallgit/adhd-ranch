@@ -8,7 +8,12 @@ interface RustFocus {
   readonly title: string;
   readonly description: string;
   readonly created_at: string;
-  readonly tasks: readonly { id: string; text: string; done?: boolean }[];
+  readonly tasks: readonly {
+    id: string;
+    text: string;
+    done?: boolean;
+    timer?: FocusTimer | null;
+  }[];
   readonly timer?: FocusTimer | null;
 }
 
@@ -18,7 +23,12 @@ function fromRust(raw: RustFocus): Focus {
     title: raw.title,
     description: raw.description,
     created_at: raw.created_at,
-    tasks: raw.tasks.map((t) => ({ id: t.id, text: t.text, done: t.done ?? false })),
+    tasks: raw.tasks.map((t) => ({
+      id: t.id,
+      text: t.text,
+      done: t.done ?? false,
+      timer: t.timer ?? null,
+    })),
     timer: raw.timer ?? null,
   };
 }
