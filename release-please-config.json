@@ -3,12 +3,6 @@
   "release-type": "rust",
   "bootstrap-sha": "b8a67c26adecb5036130d5e67af3aec5f98109b9",
   "include-component-in-tag": false,
-  "plugins": [
-    {
-      "type": "cargo-workspace",
-      "updateAllPackages": true
-    }
-  ],
   "packages": {
     ".": {
       "package-name": "adhd-ranch",
