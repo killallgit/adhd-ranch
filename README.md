@@ -79,7 +79,7 @@ task build     # release .app + .dmg in src-tauri/target/release/bundle/
 Releases are proposed by `.github/workflows/release-please.yml` and packaged by `.github/workflows/release.yml`.
 
 - Normal release: merge the Release Please PR. It bumps versions, updates `CHANGELOG.md`, creates a `v*` GitHub Release, and publishing that release triggers the cross-platform build.
-- Release Please needs a `RELEASE_PLEASE_TOKEN` repository secret backed by a PAT or GitHub App token with contents and pull-request write access. The default `GITHUB_TOKEN` is intentionally not used because releases it creates do not trigger the packaging workflow.
+- Release Please needs a `GH_TOKEN` repository secret backed by a PAT or GitHub App token with contents and pull-request write access. The default `GITHUB_TOKEN` is intentionally not used because releases it creates do not trigger the packaging workflow.
 - Manual repair path: GitHub Actions → **release** → Run workflow → enter a SemVer version without `v`, for example `0.1.0`. Leave `draft` unchecked to publish it immediately, or check it for a private review pass.
 - Packages built: macOS universal `.dmg`, Windows x64 NSIS installer, Windows ARM64 NSIS installer, Linux x64 `.AppImage`, and Linux x64 `.deb`.
 - `SHA256SUMS.txt` is attached to each release for package integrity checks, and GitHub provenance attestations are generated for the release packages.
