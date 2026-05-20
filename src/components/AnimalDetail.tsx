@@ -18,6 +18,7 @@ export interface AnimalDetailProps {
   readonly onRenameFocus: (focusId: string, title: string) => void;
   readonly onUpdateTask: (focusId: string, index: number, text: string) => void;
   readonly onToggleTask: (focusId: string, index: number, done: boolean) => void;
+  readonly onDuplicateFocus: (focusId: string) => void;
   readonly onDeleteFocus: (focusId: string) => void;
   readonly onStartTimer: (focusId: string, preset: TimerPreset) => void;
   readonly onClearTimer: (focusId: string) => void;
@@ -40,6 +41,7 @@ export function AnimalDetail({
   onRenameFocus,
   onUpdateTask,
   onToggleTask,
+  onDuplicateFocus,
   onDeleteFocus,
   onStartTimer,
   onClearTimer,
@@ -162,6 +164,17 @@ export function AnimalDetail({
               onStart={(preset) => onStartTimer(focus.id, preset)}
               onClear={() => onClearTimer(focus.id)}
             />
+            <button
+              type="button"
+              className="animal-detail-duplicate"
+              aria-label={`duplicate focus ${focus.title}`}
+              onClick={() => {
+                onDuplicateFocus(focus.id);
+                onClose();
+              }}
+            >
+              ⧉
+            </button>
             <button
               type="button"
               className="animal-detail-delete"

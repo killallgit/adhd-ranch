@@ -9,6 +9,7 @@ export function createFixtureFocusWriter(opts: FixtureFocusWriterOptions = {}): 
   const result = () => Promise.resolve(outcome);
   return {
     createFocus: result,
+    duplicateFocus: result,
     deleteFocus: result,
     renameFocus: result,
     appendTask: result,

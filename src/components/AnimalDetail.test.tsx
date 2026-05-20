@@ -27,6 +27,7 @@ function renderDetail(overrides?: Partial<React.ComponentProps<typeof AnimalDeta
     onRenameFocus: vi.fn(),
     onUpdateTask: vi.fn(),
     onToggleTask: vi.fn(),
+    onDuplicateFocus: vi.fn(),
     onDeleteFocus: vi.fn(),
     onStartTimer: vi.fn(),
     onClearTimer: vi.fn(),
@@ -156,6 +157,15 @@ describe("AnimalDetail task editing", () => {
 });
 
 describe("AnimalDetail delete focus", () => {
+  it("duplicate button calls onDuplicateFocus and closes", async () => {
+    const { onDuplicateFocus, onClose } = renderDetail();
+
+    await userEvent.click(screen.getByLabelText("duplicate focus Ship it"));
+
+    expect(onDuplicateFocus).toHaveBeenCalledWith("pig-a");
+    expect(onClose).toHaveBeenCalled();
+  });
+
   it("with confirmDelete=true shows inline confirm before deleting", async () => {
     const { onDeleteFocus } = renderDetail({ confirmDelete: true });
     await userEvent.click(screen.getByLabelText("delete focus Ship it"));
@@ -312,6 +322,7 @@ describe("AnimalDetail timer picker", () => {
             onRenameFocus={vi.fn()}
             onUpdateTask={vi.fn()}
             onToggleTask={vi.fn()}
+            onDuplicateFocus={vi.fn()}
             onDeleteFocus={vi.fn()}
             onStartTimer={vi.fn()}
             onClearTimer={vi.fn()}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { type PresetSelection, isCustomValid, resolvePreset } from "../lib/timerPreset";
 import type { FocusTimer, TimerPreset } from "../types/timer";
 import { TimerPresetPicker } from "./TimerPresetPicker";
@@ -11,12 +11,13 @@ export interface TimerDropdownProps {
 }
 
 export function TimerDropdown({ timer, ariaLabel, onStart, onClear }: TimerDropdownProps) {
+  const rootRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [selection, setSelection] = useState<PresetSelection>("Eight");
   const [customMinutes, setCustomMinutes] = useState(10);
   const [error, setError] = useState<string | null>(null);
 
-  function start() {
+  const start = useCallback(() => {
     if (selection === "custom" && !isCustomValid(customMinutes)) {
       setError("custom timer must be at least 1 minute");
       return;
@@ -26,10 +27,35 @@ export function TimerDropdown({ timer, ariaLabel, onStart, onClear }: TimerDropd
     setError(null);
     onStart(preset);
     setOpen(false);
-  }
+  }, [customMinutes, onStart, selection]);
+
+  useEffect(() => {
+    if (!open) return;
+    function handlePointerDown(e: PointerEvent) {
+      const target = e.target;
+      if (!(target instanceof Node)) return;
+      if (rootRef.current?.contains(target)) return;
+      start();
+    }
+    window.addEventListener("pointerdown", handlePointerDown, true);
+    return () => window.removeEventListener("pointerdown", handlePointerDown, true);
+  }, [open, start]);
 
   return (
-    <div className="timer-dropdown">
+    <div
+      ref={rootRef}
+      className="timer-dropdown"
+      onBlur={(e) => {
+        const next = e.relatedTarget;
+        if (!open || (next instanceof Node && e.currentTarget.contains(next))) return;
+        start();
+      }}
+      onKeyDown={(e) => {
+        if (!open || e.key !== "Enter") return;
+        e.preventDefault();
+        start();
+      }}
+    >
       <button
         type="button"
         className={`timer-trigger${timer ? " timer-trigger--set" : ""}`}

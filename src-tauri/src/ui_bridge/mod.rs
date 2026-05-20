@@ -59,6 +59,18 @@ pub fn create_focus(
 }
 
 #[tauri::command]
+pub fn duplicate_focus(
+    focus_id: String,
+    state: State<'_, CommandsState>,
+) -> Result<CreatedFocus, CommandError> {
+    state
+        .0
+        .duplicate_focus(&focus_id)
+        .inspect(|f| log::info!("focus duplicated: {focus_id} -> {}", f.id))
+        .inspect_err(|e| log::error!("duplicate_focus({focus_id:?}): {e}"))
+}
+
+#[tauri::command]
 pub fn delete_focus(focus_id: String, state: State<'_, CommandsState>) -> Result<(), CommandError> {
     state
         .0

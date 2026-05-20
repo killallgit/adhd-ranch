@@ -70,6 +70,18 @@ describe("tauriFocusWriter", () => {
     });
   });
 
+  it("duplicateFocus forwards focusId", async () => {
+    mockInvoke.mockResolvedValueOnce({ id: "focus-1-copy" });
+    const writer = createTauriFocusWriter();
+
+    const outcome = await writer.duplicateFocus("focus-1");
+
+    expect(outcome).toEqual({ ok: true });
+    expect(mockInvoke).toHaveBeenCalledWith("duplicate_focus", {
+      focusId: "focus-1",
+    });
+  });
+
   it("startTimer forwards custom preset object", async () => {
     mockInvoke.mockResolvedValueOnce(undefined);
     const writer = createTauriFocusWriter();

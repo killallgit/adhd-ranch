@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
-use adhd_ranch_domain::{Caps, Focus, FocusTimer, NewFocus, TaskText, TimerPreset, TimerStatus};
+use adhd_ranch_domain::{
+    slugify, Caps, Focus, FocusTimer, NewFocus, TaskText, TimerPreset, TimerStatus,
+};
 use adhd_ranch_storage::FocusStore;
 use serde::{Deserialize, Serialize};
 
@@ -48,6 +50,24 @@ impl Commands {
             NewFocus::new(input.title, input.description)?.with_timer_preset(input.timer_preset);
         let slug =
             create_focus_in_store(&self.store, &self.clock, &self.id_gen, &new_focus, timer)?;
+        Ok(CreatedFocus { id: slug })
+    }
+
+    pub fn duplicate_focus(&self, focus_id: &str) -> Result<CreatedFocus, CommandError> {
+        let focuses = self.store.list()?;
+        let source = focuses
+            .iter()
+            .find(|focus| focus.id.0 == focus_id)
+            .ok_or_else(|| CommandError::NotFound(format!("focus not found: {focus_id}")))?;
+        let title = duplicate_title(&source.title, &focuses);
+        let new_focus = NewFocus::new(title, source.description.clone())?;
+        let slug = create_focus_in_store(&self.store, &self.clock, &self.id_gen, &new_focus, None)?;
+        for (index, task) in source.tasks.iter().enumerate() {
+            self.store.append_task(&slug, &task.text)?;
+            if task.done {
+                self.store.toggle_task(&slug, index, true)?;
+            }
+        }
         Ok(CreatedFocus { id: slug })
     }
 
@@ -137,6 +157,24 @@ impl Commands {
     pub fn caps(&self) -> Caps {
         self.settings.caps
     }
+}
+
+fn duplicate_title(title: &str, focuses: &[Focus]) -> String {
+    let existing_slugs = focuses
+        .iter()
+        .map(|focus| focus.id.0.as_str())
+        .collect::<std::collections::HashSet<_>>();
+    let base = format!("{title} copy");
+    if !existing_slugs.contains(slugify(&base).as_str()) {
+        return base;
+    }
+    for n in 2.. {
+        let candidate = format!("{base} {n}");
+        if !existing_slugs.contains(slugify(&candidate).as_str()) {
+            return candidate;
+        }
+    }
+    unreachable!("unbounded duplicate title search should always find a title")
 }
 
 #[cfg(test)]
@@ -238,6 +276,61 @@ mod tests {
         let focuses = commands.list_focuses().unwrap();
         assert!(focuses[0].timer.is_none());
         assert_eq!(focuses[0].tasks[0].text, "new life");
+    }
+
+    #[test]
+    fn duplicate_focus_copies_title_description_and_tasks() {
+        let (commands, _dir) = build_commands(1_000_000);
+        let created = commands
+            .create_focus(CreateFocusInput {
+                title: "Ship it".into(),
+                description: "release plan".into(),
+                timer_preset: Some(TimerPreset::Two),
+            })
+            .unwrap();
+        commands.append_task(&created.id, "first").unwrap();
+        commands.append_task(&created.id, "second").unwrap();
+        commands.toggle_task(&created.id, 1, true).unwrap();
+
+        let duplicated = commands.duplicate_focus(&created.id).unwrap();
+
+        assert_eq!(duplicated.id, "ship-it-copy");
+        let focuses = commands.list_focuses().unwrap();
+        let copy = focuses
+            .iter()
+            .find(|focus| focus.id.0 == duplicated.id)
+            .unwrap();
+        assert_eq!(copy.title, "Ship it copy");
+        assert_eq!(copy.description, "release plan");
+        assert!(copy.timer.is_none());
+        assert_eq!(copy.tasks.len(), 2);
+        assert_eq!(copy.tasks[0].text, "first");
+        assert!(!copy.tasks[0].done);
+        assert_eq!(copy.tasks[1].text, "second");
+        assert!(copy.tasks[1].done);
+    }
+
+    #[test]
+    fn duplicate_focus_uses_numeric_suffix_when_copy_exists() {
+        let (commands, _dir) = build_commands(1_000_000);
+        let created = commands
+            .create_focus(CreateFocusInput {
+                title: "Ship it".into(),
+                description: String::new(),
+                timer_preset: None,
+            })
+            .unwrap();
+        commands.duplicate_focus(&created.id).unwrap();
+        let duplicated = commands.duplicate_focus(&created.id).unwrap();
+
+        assert_eq!(duplicated.id, "ship-it-copy-2");
+    }
+
+    #[test]
+    fn duplicate_focus_unknown_id_returns_not_found() {
+        let (commands, _dir) = build_commands(1_000_000);
+        let err = commands.duplicate_focus("missing").unwrap_err();
+        assert!(matches!(err, CommandError::NotFound(_)));
     }
 
     #[test]
