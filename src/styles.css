@@ -510,6 +510,7 @@ body,
   font-size: 11px;
 }
 
+.animal-detail-duplicate,
 .animal-detail-delete {
   background: transparent;
   border: none;
@@ -521,6 +522,7 @@ body,
   flex-shrink: 0;
 }
 
+.animal-detail-duplicate:hover,
 .animal-detail-delete:hover {
   opacity: 1;
 }

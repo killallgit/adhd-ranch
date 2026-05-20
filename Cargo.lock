@@ -21,6 +21,7 @@ dependencies = [
  "tauri-plugin-dialog",
  "tauri-plugin-log",
  "tauri-plugin-notification",
+ "tempfile",
  "time",
  "tokio",
  "uuid",

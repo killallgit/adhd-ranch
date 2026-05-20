@@ -229,11 +229,7 @@ impl FocusStore for MarkdownFocusStore {
             .map_err(|e| map_document_error(focus_id, e))?
             .into_raw();
         atomic_write(&self.focus_md(focus_id), next.as_bytes())?;
-        if let Err(err) = self.remove_task_timer_index(focus_id, index) {
-            log::warn!(
-                "failed to remove task timer {index} after deleting task from {focus_id}: {err}"
-            );
-        }
+        self.remove_task_timer_index(focus_id, index)?;
         Ok(())
     }
 
@@ -599,17 +595,15 @@ mod tests {
     }
 
     #[test]
-    fn delete_task_keeps_success_when_task_timer_cleanup_fails() {
+    fn delete_task_returns_error_when_task_timer_cleanup_fails() {
         let dir = TempDir::new().unwrap();
         write_focus(dir.path(), "a", &focus_md("a", &["one", "two"]));
         fs::create_dir(dir.path().join("a/task-timers.json")).unwrap();
         let store = MarkdownFocusStore::new(dir.path());
 
-        store.delete_task("a", 1).unwrap();
+        let err = store.delete_task("a", 1).unwrap_err();
 
-        let content = fs::read_to_string(dir.path().join("a/focus.md")).unwrap();
-        assert!(content.contains("- [ ] one"));
-        assert!(!content.contains("- [ ] two"));
+        assert!(matches!(err, FocusStoreError::Io(_)));
     }
 
     #[test]

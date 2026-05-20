@@ -50,6 +50,7 @@ function noopFocusWriter(): FocusWriter {
   const ok = { ok: true } as const;
   return {
     createFocus: vi.fn().mockResolvedValue(ok),
+    duplicateFocus: vi.fn().mockResolvedValue(ok),
     deleteFocus: vi.fn().mockResolvedValue(ok),
     renameFocus: vi.fn().mockResolvedValue(ok),
     appendTask: vi.fn().mockResolvedValue(ok),

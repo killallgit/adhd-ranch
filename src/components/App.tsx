@@ -87,6 +87,10 @@ export function App({ focusReader, focusWriter, onWriteFailure }: AppProps) {
     await focusController.renameFocus(focusId, title);
   }
 
+  async function handleDuplicateFocus(focusId: string) {
+    await focusController.duplicateFocus(focusId);
+  }
+
   async function handleUpdateTask(focusId: string, index: number, text: string) {
     await focusController.updateTask(focusId, index, text);
   }
@@ -168,6 +172,7 @@ export function App({ focusReader, focusWriter, onWriteFailure }: AppProps) {
           onRenameFocus={handleRenameFocus}
           onUpdateTask={handleUpdateTask}
           onToggleTask={handleToggleTask}
+          onDuplicateFocus={handleDuplicateFocus}
           onDeleteFocus={handleDeleteFocus}
           onStartTimer={handleStartTimer}
           onClearTimer={handleClearTimer}

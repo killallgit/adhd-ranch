@@ -304,14 +304,15 @@ export function usePigMovement(
 
   // rAF movement loop
   useEffect(() => {
+    const expiredFocusIds = new Set(
+      focuses.filter((focus) => focus.timer?.status === "Expired").map((focus) => focus.id),
+    );
+
     const loop = (now: number) => {
       const dt = Math.min(now - lastTimeRef.current, 100);
       lastTimeRef.current = now;
 
       const displaySpace = displaySpaceRef.current;
-      const expiredFocusIds = new Set(
-        focuses.filter((focus) => focus.timer?.status === "Expired").map((focus) => focus.id),
-      );
       const updated = pigsRef.current.map((p) => {
         // Skip tick for dragged pig — position is driven by pointer events.
         if (p.id === dragIdRef.current) return p;

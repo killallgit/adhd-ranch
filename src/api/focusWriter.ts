@@ -13,6 +13,7 @@ export interface CreateFocusInput {
 
 export interface FocusWriter {
   createFocus(input: CreateFocusInput): Promise<WriteOutcome>;
+  duplicateFocus(focusId: string): Promise<WriteOutcome>;
   deleteFocus(focusId: string): Promise<WriteOutcome>;
   renameFocus(focusId: string, title: string): Promise<WriteOutcome>;
   appendTask(focusId: string, text: string): Promise<WriteOutcome>;
@@ -52,6 +53,9 @@ export function createTauriFocusWriter(): FocusWriter {
         description,
         timerPreset: timer_preset ?? null,
       });
+    },
+    duplicateFocus(focusId) {
+      return runInvoke("duplicate_focus", { focusId });
     },
     deleteFocus(focusId) {
       return runInvoke("delete_focus", { focusId });

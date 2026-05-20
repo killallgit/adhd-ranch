@@ -6,6 +6,7 @@ export type ReportWriteFailure = (op: string, outcome: WriteOutcome) => void;
 
 export interface FocusController {
   readonly deleteFocus: (focusId: string) => Promise<WriteOutcome>;
+  readonly duplicateFocus: (focusId: string) => Promise<WriteOutcome>;
   readonly renameFocus: (focusId: string, title: string) => Promise<WriteOutcome>;
   readonly appendTask: (focusId: string, text: string) => Promise<WriteOutcome>;
   readonly deleteTask: (focusId: string, index: number) => Promise<WriteOutcome>;
@@ -27,7 +28,13 @@ export function useFocusController(
 ): FocusController {
   return useMemo(() => {
     async function run(op: string, write: () => Promise<WriteOutcome>): Promise<WriteOutcome> {
-      const outcome = await write();
+      let outcome: WriteOutcome;
+      try {
+        outcome = await write();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        outcome = { ok: false, kind: "ipc", message };
+      }
       onWriteFailure(op, outcome);
       return outcome;
     }
@@ -35,6 +42,9 @@ export function useFocusController(
     return {
       deleteFocus(focusId: string) {
         return run("delete_focus", () => focusWriter.deleteFocus(focusId));
+      },
+      duplicateFocus(focusId: string) {
+        return run("duplicate_focus", () => focusWriter.duplicateFocus(focusId));
       },
       renameFocus(focusId: string, title: string) {
         return run("rename_focus", () => focusWriter.renameFocus(focusId, title));

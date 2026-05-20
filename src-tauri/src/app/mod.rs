@@ -1,6 +1,7 @@
 pub mod cap_notifier;
 pub mod menu;
 pub mod paths;
+pub mod seed;
 pub mod timer_expiry;
 pub mod tray;
 pub mod window_always_on_top;
@@ -47,6 +48,7 @@ pub fn run() {
             ui_bridge::accept_proposal,
             ui_bridge::reject_proposal,
             ui_bridge::create_focus,
+            ui_bridge::duplicate_focus,
             ui_bridge::create_proposal,
             ui_bridge::delete_focus,
             ui_bridge::append_task,
@@ -97,6 +99,7 @@ pub fn run() {
             Arc::new(|| uuid::Uuid::now_v7().to_string()),
             settings.clone(),
         ));
+        seed::ensure_example_focus(&commands, &focuses_root)?;
 
         let cap_monitor = Arc::new(OverCapMonitor::new());
         let notifier = Arc::new(TauriCapNotifier::new(app.handle().clone()));

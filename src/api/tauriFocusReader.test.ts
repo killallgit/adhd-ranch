@@ -17,14 +17,21 @@ beforeEach(() => {
 });
 
 describe("tauriFocusReader", () => {
-  it("preserves timer data from Rust focuses", async () => {
+  it("preserves focus and task timer data from Rust focuses", async () => {
     mockInvoke.mockResolvedValueOnce([
       {
         id: "focus-1",
         title: "Timed focus",
         description: "",
         created_at: "",
-        tasks: [],
+        tasks: [
+          {
+            id: "task-1",
+            text: "Timed task",
+            done: true,
+            timer: { duration_secs: 120, started_at: 1_700_000_010, status: "Expired" },
+          },
+        ],
         timer: { duration_secs: 480, started_at: 1_700_000_000, status: "Running" },
       },
     ]);
@@ -36,6 +43,12 @@ describe("tauriFocusReader", () => {
       duration_secs: 480,
       started_at: 1_700_000_000,
       status: "Running",
+    });
+    expect(focuses[0]?.tasks[0]).toEqual({
+      id: "task-1",
+      text: "Timed task",
+      done: true,
+      timer: { duration_secs: 120, started_at: 1_700_000_010, status: "Expired" },
     });
   });
 });
