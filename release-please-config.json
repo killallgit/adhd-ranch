@@ -1,6 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
-  "release-type": "rust",
+  "release-type": "node",
   "bootstrap-sha": "b8a67c26adecb5036130d5e67af3aec5f98109b9",
   "include-component-in-tag": false,
   "packages": {
@@ -8,6 +8,35 @@
       "package-name": "adhd-ranch",
       "changelog-path": "CHANGELOG.md",
       "extra-files": [
+        {
+          "type": "toml",
+          "path": "src-tauri/Cargo.toml",
+          "jsonpath": "$.package.version"
+        },
+        {
+          "type": "toml",
+          "path": "crates/domain/Cargo.toml",
+          "jsonpath": "$.package.version"
+        },
+        {
+          "type": "toml",
+          "path": "crates/storage/Cargo.toml",
+          "jsonpath": "$.package.version"
+        },
+        {
+          "type": "toml",
+          "path": "crates/commands/Cargo.toml",
+          "jsonpath": "$.package.version"
+        },
+        {
+          "type": "toml",
+          "path": "crates/http-api/Cargo.toml",
+          "jsonpath": "$.package.version"
+        },
+        {
+          "type": "generic",
+          "path": "Cargo.lock"
+        },
         {
           "type": "json",
           "path": "package.json",
