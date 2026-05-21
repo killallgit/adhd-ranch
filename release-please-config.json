@@ -1,6 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
-  "release-type": "node",
+  "release-type": "rust",
   "bootstrap-sha": "b8a67c26adecb5036130d5e67af3aec5f98109b9",
   "include-component-in-tag": false,
   "packages": {
@@ -9,34 +9,19 @@
       "changelog-path": "CHANGELOG.md",
       "extra-files": [
         {
-          "type": "toml",
-          "path": "Cargo.toml",
-          "jsonpath": "$.workspace.package.version"
+          "type": "json",
+          "path": "package.json",
+          "jsonpath": "$.version"
         },
         {
-          "type": "toml",
-          "path": "Cargo.lock",
-          "jsonpath": "$.package[?(@.name=='adhd-ranch')].version"
+          "type": "json",
+          "path": "package-lock.json",
+          "jsonpath": "$.version"
         },
         {
-          "type": "toml",
-          "path": "Cargo.lock",
-          "jsonpath": "$.package[?(@.name=='adhd-ranch-commands')].version"
-        },
-        {
-          "type": "toml",
-          "path": "Cargo.lock",
-          "jsonpath": "$.package[?(@.name=='adhd-ranch-domain')].version"
-        },
-        {
-          "type": "toml",
-          "path": "Cargo.lock",
-          "jsonpath": "$.package[?(@.name=='adhd-ranch-http-api')].version"
-        },
-        {
-          "type": "toml",
-          "path": "Cargo.lock",
-          "jsonpath": "$.package[?(@.name=='adhd-ranch-storage')].version"
+          "type": "json",
+          "path": "package-lock.json",
+          "jsonpath": "$.packages[''].version"
         },
         {
           "type": "json",
