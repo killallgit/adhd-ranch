@@ -34,8 +34,29 @@
           "jsonpath": "$.package.version"
         },
         {
-          "type": "generic",
-          "path": "Cargo.lock"
+          "type": "toml",
+          "path": "Cargo.lock",
+          "jsonpath": "$.package[0].version"
+        },
+        {
+          "type": "toml",
+          "path": "Cargo.lock",
+          "jsonpath": "$.package[1].version"
+        },
+        {
+          "type": "toml",
+          "path": "Cargo.lock",
+          "jsonpath": "$.package[2].version"
+        },
+        {
+          "type": "toml",
+          "path": "Cargo.lock",
+          "jsonpath": "$.package[3].version"
+        },
+        {
+          "type": "toml",
+          "path": "Cargo.lock",
+          "jsonpath": "$.package[4].version"
         },
         {
           "type": "json",
