@@ -4,7 +4,7 @@ version = 3
 
 [[package]]
 name = "adhd-ranch"
-version = "0.0.0"
+version = "0.2.0"
 dependencies = [
  "adhd-ranch-commands",
  "adhd-ranch-domain",
@@ -29,7 +29,7 @@ dependencies = [
 
 [[package]]
 name = "adhd-ranch-commands"
-version = "0.0.0"
+version = "0.2.0"
 dependencies = [
  "adhd-ranch-domain",
  "adhd-ranch-storage",
@@ -39,7 +39,7 @@ dependencies = [
 
 [[package]]
 name = "adhd-ranch-domain"
-version = "0.0.0"
+version = "0.2.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -49,7 +49,7 @@ dependencies = [
 
 [[package]]
 name = "adhd-ranch-http-api"
-version = "0.0.0"
+version = "0.2.0"
 dependencies = [
  "adhd-ranch-commands",
  "adhd-ranch-domain",
@@ -67,7 +67,7 @@ dependencies = [
 
 [[package]]
 name = "adhd-ranch-storage"
-version = "0.0.0"
+version = "0.2.0"
 dependencies = [
  "adhd-ranch-domain",
  "fs2",

@@ -4,6 +4,20 @@ All notable changes to adhd-ranch. Follows [Keep a Changelog](https://keepachang
 
 ---
 
+## [0.2.0](https://github.com/killallgit/adhd-ranch/compare/v0.1.0...v0.2.0) (2026-05-21)
+
+
+### Features
+
+* add focus duplication and Windows startup polish ([#66](https://github.com/killallgit/adhd-ranch/issues/66)) ([9a7552c](https://github.com/killallgit/adhd-ranch/commit/9a7552c022d9ca52f5cd070b50395f1a81e9113a))
+* configure release-please ([#67](https://github.com/killallgit/adhd-ranch/issues/67)) ([89a58bf](https://github.com/killallgit/adhd-ranch/commit/89a58bf63d7c68381402e4622c0f57b49b5137ee))
+
+
+### Bug Fixes
+
+* make release-please compatible with workspace versions ([#69](https://github.com/killallgit/adhd-ranch/issues/69)) ([a974b9d](https://github.com/killallgit/adhd-ranch/commit/a974b9de1cfab7a11d43c8c478d3859b75057f6c))
+* remove release-please cargo workspace plugin ([#68](https://github.com/killallgit/adhd-ranch/issues/68)) ([0b616ed](https://github.com/killallgit/adhd-ranch/commit/0b616ede60cd548c0f7a26548f1da45e4a2b96e2))
+
 ## [Unreleased]
 
 ### Added — 053 task timer expiry workflow
