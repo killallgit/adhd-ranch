@@ -6,6 +6,7 @@ Each issue is a self-contained vertical slice an AFK coding agent ("ralph") can 
 
 Complete this product slice before picking up architecture-only work.
 
+- [050](050-settings-update-workflow.md) — Settings update workflow and runtime freshness
 - [031](031-notification-source-settings.md) — Notification source settings registry (GH #31)
 
 ### Architecture queue (deepening, AFK except where noted)
@@ -14,7 +15,6 @@ These are not required before 031. Pick one when we choose to spend a slice on i
 
 - [046](046-timer-expiry-service-extraction.md) — Timer expiry workflow module
 - [047](047-storage-transaction-seam.md) — Storage transaction seam for Proposal lifecycle
-- [050](050-settings-update-workflow.md) — Settings update workflow module
 - [051](051-ranch-animal-vocabulary-seam.md) — RanchAnimal vocabulary seam for future animal types
 
 Completed issue files live in `issues/done/`. Do not pick up files from `issues/done/` or `issues/icebox/`.

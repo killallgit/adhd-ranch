@@ -6,6 +6,7 @@ use adhd_ranch_domain::{
 use adhd_ranch_storage::FocusStore;
 
 use crate::error::CommandError;
+use crate::SettingsProvider;
 
 pub trait CapNotifier: Send + Sync {
     fn focuses_over_cap(&self, max: usize);
@@ -18,7 +19,7 @@ pub struct CapEvaluator {
     store: Arc<dyn FocusStore>,
     monitor: Arc<OverCapMonitor>,
     notifier: Arc<dyn CapNotifier>,
-    settings: Settings,
+    settings: SettingsProvider,
 }
 
 impl CapEvaluator {
@@ -27,6 +28,20 @@ impl CapEvaluator {
         monitor: Arc<OverCapMonitor>,
         notifier: Arc<dyn CapNotifier>,
         settings: Settings,
+    ) -> Self {
+        Self::new_with_settings_provider(
+            store,
+            monitor,
+            notifier,
+            Arc::new(move || settings.clone()),
+        )
+    }
+
+    pub fn new_with_settings_provider(
+        store: Arc<dyn FocusStore>,
+        monitor: Arc<OverCapMonitor>,
+        notifier: Arc<dyn CapNotifier>,
+        settings: SettingsProvider,
     ) -> Self {
         Self {
             store,
@@ -38,18 +53,15 @@ impl CapEvaluator {
 
     pub fn evaluate(&self) -> Result<(), CommandError> {
         let focuses = self.store.list()?;
-        let state = cap_state(&focuses, self.settings.caps);
+        let settings = self.settings.get();
+        let state = cap_state(&focuses, settings.caps);
         let transition = self.monitor.evaluate(&state);
 
-        let focuses_enabled = self
-            .settings
-            .notifications
-            .is_enabled(&FocusesOverCapSource);
-        let tasks_enabled = self.settings.notifications.is_enabled(&TasksOverCapSource);
+        let focuses_enabled = settings.notifications.is_enabled(&FocusesOverCapSource);
+        let tasks_enabled = settings.notifications.is_enabled(&TasksOverCapSource);
 
         if focuses_enabled && transition.focuses_to_over {
-            self.notifier
-                .focuses_over_cap(self.settings.caps.max_focuses);
+            self.notifier.focuses_over_cap(settings.caps.max_focuses);
         }
         if focuses_enabled && transition.focuses_to_under {
             self.notifier.focuses_under_cap();
@@ -57,7 +69,7 @@ impl CapEvaluator {
         if tasks_enabled {
             for id in &transition.task_to_over_focus_ids {
                 self.notifier
-                    .task_over_cap(id, self.settings.caps.max_tasks_per_focus);
+                    .task_over_cap(id, settings.caps.max_tasks_per_focus);
             }
             for id in &transition.task_to_under_focus_ids {
                 self.notifier.task_under_cap(id);
@@ -341,5 +353,32 @@ mod tests {
         let calls = notifier.calls();
         assert!(calls.contains(&Call::FocusesOver(5)));
         assert!(!calls.contains(&Call::TaskOver("f0".into(), 7)));
+    }
+
+    #[test]
+    fn notification_source_toggle_is_read_from_latest_settings() {
+        let store = Arc::new(StubStore::new());
+        let notifier = Arc::new(RecordingNotifier::new());
+        let settings = Arc::new(Mutex::new(settings(all_enabled())));
+        let evaluator = CapEvaluator::new_with_settings_provider(
+            store.clone(),
+            Arc::new(OverCapMonitor::new()),
+            notifier.clone(),
+            {
+                let settings = settings.clone();
+                Arc::new(move || settings.lock().unwrap().clone())
+            },
+        );
+
+        store.set(vec![focus_with_tasks("a", 9)]);
+        settings
+            .lock()
+            .unwrap()
+            .notifications
+            .set(&adhd_ranch_domain::TasksOverCapSource, false);
+
+        evaluator.evaluate().unwrap();
+
+        assert!(notifier.calls().is_empty());
     }
 }
