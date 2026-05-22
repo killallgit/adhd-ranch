@@ -51,4 +51,4 @@ Notification toggles in Preferences are driven by the Rust `NotificationSource` 
 
 ## Blocked by
 
-None. 029 and 032 are done.
+050 — settings update workflow and runtime freshness. 029 and 032 are done.

@@ -2,6 +2,7 @@ pub mod cap_notifier;
 pub mod menu;
 pub mod paths;
 pub mod seed;
+pub mod settings_workflow;
 pub mod timer_expiry;
 pub mod tray;
 pub mod window_always_on_top;
@@ -90,24 +91,35 @@ pub fn run() {
         let decision_log: Arc<dyn DecisionLog> =
             Arc::new(JsonlDecisionLog::new(decisions_path.clone()));
 
-        let commands = Arc::new(Commands::new(
+        let settings_state = Arc::new(Mutex::new(settings.clone()));
+        let settings_provider: adhd_ranch_commands::SettingsProvider = {
+            let settings_state = Arc::clone(&settings_state);
+            Arc::new(move || {
+                settings_state
+                    .lock()
+                    .map(|settings| settings.clone())
+                    .unwrap_or_default()
+            })
+        };
+
+        let commands = Arc::new(Commands::new_with_settings_provider(
             store.clone(),
             queue.clone(),
             decision_log.clone(),
             Arc::new(now_rfc3339),
             Arc::new(now_unix_secs),
             Arc::new(|| uuid::Uuid::now_v7().to_string()),
-            settings.clone(),
+            Arc::clone(&settings_provider),
         ));
         seed::ensure_example_focus(&commands, &focuses_root)?;
 
         let cap_monitor = Arc::new(OverCapMonitor::new());
         let notifier = Arc::new(TauriCapNotifier::new(app.handle().clone()));
-        let evaluator = Arc::new(CapEvaluator::new(
+        let evaluator = Arc::new(CapEvaluator::new_with_settings_provider(
             store.clone(),
             cap_monitor,
             notifier,
-            settings.clone(),
+            Arc::clone(&settings_provider),
         ));
 
         app.manage(ui_bridge::CommandsState(commands));
@@ -131,7 +143,7 @@ pub fn run() {
         app.manage(DisplayConfigState(Arc::new(Mutex::new(
             display_config.clone(),
         ))));
-        app.manage(SettingsState(Arc::new(Mutex::new(settings.clone()))));
+        app.manage(SettingsState(Arc::clone(&settings_state)));
         app.manage(SettingsPathState(settings_path.clone()));
         app.manage(DebugOverlayState(Arc::new(Mutex::new(false))));
 
@@ -156,7 +168,7 @@ pub fn run() {
                     tray_icon.clone(),
                     app.handle().clone(),
                     store.clone(),
-                    settings,
+                    Arc::clone(&settings_provider),
                 ),
             ],
         )?;
