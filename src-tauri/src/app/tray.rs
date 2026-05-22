@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use adhd_ranch_commands::SettingsProvider;
 use adhd_ranch_domain::{cap_state, Focus, Settings, TimerStatus};
 use adhd_ranch_storage::FocusStore;
 use tauri::image::Image;
@@ -94,7 +95,7 @@ pub fn rebuild_handler(
     tray: TrayIcon<Wry>,
     handle: AppHandle<Wry>,
     store: Arc<dyn FocusStore>,
-    settings: Settings,
+    settings: SettingsProvider,
 ) -> Box<dyn Fn() + Send + 'static> {
     Box::new(move || {
         let focuses = match store.list() {
@@ -107,7 +108,7 @@ pub fn rebuild_handler(
         if let Ok(menu) = build_menu(&handle, &focuses) {
             let _ = tray.set_menu(Some(menu));
         }
-        let over_cap = cap_state(&focuses, settings.caps).any_over();
+        let over_cap = cap_state(&focuses, settings().caps).any_over();
         if over_cap {
             let _ = tray.set_icon(Some(red_icon()));
         } else if let Some(icon) = handle.default_window_icon() {
@@ -256,6 +257,17 @@ pub fn rebuild_tray_menu(app: &AppHandle<Wry>) {
     if let Some(tray) = app.tray_by_id("main-tray") {
         if let Ok(menu) = build_menu(app, &focuses) {
             let _ = tray.set_menu(Some(menu));
+        }
+        let over_cap = app
+            .try_state::<crate::ui_bridge::CommandsState>()
+            .map(|s| cap_state(&focuses, s.0.caps()).any_over())
+            .unwrap_or(false);
+        if over_cap {
+            let _ = tray.set_icon(Some(red_icon()));
+        } else if let Some(icon) = app.default_window_icon() {
+            let _ = tray.set_icon(Some(icon.clone()));
+        } else {
+            let _ = tray.set_icon(None);
         }
     }
 }

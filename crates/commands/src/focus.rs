@@ -155,7 +155,7 @@ impl Commands {
     }
 
     pub fn caps(&self) -> Caps {
-        self.settings.caps
+        self.settings().caps
     }
 }
 
