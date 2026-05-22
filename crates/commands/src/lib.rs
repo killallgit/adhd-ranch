@@ -22,7 +22,21 @@ pub use timer_expiry::{
 pub type Clock = Arc<dyn Fn() -> String + Send + Sync>;
 pub type ClockSecs = Arc<dyn Fn() -> i64 + Send + Sync>;
 pub type IdGen = Arc<dyn Fn() -> String + Send + Sync>;
-pub type SettingsProvider = Arc<dyn Fn() -> Settings + Send + Sync>;
+
+pub trait SettingsReader: Send + Sync {
+    fn get(&self) -> Settings;
+}
+
+impl<F> SettingsReader for F
+where
+    F: Fn() -> Settings + Send + Sync,
+{
+    fn get(&self) -> Settings {
+        self()
+    }
+}
+
+pub type SettingsProvider = Arc<dyn SettingsReader>;
 
 pub struct Commands {
     pub(crate) store: Arc<dyn FocusStore>,
@@ -84,7 +98,7 @@ impl Commands {
     }
 
     pub fn settings(&self) -> Settings {
-        (self.settings)()
+        self.settings.get()
     }
 }
 
