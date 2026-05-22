@@ -108,7 +108,7 @@ pub fn rebuild_handler(
         if let Ok(menu) = build_menu(&handle, &focuses) {
             let _ = tray.set_menu(Some(menu));
         }
-        let over_cap = cap_state(&focuses, settings().caps).any_over();
+        let over_cap = cap_state(&focuses, settings.get().caps).any_over();
         if over_cap {
             let _ = tray.set_icon(Some(red_icon()));
         } else if let Some(icon) = handle.default_window_icon() {

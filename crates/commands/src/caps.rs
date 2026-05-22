@@ -53,7 +53,7 @@ impl CapEvaluator {
 
     pub fn evaluate(&self) -> Result<(), CommandError> {
         let focuses = self.store.list()?;
-        let settings = (self.settings)();
+        let settings = self.settings.get();
         let state = cap_state(&focuses, settings.caps);
         let transition = self.monitor.evaluate(&state);
 

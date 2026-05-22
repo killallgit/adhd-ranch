@@ -94,11 +94,12 @@ pub fn run() {
         let settings_state = Arc::new(Mutex::new(settings.clone()));
         let settings_provider: adhd_ranch_commands::SettingsProvider = {
             let settings_state = Arc::clone(&settings_state);
-            Arc::new(move || {
-                settings_state
-                    .lock()
-                    .map(|settings| settings.clone())
-                    .unwrap_or_default()
+            Arc::new(move || match settings_state.lock() {
+                Ok(settings) => settings.clone(),
+                Err(poisoned) => {
+                    log::warn!("settings provider: lock poisoned; using recovered settings");
+                    poisoned.into_inner().clone()
+                }
             })
         };
 
