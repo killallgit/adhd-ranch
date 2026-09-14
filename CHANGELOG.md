@@ -6,6 +6,8 @@ All notable changes to adhd-ranch. Follows [Keep a Changelog](https://keepachang
 
 ## [Unreleased]
 
+## [0.1.3] — 2026-09-14
+
 ### Changed — 050 settings update workflow (PR #71)
 
 - `ui_bridge::update_settings` delegates to `SettingsWorkflow` in `src-tauri/src/app/settings_workflow.rs`: persist `settings.yaml`, commit in-memory settings, apply widget settings, reapply overlays when displays change, refresh long-lived settings consumers, rebuild the tray.
