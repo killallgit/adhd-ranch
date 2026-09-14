@@ -26,6 +26,11 @@ jobs:
         with:
           cache-bin: false
 
+      - name: Install cargo-shear
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-shear
+
       - name: Install Task
         uses: arduino/setup-task@v2
         with:

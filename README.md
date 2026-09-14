@@ -4,7 +4,7 @@ Issue tracking for a five-year-old. Menubar/tray desktop app — Tauri v2 + Reac
 
 A small number of buckets ("Focuses") with a few bullets each ("Tasks"). Pixel pigs roam the screen as a peripheral reminder — one pig per Focus. Click a pig to inspect or edit its Tasks. Markdown on disk is the source of truth.
 
-See `PRD.md`, `CONTEXT.md`, and `CLAUDE.md` for the full design and the programming rules every slice must follow. An interactive architecture diagram lives at `docs/diagrams/adhd-ranch.architecture.html`.
+See `PRD.md`, `CONTEXT.md`, and `CLAUDE.md` for the full design and the programming rules every slice must follow.
 
 ## Quick install (end-user)
 
@@ -71,9 +71,11 @@ The app makes no network calls and exposes no network API. The UI talks to Rust 
 ```sh
 task install   # install frontend deps
 task dev       # launch Tauri dev window
-task check     # PR gate: lint + typecheck + tests + generated-type drift check
+task check     # PR gate: lint + unused-code checks + typecheck + tests + generated-type drift check
 task build     # release bundle in src-tauri/target/release/bundle/
 ```
+
+`task check` needs `cargo-shear` for the unused-dependency check: `cargo install --locked cargo-shear`.
 
 Releases are created manually with `.github/workflows/release.yml`.
 
@@ -97,12 +99,12 @@ src-tauri/           Tauri v2 host (Rust)
     app/             composition root, tray, menus, settings + timer workflows
     ui_bridge/       Tauri command handlers
     display/         monitor geometry, overlay window, click-through hit-testing
-    api/             shared response types (Health)
 crates/
   domain/            pure types and logic — no I/O
   storage/           markdown focus store, settings writer, atomic writes, file watcher
   commands/          use cases and workflows called by the Tauri host
-docs/                ADRs, research notes, architecture diagram
+docs/                ADRs, research notes
+scripts/             unused-code checks (IPC boundary, CSS)
 issues/              vertical-slice issue files
 .github/workflows/   CI + release
 ```

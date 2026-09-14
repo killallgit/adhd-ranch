@@ -1,9 +1,9 @@
 import type { DisplaySpace, Rect } from "../types/display";
 
 export const RANCH_ANIMAL_SIZE = 48;
-export const RANCH_EDGE_MARGIN = 60;
+const RANCH_EDGE_MARGIN = 60;
 export const RANCH_ANIMAL_SPEED = 60;
-export const RANCH_FRICTION = 0.97;
+const RANCH_FRICTION = 0.97;
 const MIN_SPEED_FRAC = 0.35;
 const FRAME_INTERVAL = 150;
 const MIN_TURN_MS = 3000;

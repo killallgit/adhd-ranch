@@ -20,12 +20,21 @@ All notable changes to adhd-ranch. Follows [Keep a Changelog](https://keepachang
 - `crates/http-api` — the localhost HTTP API and its `run/port` file. It had no client.
 - Unreachable frontend modules left over from the old widget window and proposal UI: `PendingTray`, `EditProposalModal`, `FocusList`, `FocusCard`, `TaskRow`, `Titlebar`, `CapBadge`, `NewFocusForm`, `useAppState`, `api/caps`, `api/proposals`, the proposal readers, `fixtureFocusWriter`, `lib/capState`, `types/error`, `types/proposal`, generated Proposal types, and their CSS.
 - `task install-skill` — it copied `skill/checkpoint.md`, which was deleted in `a04868a`.
+- `get_caps` and `health` Tauri commands (no frontend caller) and the `src-tauri/src/api` module.
+- `timer-expired` and `task-timer-expired` events (no listener) and `TimerExpiryEvent`; the UI already refreshes through `focuses-changed` when a timer file changes.
+- `src-tauri/src/app/window_autosave.rs`, which was not in the module tree.
+- Unused dependencies: `uuid` (domain), `serde` (storage), `serde_json`, `objc2-app-kit`, `objc2-foundation` (Tauri host).
+- Unused CSS (`app-*`, `animal-detail-timer*`, `animal-detail-task-text`) and unused TypeScript exports.
+- `Commands::new_with_settings_provider` and `CapEvaluator::new_with_settings_provider` folded into `new`, which now always takes a settings provider.
+
+### Added
+
+- `task lint:unused`, part of `task check` and CI: knip (unused frontend files, exports, dependencies), cargo-shear (unused Cargo dependencies and unlinked files), and scripts that flag unused Tauri commands/events and CSS classes.
 
 ### Docs
 
 - README, CONTEXT, PRD, and CLAUDE.md describe the app as it is on `main`: no agent flow, no network API.
 - Issues 046 (superseded by 053) and 050 moved to `issues/done/`; issue 047 closed and ADR-0003 marked superseded.
-- Added an architecture diagram at `docs/diagrams/adhd-ranch.architecture.html`.
 
 ## [0.1.2] — 2026-09-14
 

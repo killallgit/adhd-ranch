@@ -26,30 +26,6 @@ body,
   background: transparent;
 }
 
-.app-header {
-  margin-bottom: 8px;
-}
-
-.app-title {
-  font-size: 13px;
-  font-weight: 600;
-  margin: 0;
-  letter-spacing: 0.02em;
-  opacity: 0.7;
-  text-transform: uppercase;
-}
-
-.app-body {
-  flex: 1;
-  overflow-y: auto;
-}
-
-.app-footer {
-  margin-top: 8px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  padding-top: 8px;
-}
-
 .new-focus-form {
   display: flex;
   flex-direction: column;
@@ -103,10 +79,6 @@ body,
   margin: 4px 0 0;
   color: #ff8a80;
   font-size: 11px;
-}
-
-.app-root[data-over-cap="true"] .app-title {
-  color: #ff8a80;
 }
 
 /* ── Pig overlay ──────────────────────────────────────────── */
@@ -288,12 +260,6 @@ body,
   gap: 6px;
 }
 
-.animal-detail-task-text {
-  font-size: 12px;
-  opacity: 0.9;
-  flex: 1;
-}
-
 .animal-detail-task-check {
   flex-shrink: 0;
   margin: 0;
@@ -451,20 +417,6 @@ body,
 
 .animal-detail-add-task:focus {
   border-color: rgba(255, 255, 255, 0.3);
-}
-
-.animal-detail-timer {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 10px;
-}
-
-.animal-detail-timer-status {
-  color: #ff8a80;
-  font-size: 12px;
-  font-weight: 600;
-  margin-right: auto;
 }
 
 .settings-window {

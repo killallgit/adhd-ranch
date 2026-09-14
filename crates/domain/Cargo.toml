@@ -11,7 +11,6 @@ path = "src/lib.rs"
 serde = { workspace = true }
 serde_json = { workspace = true }
 ts-rs = { version = "12", optional = true }
-uuid = { version = "1", features = ["v7", "serde"] }
 
 [features]
 export-ts = ["dep:ts-rs"]

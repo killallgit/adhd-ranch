@@ -196,7 +196,7 @@ mod tests {
             Arc::new(|| "2026-01-01T00:00:00Z".to_string()),
             Arc::new(move || clock_secs_val),
             Arc::new(|| "test-id".to_string()),
-            Settings::default(),
+            Arc::new(Settings::default),
         );
         (commands, dir)
     }

@@ -1,8 +1,6 @@
 use std::sync::Arc;
 
-use adhd_ranch_domain::{
-    cap_state, FocusesOverCapSource, OverCapMonitor, Settings, TasksOverCapSource,
-};
+use adhd_ranch_domain::{cap_state, FocusesOverCapSource, OverCapMonitor, TasksOverCapSource};
 use adhd_ranch_storage::FocusStore;
 
 use crate::error::CommandError;
@@ -24,20 +22,6 @@ pub struct CapEvaluator {
 
 impl CapEvaluator {
     pub fn new(
-        store: Arc<dyn FocusStore>,
-        monitor: Arc<OverCapMonitor>,
-        notifier: Arc<dyn CapNotifier>,
-        settings: Settings,
-    ) -> Self {
-        Self::new_with_settings_provider(
-            store,
-            monitor,
-            notifier,
-            Arc::new(move || settings.clone()),
-        )
-    }
-
-    pub fn new_with_settings_provider(
         store: Arc<dyn FocusStore>,
         monitor: Arc<OverCapMonitor>,
         notifier: Arc<dyn CapNotifier>,
@@ -84,7 +68,7 @@ mod tests {
     use std::sync::Mutex;
 
     use adhd_ranch_domain::focus::{Focus, FocusId, Task};
-    use adhd_ranch_domain::{Caps, NewFocus, NotificationSettings, Widget};
+    use adhd_ranch_domain::{Caps, NewFocus, NotificationSettings, Settings, Widget};
     use adhd_ranch_storage::FocusStoreError;
 
     use super::*;
@@ -253,7 +237,10 @@ mod tests {
             store.clone(),
             Arc::new(OverCapMonitor::new()),
             notifier.clone(),
-            settings(notifications),
+            {
+                let settings = settings(notifications);
+                Arc::new(move || settings.clone())
+            },
         );
         (store, notifier, evaluator)
     }
@@ -360,7 +347,7 @@ mod tests {
         let store = Arc::new(StubStore::new());
         let notifier = Arc::new(RecordingNotifier::new());
         let settings = Arc::new(Mutex::new(settings(all_enabled())));
-        let evaluator = CapEvaluator::new_with_settings_provider(
+        let evaluator = CapEvaluator::new(
             store.clone(),
             Arc::new(OverCapMonitor::new()),
             notifier.clone(),

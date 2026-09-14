@@ -11,9 +11,7 @@ pub mod timer_expiry;
 pub use caps::{CapEvaluator, CapNotifier};
 pub use error::CommandError;
 pub use focus::{CreateFocusInput, CreatedFocus};
-pub use timer_expiry::{
-    NotificationRequest, NotificationSink, TimerExpiryEvent, TimerExpiryWorkflow,
-};
+pub use timer_expiry::{NotificationRequest, NotificationSink, TimerExpiryWorkflow};
 
 pub type Clock = Arc<dyn Fn() -> String + Send + Sync>;
 pub type ClockSecs = Arc<dyn Fn() -> i64 + Send + Sync>;
@@ -48,22 +46,6 @@ impl Commands {
         clock: Clock,
         clock_secs: ClockSecs,
         id_gen: IdGen,
-        settings: Settings,
-    ) -> Self {
-        Self::new_with_settings_provider(
-            store,
-            clock,
-            clock_secs,
-            id_gen,
-            Arc::new(move || settings.clone()),
-        )
-    }
-
-    pub fn new_with_settings_provider(
-        store: Arc<dyn FocusStore>,
-        clock: Clock,
-        clock_secs: ClockSecs,
-        id_gen: IdGen,
         settings: SettingsProvider,
     ) -> Self {
         Self {
@@ -94,7 +76,7 @@ mod tests {
     fn caps_reads_latest_settings_provider_value() {
         let dir = TempDir::new().unwrap();
         let settings = Arc::new(Mutex::new(Settings::default()));
-        let commands = Commands::new_with_settings_provider(
+        let commands = Commands::new(
             Arc::new(MarkdownFocusStore::new(dir.path().join("focuses"))),
             Arc::new(|| "2026-01-01T00:00:00Z".to_string()),
             Arc::new(|| 1_700_000_000),

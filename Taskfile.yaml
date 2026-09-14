@@ -77,11 +77,46 @@ tasks:
     cmds:
       - npm run lint
 
+  lint:unused:rust:
+    desc: Unused Cargo dependencies and Rust files outside the module tree (cargo-shear)
+    cmds:
+      - |
+        if ! command -v cargo-shear >/dev/null; then
+          echo "cargo-shear is not installed. Run: cargo install --locked cargo-shear" >&2
+          exit 1
+        fi
+      - cargo shear
+
+  lint:unused:web:
+    desc: Unused frontend files, exports, and npm dependencies (knip)
+    deps: [install]
+    cmds:
+      - npm run lint:unused
+
+  lint:ipc:
+    desc: Tauri commands and events that only one side of the IPC boundary uses
+    cmds:
+      - node scripts/check-ipc.mjs
+
+  lint:css:
+    desc: CSS classes that no source file references
+    cmds:
+      - node scripts/check-css.mjs
+
+  lint:unused:
+    desc: All unused-code checks
+    cmds:
+      - task: lint:unused:rust
+      - task: lint:unused:web
+      - task: lint:ipc
+      - task: lint:css
+
   lint:
-    desc: Lint Rust + frontend
+    desc: Lint Rust + frontend + unused code
     cmds:
       - task: lint:rust
       - task: lint:web
+      - task: lint:unused
 
   fmt:
     desc: Format Rust + frontend

@@ -38,7 +38,6 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
-            ui_bridge::health,
             ui_bridge::list_focuses,
             ui_bridge::create_focus,
             ui_bridge::duplicate_focus,
@@ -52,7 +51,6 @@ pub fn run() {
             ui_bridge::clear_timer,
             ui_bridge::start_task_timer,
             ui_bridge::clear_task_timer,
-            ui_bridge::get_caps,
             ui_bridge::update_pig_rects,
             ui_bridge::set_pig_drag_active,
             ui_bridge::get_settings,
@@ -85,7 +83,7 @@ pub fn run() {
             })
         };
 
-        let commands = Arc::new(Commands::new_with_settings_provider(
+        let commands = Arc::new(Commands::new(
             store.clone(),
             Arc::new(now_rfc3339),
             Arc::new(now_unix_secs),
@@ -96,7 +94,7 @@ pub fn run() {
 
         let cap_monitor = Arc::new(OverCapMonitor::new());
         let notifier = Arc::new(TauriCapNotifier::new(app.handle().clone()));
-        let evaluator = Arc::new(CapEvaluator::new_with_settings_provider(
+        let evaluator = Arc::new(CapEvaluator::new(
             store.clone(),
             cap_monitor,
             notifier,

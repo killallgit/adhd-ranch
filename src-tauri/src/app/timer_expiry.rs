@@ -1,33 +1,15 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use adhd_ranch_commands::{
-    NotificationRequest, NotificationSink, TimerExpiryEvent, TimerExpiryWorkflow,
-};
+use adhd_ranch_commands::{NotificationRequest, NotificationSink, TimerExpiryWorkflow};
 use adhd_ranch_domain::Settings;
 use adhd_ranch_storage::FocusStore;
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Manager};
 use tauri_plugin_notification::NotificationExt;
 
 use super::SettingsState;
 
-pub const TIMER_EXPIRED_EVENT: &str = "timer-expired";
-pub const TASK_TIMER_EXPIRED_EVENT: &str = "task-timer-expired";
 const TICK_INTERVAL: Duration = Duration::from_secs(1);
-
-#[derive(Clone, serde::Serialize)]
-struct TimerExpiredPayload {
-    focus_id: String,
-    focus_title: String,
-}
-
-#[derive(Clone, serde::Serialize)]
-struct TaskTimerExpiredPayload {
-    focus_id: String,
-    focus_title: String,
-    task_index: usize,
-    task_text: String,
-}
 
 struct TauriNotificationSink {
     handle: AppHandle,
@@ -83,50 +65,8 @@ fn run_once(handle: &AppHandle, store: Arc<dyn FocusStore>) {
         Arc::new(TauriNotificationSink::new(handle.clone()));
     let workflow = TimerExpiryWorkflow::new(store, settings, notifications);
 
-    let events = match workflow.run_once(now) {
-        Ok(events) => events,
-        Err(e) => {
-            log::error!("timer_expiry: workflow failed: {e}");
-            return;
-        }
-    };
-    for event in events {
-        match event {
-            TimerExpiryEvent::FocusTimerExpired {
-                focus_id,
-                focus_title,
-            } => {
-                if let Err(e) = handle.emit(
-                    TIMER_EXPIRED_EVENT,
-                    TimerExpiredPayload {
-                        focus_id: focus_id.clone(),
-                        focus_title,
-                    },
-                ) {
-                    log::error!("timer_expiry: emit failed for {focus_id}: {e}");
-                }
-            }
-            TimerExpiryEvent::TaskTimerExpired {
-                focus_id,
-                focus_title,
-                task_index,
-                task_text,
-            } => {
-                if let Err(e) = handle.emit(
-                    TASK_TIMER_EXPIRED_EVENT,
-                    TaskTimerExpiredPayload {
-                        focus_id: focus_id.clone(),
-                        focus_title,
-                        task_index,
-                        task_text,
-                    },
-                ) {
-                    log::error!(
-                        "timer_expiry: emit failed for task timer {focus_id}:{task_index}: {e}"
-                    );
-                }
-            }
-        }
+    if let Err(e) = workflow.run_once(now) {
+        log::error!("timer_expiry: workflow failed: {e}");
     }
 }
 

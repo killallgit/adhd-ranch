@@ -117,7 +117,7 @@ export function TimerDropdown({ timer, ariaLabel, onStart, onClear }: TimerDropd
   );
 }
 
-export function formatTimer(timer: FocusTimer): string {
+function formatTimer(timer: FocusTimer): string {
   if (timer.status === "Expired") return "Expired";
   const elapsedSecs = Math.max(0, Math.floor(Date.now() / 1000) - timer.started_at);
   const remainingSecs = timer.duration_secs - elapsedSecs;

@@ -5,7 +5,7 @@ export interface Rect {
   readonly h: number;
 }
 
-export interface RectSize {
+interface RectSize {
   readonly w: number;
   readonly h: number;
 }

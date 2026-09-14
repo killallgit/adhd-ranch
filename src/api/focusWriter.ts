@@ -5,7 +5,7 @@ export type WriteOutcome =
   | { ok: true }
   | { ok: false; kind: "ipc" | "domain" | "not_found"; message: string };
 
-export interface CreateFocusInput {
+interface CreateFocusInput {
   title: string;
   description?: string;
   timer_preset?: TimerPreset | null;

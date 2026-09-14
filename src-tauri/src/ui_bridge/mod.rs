@@ -2,23 +2,17 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use adhd_ranch_commands::{CommandError, Commands, CreateFocusInput, CreatedFocus};
-use adhd_ranch_domain::{Caps, Focus, Settings, TimerPreset};
+use adhd_ranch_domain::{Focus, Settings, TimerPreset};
 
 use tauri::{AppHandle, Emitter, Manager, State, Wry};
 
 use adhd_ranch_domain::{PigRect, RectUpdater};
 
-use crate::api::Health;
 use crate::app::{DebugOverlayState, SettingsPathState, SettingsState};
 
 pub struct CommandsState(pub Arc<Commands>);
 pub struct PigHitState(pub Arc<dyn RectUpdater>);
 pub struct DragLockState(pub Arc<AtomicBool>);
-
-#[tauri::command]
-pub fn health() -> Health {
-    Health { ok: true }
-}
 
 #[tauri::command]
 pub fn list_focuses(state: State<'_, CommandsState>) -> Result<Vec<Focus>, CommandError> {
@@ -181,11 +175,6 @@ pub fn clear_task_timer(
         .clear_task_timer(&focus_id, index)
         .inspect(|_| log::info!("task timer cleared on {focus_id}:{index}"))
         .inspect_err(|e| log::error!("clear_task_timer({focus_id:?}, {index}): {e}"))
-}
-
-#[tauri::command]
-pub fn get_caps(state: State<'_, CommandsState>) -> Caps {
-    state.0.caps()
 }
 
 #[tauri::command]

@@ -9,5 +9,3 @@ export function ranchAnimalScale(
   const progress = Math.min(1, elapsedSecs / durationSecs);
   return 1 + progress * 2;
 }
-
-export const useRanchAnimalScale = ranchAnimalScale;

@@ -19,20 +19,6 @@ pub trait NotificationSink: Send + Sync {
     fn notify(&self, request: NotificationRequest);
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum TimerExpiryEvent {
-    FocusTimerExpired {
-        focus_id: String,
-        focus_title: String,
-    },
-    TaskTimerExpired {
-        focus_id: String,
-        focus_title: String,
-        task_index: usize,
-        task_text: String,
-    },
-}
-
 pub struct TimerExpiryWorkflow {
     store: Arc<dyn FocusStore>,
     settings: Settings,
@@ -52,9 +38,8 @@ impl TimerExpiryWorkflow {
         }
     }
 
-    pub fn run_once(&self, now_secs: i64) -> Result<Vec<TimerExpiryEvent>, CommandError> {
+    pub fn run_once(&self, now_secs: i64) -> Result<(), CommandError> {
         let focuses = self.store.list()?;
-        let mut events = Vec::new();
         for transition in tick(now_secs, &focuses) {
             let Some(focus) = focuses
                 .iter()
@@ -77,10 +62,6 @@ impl TimerExpiryWorkflow {
                             body: format!("{} reached its timer.", transition.focus_title),
                         });
                     }
-                    events.push(TimerExpiryEvent::FocusTimerExpired {
-                        focus_id: transition.focus_id,
-                        focus_title: transition.focus_title,
-                    });
                 }
                 TimerTransitionTarget::Task { index, text } => {
                     let Some(task) = focus.tasks.get(index) else {
@@ -103,16 +84,10 @@ impl TimerExpiryWorkflow {
                             body: format!("{}: {text}", transition.focus_title),
                         });
                     }
-                    events.push(TimerExpiryEvent::TaskTimerExpired {
-                        focus_id: transition.focus_id,
-                        focus_title: transition.focus_title,
-                        task_index: index,
-                        task_text: text,
-                    });
                 }
             }
         }
-        Ok(events)
+        Ok(())
     }
 }
 
@@ -295,7 +270,7 @@ mod tests {
         let workflow =
             TimerExpiryWorkflow::new(store.clone(), Settings::default(), notifications.clone());
 
-        let events = workflow.run_once(1_100).unwrap();
+        workflow.run_once(1_100).unwrap();
 
         let focuses = store.list().unwrap();
         assert_eq!(
@@ -304,15 +279,6 @@ mod tests {
                 .as_ref()
                 .map(|timer| &timer.status),
             Some(&TimerStatus::Expired)
-        );
-        assert_eq!(
-            events,
-            vec![TimerExpiryEvent::TaskTimerExpired {
-                focus_id: "focus-1".to_string(),
-                focus_title: "Ship feature".to_string(),
-                task_index: 0,
-                task_text: "Write tests".to_string(),
-            }]
         );
         assert_eq!(
             notifications.requests(),
@@ -375,19 +341,12 @@ mod tests {
         let workflow =
             TimerExpiryWorkflow::new(store.clone(), Settings::default(), notifications.clone());
 
-        let events = workflow.run_once(1_100).unwrap();
+        workflow.run_once(1_100).unwrap();
 
         let focuses = store.list().unwrap();
         assert_eq!(
             focuses[0].timer.as_ref().map(|timer| &timer.status),
             Some(&TimerStatus::Expired)
-        );
-        assert_eq!(
-            events,
-            vec![TimerExpiryEvent::FocusTimerExpired {
-                focus_id: "focus-1".to_string(),
-                focus_title: "Ship feature".to_string(),
-            }]
         );
         assert_eq!(
             notifications.requests(),

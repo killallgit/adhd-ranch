@@ -55,7 +55,7 @@ mod tests {
             Arc::new(|| "2026-05-20T00:00:00Z".to_string()),
             Arc::new(|| 1_779_235_200),
             Arc::new(|| "example-id".to_string()),
-            Settings::default(),
+            Arc::new(Settings::default),
         )
     }
 

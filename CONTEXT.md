@@ -121,7 +121,7 @@ Responsibilities owned by the app:
 
 - Read/write per-Focus markdown files (frontmatter + body).
 - Watch `~/.adhd-ranch/focuses/` via `notify` crate; reflect external edits live (pig count updates within 1s).
-- Run a 1s timer-expiry loop that persists expired timers, emits UI events, and sends notifications.
+- Run a 1s timer-expiry loop that persists expired timers and sends notifications. The UI picks up the change through the focuses watcher.
 - Enforce caps + emit overload alerts (`tauri-plugin-notification`).
 - Poll mouse position in a background thread; maintain shared pig bounding boxes; toggle click-through.
 
