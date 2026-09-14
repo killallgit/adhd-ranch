@@ -89,10 +89,8 @@ fn parse_tasks(body: &str, focus_id: &str) -> Vec<Task> {
             let line = line.trim_start();
             let (done, rest) = if let Some(rest) = line.strip_prefix("- [x]") {
                 (true, rest)
-            } else if let Some(rest) = line.strip_prefix("- [ ]") {
-                (false, rest)
             } else {
-                return None;
+                (false, line.strip_prefix("- [ ]")?)
             };
             let text = rest.trim().to_string();
             if text.is_empty() {
