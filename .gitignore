@@ -19,7 +19,5 @@ src-tauri/target/
 # typescript incremental build artifact
 tsconfig.tsbuildinfo
 
-# ralph runtime state (not source-controlled)
-ralph/reviews/
-ralph/state/
-ralph/logs/
+# agent skill installer lockfile
+skills-lock.json

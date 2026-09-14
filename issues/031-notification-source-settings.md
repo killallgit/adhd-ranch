@@ -2,7 +2,7 @@
 
 ## Parent PRD
 
-PRD.md §FR7 (configuration)
+PRD.md §FR6 (configuration)
 
 ## What to build
 

@@ -1,5 +1,5 @@
-use adhd_ranch_domain::{DomainError, ProposalValidationError};
-use adhd_ranch_storage::{FocusStoreError, JsonlError};
+use adhd_ranch_domain::DomainError;
+use adhd_ranch_storage::FocusStoreError;
 
 #[derive(Debug, serde::Serialize)]
 #[serde(tag = "type", content = "message", rename_all = "snake_case")]
@@ -7,7 +7,6 @@ pub enum CommandError {
     BadRequest(String),
     NotFound(String),
     AlreadyExists(String),
-    Validation(String),
     Internal(String),
 }
 
@@ -17,7 +16,6 @@ impl std::fmt::Display for CommandError {
             Self::BadRequest(m) => write!(f, "{m}"),
             Self::NotFound(m) => write!(f, "{m}"),
             Self::AlreadyExists(m) => write!(f, "{m}"),
-            Self::Validation(m) => write!(f, "{m}"),
             Self::Internal(m) => write!(f, "{m}"),
         }
     }
@@ -35,18 +33,6 @@ impl From<FocusStoreError> for CommandError {
                 CommandError::Internal(e.to_string())
             }
         }
-    }
-}
-
-impl From<JsonlError> for CommandError {
-    fn from(e: JsonlError) -> Self {
-        CommandError::Internal(e.to_string())
-    }
-}
-
-impl From<ProposalValidationError> for CommandError {
-    fn from(e: ProposalValidationError) -> Self {
-        CommandError::Validation(e.to_string())
     }
 }
 

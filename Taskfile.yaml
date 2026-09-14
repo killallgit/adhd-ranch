@@ -25,7 +25,7 @@ tasks:
   test:rust:
     desc: Run Rust unit tests (workspace minus the Tauri host, which is slow to compile)
     cmds:
-      - cargo test -p adhd-ranch-domain -p adhd-ranch-storage -p adhd-ranch-commands -p adhd-ranch-http-api --all-targets
+      - cargo test -p adhd-ranch-domain -p adhd-ranch-storage -p adhd-ranch-commands --all-targets
 
   gen-types:
     desc: Regenerate src/types/generated/*.ts from Rust domain via ts-rs
@@ -68,7 +68,7 @@ tasks:
     deps: [build:web]
     cmds:
       - cargo fmt --all -- --check
-      - cargo clippy -p adhd-ranch-domain -p adhd-ranch-storage -p adhd-ranch-commands -p adhd-ranch-http-api --all-targets -- -D warnings
+      - cargo clippy -p adhd-ranch-domain -p adhd-ranch-storage -p adhd-ranch-commands --all-targets -- -D warnings
       - cargo clippy -p adhd-ranch --all-targets -- -D warnings
 
   lint:web:
@@ -113,10 +113,3 @@ tasks:
     desc: What CI runs
     cmds:
       - task: check
-
-  install-skill:
-    desc: Install the /checkpoint slash command into ~/.claude/commands/
-    cmds:
-      - mkdir -p "$HOME/.claude/commands"
-      - cp -f skill/checkpoint.md "$HOME/.claude/commands/checkpoint.md"
-      - echo "installed checkpoint.md to $HOME/.claude/commands/"

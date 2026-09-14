@@ -14,11 +14,7 @@ use crate::display::monitor::LogicalMonitor;
 use crate::display::{DisplayManager, DisplayManagerState, DisplayService};
 use adhd_ranch_commands::{CapEvaluator, Commands};
 use adhd_ranch_domain::{DisplayConfig, OverCapMonitor, RectUpdater, Settings};
-use adhd_ranch_http_api::{serve, ServerHandle};
-use adhd_ranch_storage::{
-    watch_path, DecisionLog, FocusStore, FocusWatcher, JsonlDecisionLog, JsonlProposalQueue,
-    MarkdownFocusStore, ProposalQueue,
-};
+use adhd_ranch_storage::{watch_path, FocusStore, FocusWatcher, MarkdownFocusStore};
 use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 use time::format_description::well_known::Rfc3339;
 
@@ -26,7 +22,6 @@ use crate::ui_bridge;
 use cap_notifier::TauriCapNotifier;
 
 pub const FOCUSES_CHANGED_EVENT: &str = "focuses-changed";
-pub const PROPOSALS_CHANGED_EVENT: &str = "proposals-changed";
 
 pub struct MonitorsState(pub Vec<LogicalMonitor>);
 pub struct DisplayConfigState(pub Arc<Mutex<DisplayConfig>>);
@@ -45,12 +40,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             ui_bridge::health,
             ui_bridge::list_focuses,
-            ui_bridge::list_proposals,
-            ui_bridge::accept_proposal,
-            ui_bridge::reject_proposal,
             ui_bridge::create_focus,
             ui_bridge::duplicate_focus,
-            ui_bridge::create_proposal,
             ui_bridge::delete_focus,
             ui_bridge::append_task,
             ui_bridge::delete_task,
@@ -79,17 +70,8 @@ pub fn run() {
     builder = builder.setup(move |app| {
         let focuses_root = paths::focuses_root()?;
         std::fs::create_dir_all(&focuses_root)?;
-        let proposals_path = paths::proposals_file()?;
-        let decisions_path = paths::decisions_file()?;
-        if let Some(parent) = proposals_path.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
 
         let store: Arc<dyn FocusStore> = Arc::new(MarkdownFocusStore::new(focuses_root.clone()));
-        let queue: Arc<dyn ProposalQueue> =
-            Arc::new(JsonlProposalQueue::new(proposals_path.clone()));
-        let decision_log: Arc<dyn DecisionLog> =
-            Arc::new(JsonlDecisionLog::new(decisions_path.clone()));
 
         let settings_state = Arc::new(Mutex::new(settings.clone()));
         let settings_provider: adhd_ranch_commands::SettingsProvider = {
@@ -105,8 +87,6 @@ pub fn run() {
 
         let commands = Arc::new(Commands::new_with_settings_provider(
             store.clone(),
-            queue.clone(),
-            decision_log.clone(),
             Arc::new(now_rfc3339),
             Arc::new(now_unix_secs),
             Arc::new(|| uuid::Uuid::now_v7().to_string()),
@@ -173,23 +153,12 @@ pub fn run() {
                 ),
             ],
         )?;
-        let proposals_watcher = install_change_handlers(
-            proposals_path.parent().expect("proposals path has parent"),
-            vec![emit_event_handler(
-                app.handle().clone(),
-                PROPOSALS_CHANGED_EVENT,
-            )],
-        )?;
         app.manage(TrayHandle(tray_icon));
         app.manage(WatcherHandles {
             _focuses: focuses_watcher,
-            _proposals: proposals_watcher,
         });
 
-        timer_expiry::spawn(app.handle().clone(), store.clone());
-
-        let server = install_http_server(store, queue, decision_log)?;
-        app.manage(server);
+        timer_expiry::spawn(app.handle().clone(), store);
 
         Ok(())
     });
@@ -256,7 +225,6 @@ struct TrayHandle(tauri::tray::TrayIcon<tauri::Wry>);
 #[allow(dead_code)]
 struct WatcherHandles {
     _focuses: FocusWatcher,
-    _proposals: FocusWatcher,
 }
 
 type ChangeHandler = Box<dyn Fn() + Send + 'static>;
@@ -285,16 +253,4 @@ fn evaluate_caps_handler(evaluator: Arc<CapEvaluator>) -> ChangeHandler {
     Box::new(move || {
         let _ = evaluator.evaluate();
     })
-}
-
-fn install_http_server(
-    store: Arc<dyn FocusStore>,
-    queue: Arc<dyn ProposalQueue>,
-    decisions: Arc<dyn DecisionLog>,
-) -> Result<ServerHandle, Box<dyn std::error::Error>> {
-    let port_file = paths::port_file()?;
-    let runtime = tauri::async_runtime::handle();
-    let handle =
-        runtime.block_on(async move { serve(store, queue, decisions, Some(port_file)).await })?;
-    Ok(handle)
 }

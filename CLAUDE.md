@@ -28,17 +28,21 @@ These rules govern every later vertical slice. Read them before changing code.
 
 ## Data / view separation
 
-- **Rust** — `src-tauri/src/`:
+- **Rust crates** — `crates/`:
   - `domain/` — pure types + pure logic. No I/O, no Tauri, no async runtime.
   - `storage/` — disk and watcher adapters; depend on `domain` types.
-  - `api/` — HTTP API; depends on `storage` + `domain` via traits.
-  - `ui_bridge/` — Tauri commands / events; depends on `domain` + `storage` via traits.
-  - `app/` — composition root: wires everything in `main.rs`.
+  - `commands/` — use cases and workflows; depend on `storage` traits + `domain`.
+- **Tauri host** — `src-tauri/src/`:
+  - `ui_bridge/` — Tauri commands / events; depends on `commands` + `domain`.
+  - `display/` — monitor geometry, overlay window, click-through hit-testing.
+  - `api/` — shared response types.
+  - `app/` — composition root: `app::run()` (called from `main.rs`) wires everything.
 - **Frontend** — `src/`:
   - `components/` — React components. View only. **No `fetch`, no direct I/O.**
   - `hooks/` — state + effects; call `api/` clients.
-  - `api/` — typed HTTP/IPC clients.
-  - `types/` — shared TypeScript types.
+  - `api/` — typed IPC clients.
+  - `lib/` — pure UI helpers.
+  - `types/` — shared TypeScript types; `types/generated/` is produced from Rust by `task gen-types`.
 
 ## Patterns
 

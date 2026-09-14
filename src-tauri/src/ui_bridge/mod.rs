@@ -1,11 +1,8 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-use adhd_ranch_commands::{
-    CommandError, Commands, CreateFocusInput, CreatedFocus, CreatedProposal, DecisionOutcome,
-    ProposalEdit,
-};
-use adhd_ranch_domain::{Caps, Focus, Proposal, Settings, TimerPreset};
+use adhd_ranch_commands::{CommandError, Commands, CreateFocusInput, CreatedFocus};
+use adhd_ranch_domain::{Caps, Focus, Settings, TimerPreset};
 
 use tauri::{AppHandle, Emitter, Manager, State, Wry};
 
@@ -29,14 +26,6 @@ pub fn list_focuses(state: State<'_, CommandsState>) -> Result<Vec<Focus>, Comma
         .0
         .list_focuses()
         .inspect_err(|e| log::error!("list_focuses: {e}"))
-}
-
-#[tauri::command]
-pub fn list_proposals(state: State<'_, CommandsState>) -> Result<Vec<Proposal>, CommandError> {
-    state
-        .0
-        .list_proposals()
-        .inspect_err(|e| log::error!("list_proposals: {e}"))
 }
 
 #[tauri::command]
@@ -197,43 +186,6 @@ pub fn clear_task_timer(
 #[tauri::command]
 pub fn get_caps(state: State<'_, CommandsState>) -> Caps {
     state.0.caps()
-}
-
-#[tauri::command]
-pub fn accept_proposal(
-    id: String,
-    edit: Option<ProposalEdit>,
-    state: State<'_, CommandsState>,
-) -> Result<DecisionOutcome, CommandError> {
-    state
-        .0
-        .accept_proposal(&id, edit.unwrap_or_default())
-        .inspect(|o| log::info!("proposal {id} accepted → {:?}", o.target))
-        .inspect_err(|e| log::error!("accept_proposal({id:?}): {e}"))
-}
-
-#[tauri::command]
-pub fn reject_proposal(
-    id: String,
-    state: State<'_, CommandsState>,
-) -> Result<DecisionOutcome, CommandError> {
-    state
-        .0
-        .reject_proposal(&id)
-        .inspect(|_| log::info!("proposal {id} rejected"))
-        .inspect_err(|e| log::error!("reject_proposal({id:?}): {e}"))
-}
-
-#[tauri::command]
-pub fn create_proposal(
-    input: adhd_ranch_commands::CreateProposalInput,
-    state: State<'_, CommandsState>,
-) -> Result<CreatedProposal, CommandError> {
-    state
-        .0
-        .create_proposal(input)
-        .inspect(|p| log::info!("proposal created: {}", p.id))
-        .inspect_err(|e| log::error!("create_proposal: {e}"))
 }
 
 #[tauri::command]

@@ -26,34 +26,6 @@ body,
   background: transparent;
 }
 
-.titlebar {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  height: 28px;
-  margin: -12px -12px 4px;
-  padding: 0 8px;
-  flex-shrink: 0;
-  border-radius: 12px 12px 0 0;
-}
-
-.titlebar-close {
-  background: transparent;
-  border: none;
-  color: inherit;
-  cursor: pointer;
-  font-size: 16px;
-  padding: 2px 4px;
-  opacity: 0.4;
-  line-height: 1;
-  position: relative;
-  z-index: 1;
-}
-
-.titlebar-close:hover {
-  opacity: 0.9;
-}
-
 .app-header {
   margin-bottom: 8px;
 }
@@ -72,150 +44,10 @@ body,
   overflow-y: auto;
 }
 
-.focus-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.focus-list-empty {
-  padding: 24px 0;
-  text-align: center;
-  opacity: 0.7;
-}
-
-.focus-card {
-  background: rgba(255, 255, 255, 0.04);
-  border-radius: 8px;
-  padding: 8px 10px;
-}
-
-.focus-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 4px;
-}
-
-.focus-title {
-  font-size: 13px;
-  font-weight: 600;
-  margin: 0;
-}
-
-.focus-menu,
-.task-clear {
-  background: transparent;
-  border: none;
-  color: inherit;
-  cursor: pointer;
-  opacity: 0.5;
-  font-size: 13px;
-  padding: 0 4px;
-}
-
-.focus-menu:disabled,
-.task-clear:disabled {
-  cursor: default;
-}
-
-.task-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.task-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 2px 0;
-}
-
-.task-text {
-  font-size: 12px;
-  opacity: 0.9;
-}
-
 .app-footer {
   margin-top: 8px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   padding-top: 8px;
-}
-
-.pending-tray-toggle {
-  background: transparent;
-  border: none;
-  color: inherit;
-  cursor: pointer;
-  font-size: 12px;
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  padding: 0;
-}
-
-.pending-tray-list {
-  list-style: none;
-  margin: 8px 0 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.proposal-card {
-  background: rgba(255, 255, 255, 0.04);
-  border-radius: 6px;
-  padding: 6px 8px;
-  font-size: 12px;
-}
-
-.proposal-summary {
-  margin: 0 0 4px;
-  font-weight: 500;
-}
-
-.proposal-target {
-  margin: 0 0 4px;
-  opacity: 0.7;
-  font-size: 11px;
-}
-
-.proposal-actions {
-  display: flex;
-  gap: 4px;
-}
-
-.proposal-actions button {
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-  color: inherit;
-  cursor: pointer;
-  padding: 2px 6px;
-  font-size: 11px;
-}
-
-.proposal-reasoning {
-  margin: 6px 0 0;
-  opacity: 0.65;
-  font-size: 11px;
-}
-
-.new-focus-toggle {
-  background: transparent;
-  border: 1px dashed rgba(255, 255, 255, 0.18);
-  color: inherit;
-  cursor: pointer;
-  padding: 6px;
-  border-radius: 6px;
-  width: 100%;
-  margin-top: 8px;
-  font-size: 12px;
 }
 
 .new-focus-form {
@@ -267,137 +99,14 @@ body,
   background: rgba(255, 255, 255, 0.18);
 }
 
-.new-focus-error,
-.proposal-error {
+.new-focus-error {
   margin: 4px 0 0;
   color: #ff8a80;
   font-size: 11px;
 }
 
-.focus-delete-confirm {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  margin: 4px 0 6px;
-  font-size: 11px;
-  opacity: 0.85;
-}
-
-.focus-delete-confirm button {
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 4px;
-  color: inherit;
-  cursor: pointer;
-  padding: 2px 6px;
-  font-size: 11px;
-}
-
-.cap-badge {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  background: rgba(255, 90, 90, 0.18);
-  border: 1px solid rgba(255, 90, 90, 0.55);
-  color: #ff8a80;
-  border-radius: 6px;
-  padding: 4px 6px;
-  margin-top: 4px;
-  font-size: 11px;
-}
-
 .app-root[data-over-cap="true"] .app-title {
   color: #ff8a80;
-}
-
-.focus-list-empty {
-  padding: 18px;
-  text-align: center;
-  background: rgba(255, 255, 255, 0.03);
-  border-radius: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.focus-list-empty-title {
-  margin: 0;
-  font-weight: 600;
-  font-size: 14px;
-}
-
-.focus-list-empty-tip {
-  margin: 0;
-  opacity: 0.7;
-  font-size: 12px;
-}
-
-.focus-list-empty-tip code {
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 3px;
-  padding: 0 4px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-}
-
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.45);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 50;
-}
-
-.modal {
-  background: rgba(35, 35, 38, 0.98);
-  border-radius: 8px;
-  padding: 12px;
-  width: 86%;
-  max-width: 320px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.modal-title {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.modal-field {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  font-size: 11px;
-  opacity: 0.85;
-}
-
-.modal-field input,
-.modal-field select {
-  background: rgba(0, 0, 0, 0.25);
-  color: inherit;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 4px;
-  padding: 4px 6px;
-  font-size: 12px;
-}
-
-.modal-actions {
-  display: flex;
-  gap: 6px;
-  justify-content: flex-end;
-}
-
-.modal-actions button {
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 4px;
-  color: inherit;
-  cursor: pointer;
-  padding: 2px 8px;
-  font-size: 12px;
 }
 
 /* ── Pig overlay ──────────────────────────────────────────── */

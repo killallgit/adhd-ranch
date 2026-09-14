@@ -1,20 +1,15 @@
-# Issues — Ralph workflow
+# Issues
 
-Each issue is a self-contained vertical slice an AFK coding agent ("ralph") can grab, finish, and merge without supervision.
+Each issue is a self-contained vertical slice that one person or coding agent can grab, finish, and merge.
 
 ## Priority queue
 
-Complete this product slice before picking up architecture-only work.
-
-- [050](050-settings-update-workflow.md) — Settings update workflow and runtime freshness
 - [031](031-notification-source-settings.md) — Notification source settings registry (GH #31)
 
-### Architecture queue (deepening, AFK except where noted)
+### Architecture queue (deepening)
 
 These are not required before 031. Pick one when we choose to spend a slice on internal seams or future-proofing.
 
-- [046](046-timer-expiry-service-extraction.md) — Timer expiry workflow module
-- [047](047-storage-transaction-seam.md) — Storage transaction seam for Proposal lifecycle
 - [051](051-ranch-animal-vocabulary-seam.md) — RanchAnimal vocabulary seam for future animal types
 
 Completed issue files live in `issues/done/`. Do not pick up files from `issues/done/` or `issues/icebox/`.
@@ -23,6 +18,8 @@ Closed without implementation:
 
 - 042 — Unify cap-state behind a single `CapStatus` projection. Premise was wrong; see [ADR-0001](../docs/adr/0001-cap-state-is-already-a-single-projection.md).
 - 045 — Symmetric `fixtureReader<T>` + caps fixture parity. Helper too thin to warrant abstraction; test-wrapper deletion folded into 039. See [ADR-0002](../docs/adr/0002-fixture-readers-are-too-thin-for-a-generic-helper.md).
+- 046 — Timer expiry workflow module. Superseded by 053, which moved the workflow into `crates/commands`.
+- 047 — Storage transaction seam for Proposal lifecycle. The Proposal queue and HTTP API were removed; see [ADR-0003](../docs/adr/0003-storage-transaction-seam-for-proposal-lifecycle.md).
 
 ### Icebox (deferred)
 
@@ -85,5 +82,3 @@ If any box can't be ticked, the issue is **not** done. Flag the human; don't sil
 ## Blocked by
 ## User stories addressed
 ```
-
-emit: "RALPH DONE" when all tasks completed

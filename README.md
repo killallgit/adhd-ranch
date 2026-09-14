@@ -1,10 +1,10 @@
 # adhd-ranch
 
-Issue tracking for a five-year-old. macOS menubar app — Tauri v2 + React.
+Issue tracking for a five-year-old. Menubar/tray desktop app — Tauri v2 + React. macOS is the primary target.
 
 A small number of buckets ("Focuses") with a few bullets each ("Tasks"). Pixel pigs roam the screen as a peripheral reminder — one pig per Focus. Click a pig to inspect or edit its Tasks. Markdown on disk is the source of truth.
 
-See `PRD.md`, `CONTEXT.md`, and `CLAUDE.md` for the full design and the programming rules every slice must follow.
+See `PRD.md`, `CONTEXT.md`, and `CLAUDE.md` for the full design and the programming rules every slice must follow. An interactive architecture diagram lives at `docs/diagrams/adhd-ranch.architecture.html`.
 
 ## Quick install (end-user)
 
@@ -12,24 +12,25 @@ See `PRD.md`, `CONTEXT.md`, and `CLAUDE.md` for the full design and the programm
    - macOS: `.dmg`
    - Windows: `_x64-setup.exe` or `_arm64-setup.exe`
    - Linux: `.AppImage` or `.deb`
-2. The v1 builds are **not codesigned**. macOS Gatekeeper will block the first launch. Either right-click the app → Open (Open button appears), or:
+2. The builds are **not codesigned**. macOS Gatekeeper will block the first launch. Either right-click the app → Open (Open button appears), or:
    ```sh
    xattr -dr com.apple.quarantine "/Applications/Adhd Ranch.app"
    ```
-3. Launch the app once. The tray icon appears in the menubar.
-4. The `/checkpoint` slash command exists in the repo for the deferred v1.3 agent proposal flow, but v1.2 does not require installing it.
+3. Launch the app once. The tray icon appears in the menubar, and the first launch creates one example Focus so the ranch has a pig to show.
 
 ## Day-to-day usage
 
-1. Open the tray menu. Click **+ New Focus** and give it a title + short description. The description is retained for the deferred v1.3 routing agent.
+1. Open the tray menu. Click **+ New Focus** and give it a title, an optional description, and an optional timer.
 2. A pig appears for each Focus and wanders on the overlay.
-3. Click a pig to open its detail card. Add, edit, complete, or clear Tasks from there.
+3. Click a pig to open its detail card. Rename, duplicate, or delete the Focus; add, edit, check off, or clear Tasks.
 4. Click the clock/time control on the Focus title or on any Task to start, restart, or clear a timer. Focus timers also drive animal growth and expired-focus alerts.
-5. Hand-edit `~/.adhd-ranch/focuses/<slug>/focus.md` whenever you want — the watcher reflects changes within a second. Adding `- [ ] something` adds a task, deleting a line removes it.
+5. Drag a pig to move it; release to toss it. Tray → **Gather Pigs** pulls every pig back onto the primary display.
+6. Hand-edit `~/.adhd-ranch/focuses/<slug>/focus.md` whenever you want — the watcher reflects changes within a second. Adding `- [ ] something` adds a task, `- [x]` marks it done, deleting a line removes it.
+7. Tray → **Settings…** opens Preferences: caps, always-on-top, delete confirmation, enabled displays, and notification toggles.
 
 ## Limits + alerts
 
-Default caps: **5 Focuses**, **7 Tasks per Focus**. Going over still works (your markdown wins) but the widget shows a red badge and macOS pops a one-shot notification per `under → over` transition.
+Default caps: **5 Focuses**, **7 Tasks per Focus**. Going over still works (your markdown wins), but the tray icon turns red and the app sends a one-shot system notification per `under → over` transition.
 
 Override defaults in `~/.adhd-ranch/settings.yaml`:
 
@@ -39,6 +40,7 @@ caps:
   max_tasks_per_focus: 7
 notifications:
   timer_expired: true
+  task_timer_expired: true
   focuses_over_cap: true
   tasks_over_cap: true
 widget:
@@ -48,32 +50,29 @@ displays:
   enabled: 0
 ```
 
-Missing keys fall back to defaults. Settings changed through the app are persisted immediately; manual file edits are picked up on app restart.
+`displays.enabled` is a comma-separated list of monitor indices. Missing keys fall back to defaults. Settings changed through Preferences are persisted and applied immediately; manual edits to `settings.yaml` are picked up on app restart.
 
 ## Storage layout (canonical state)
 
 ```
-~/.adhd-ranch/
+~/.adhd-ranch/          (%APPDATA%\adhd-ranch on Windows)
   focuses/
-    <slug>/focus.md     YAML frontmatter + - [ ] bullets
-    <slug>/timer.json    optional focus countdown timer sidecar
+    <slug>/focus.md     YAML frontmatter + - [ ] / - [x] bullets
+    <slug>/timer.json   optional Focus countdown timer sidecar
     <slug>/task-timers.json
-                         optional task countdown timer sidecar, indexed to task order
-  proposals.jsonl       pending proposals, one per line
-  decisions.jsonl       audit log of accept/reject (with edited flag)
+                        optional Task countdown timer sidecar, indexed to task order
   settings.yaml         optional caps + notification/widget/display config
-  run/port              ephemeral HTTP port
 ```
 
-`/health` and `/focuses` and friends are exposed at `127.0.0.1:$(cat ~/.adhd-ranch/run/port)` — no auth, localhost-only.
+The app makes no network calls and exposes no network API. The UI talks to Rust through Tauri IPC.
 
 ## Development
 
 ```sh
 task install   # install frontend deps
 task dev       # launch Tauri dev window
-task check     # PR gate: lint + typecheck + tests
-task build     # release .app + .dmg in src-tauri/target/release/bundle/
+task check     # PR gate: lint + typecheck + tests + generated-type drift check
+task build     # release bundle in src-tauri/target/release/bundle/
 ```
 
 Releases are created manually with `.github/workflows/release.yml`.
@@ -90,20 +89,22 @@ Releases are created manually with `.github/workflows/release.yml`.
 src/                 frontend (React + TS)
   components/        view-only React components
   hooks/             state + effects
-  api/               typed HTTP/IPC clients
+  api/               typed IPC clients
   lib/               pure UI helpers
-  types/             shared TS types
+  types/             shared TS types (types/generated/ comes from Rust via ts-rs)
 src-tauri/           Tauri v2 host (Rust)
   src/
-    api/             HTTP API surface
+    app/             composition root, tray, menus, settings + timer workflows
     ui_bridge/       Tauri command handlers
-    app/             composition root
+    display/         monitor geometry, overlay window, click-through hit-testing
+    api/             shared response types (Health)
 crates/
   domain/            pure types and logic — no I/O
-  storage/           disk + watcher adapters
-  http-api/          axum router + serve
-skill/               /checkpoint slash command for deferred v1.3 proposal flow
-.github/workflows/   CI
+  storage/           markdown focus store, settings writer, atomic writes, file watcher
+  commands/          use cases and workflows called by the Tauri host
+docs/                ADRs, research notes, architecture diagram
+issues/              vertical-slice issue files
+.github/workflows/   CI + release
 ```
 
 Pick the lowest unblocked file in `issues/`, follow `issues/README.md`, ship one slice per PR.

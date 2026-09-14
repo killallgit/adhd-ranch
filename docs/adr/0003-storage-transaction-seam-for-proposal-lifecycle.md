@@ -1,6 +1,6 @@
 # ADR-0003: Use a storage transaction seam for proposal lifecycle writes
 
-**Status:** Accepted
+**Status:** Superseded — the Proposal queue, decision log, and `ProposalLifecycle` were removed on 2026-09-14, so the seam was never built (issue 047 closed).
 **Date:** 2026-05-12
 **Closes:** issue 043 (`proposal-lifecycle-atomicity-design`)
 

@@ -1,8 +1,8 @@
 # PRD — adhd-ranch
 
-**Status:** Draft v1.2
+**Status:** Living document — describes the app on `main` (latest release v0.1.2)
 **Owner:** ryan
-**Last updated:** 2026-05-02
+**Last updated:** 2026-09-14
 
 ---
 
@@ -28,23 +28,22 @@ Solo developer (initially: the author) who:
 
 **A ranch you can see from the corner of your eye.** Pixel pig sprites roam the screen — one pig per Focus. They walk slowly. You don't have to look at them. But when you glance, you know what's on your ranch. Click a pig to see its tasks. Clear a task from that card. The pigs never interrupt; they just exist.
 
-## Goals (v1.2)
+## Goals
 
-1. Pixel pig sprites roam a fullscreen transparent overlay — one pig per Focus.
-2. Clicking a pig shows its name and Task list in the `AnimalDetail` card. Tasks can be cleared from that card, and Focus/Task timers can be edited from clock/time controls.
-3. Manual Focus creation via menu bar item (simple native-style list). No agent flow in v1.2.
+1. Pixel pig sprites roam a transparent overlay spanning the enabled displays — one pig per Focus.
+2. Clicking a pig shows its name and Task list in the `AnimalDetail` card. Tasks can be added, edited, checked off, and cleared from that card, and Focus/Task timers can be edited from clock/time controls.
+3. Manual Focus creation from the tray menu.
 4. Markdown is the source of truth — user can hand-edit any Focus file; pig count updates live via file watcher.
 5. Hard caps (5 Focuses, 7 Tasks per Focus) with overload alerts.
 
-## Non-goals (v1.2)
+## Non-goals
 
-- Agent proposals / `/checkpoint` flow — deferred to v1.3.
-- Notification hook forwarding — deferred.
-- Auto-completion of Tasks (`complete_task`) — deferred.
-- Auto-merge of Focuses (`merge_focus`) — deferred.
-- Cross-platform (Linux/Windows). macOS only.
+- Any agent, slash command, network API, or other external writer.
+- Notification hook forwarding.
+- Auto-completion of Tasks or auto-merge of Focuses.
+- Platform parity. macOS is the primary target; Windows and Linux packages are built but are not a design driver.
 - Multi-user / sync / cloud.
-- Fancy menu bar UI — native NSMenu list is sufficient.
+- Fancy menu bar UI — native tray menu is sufficient.
 
 ## User stories
 
@@ -53,58 +52,55 @@ Solo developer (initially: the author) who:
 - **US3.** I finish a Focus. I open the menu bar item, find it in the list, and delete it. Pig disappears from the screen.
 - **US4.** I add a Focus: click the menu bar item → "+ New Focus" → enter name + description. A new pig spawns and starts wandering.
 - **US5.** I hand-edit `~/.adhd-ranch/focuses/customer-x-bug/focus.md` in vim, append `- [ ] release staging`. Save. Pig's task list reflects it within seconds.
-- **US6.** I have 6 Focuses. The menu bar icon shows a red badge. I delete a stale Focus.
+- **US6.** I have 6 Focuses. The tray icon turns red. I delete a stale Focus.
 
 ## Functional requirements
 
 ### FR1 — Focus storage
 
-Unchanged. Each Focus is a directory under `~/.adhd-ranch/focuses/<slug>/` containing `focus.md` with YAML frontmatter (`id`, `title`, `description`, `created_at`) and a body of `- [ ]` bullets. Plain text only.
+Each Focus is a directory under `~/.adhd-ranch/focuses/<slug>/` containing `focus.md` with YAML frontmatter (`id`, `title`, `description`, `created_at`) and a body of `- [ ]` / `- [x]` bullets. Plain text only. Optional `timer.json` and `task-timers.json` sidecars hold Focus and Task timers. On Windows the data root is `%APPDATA%\adhd-ranch\`.
 
 ### FR2 — Transparent overlay window
 
-- Full-screen transparent Tauri overlay windows: no decorations, always-on-top, covering the enabled display span.
-- Click-through when not hovering a pig: Rust polling thread reads `NSEvent.mouseLocation` every 16ms, compares against pig bounding boxes (sent from frontend), calls `window.set_ignore_cursor_events(!is_over_pig)`.
+- Transparent Tauri overlay window: no decorations, always-on-top, covering the enabled display span.
+- Click-through when not hovering a pig: Rust polling thread reads Tauri `cursor_position()` every 16ms, compares against pig bounding boxes (sent from frontend), calls `window.set_ignore_cursor_events(!is_over_pig)`.
 - Pigs receive click events normally; transparent background passes clicks to whatever is beneath.
 - File watcher (`notify`) on `~/.adhd-ranch/focuses/`; pig count re-renders on disk changes.
 
 ### FR3 — Pig UI
 
 - One `PigSprite` per Focus, positioned at the sprite's current (x, y) on the overlay.
-- Pigs wander the full screen: slow drift (~35 px/s), smooth random direction changes every 3–8 s, gentle boundary steering (40px margin from edges).
-- Animation: 4 frames per direction (left/right), ticked at ~150ms (≈6.7fps).
-- Sprite: real pixel-art pig sprite sheet (4 directions × 4 frames in one PNG).
-- Clicking a pig opens the `AnimalDetail` panel near the pig (edge-clamped): Focus title + task list + `✗` per task.
+- Pigs wander the enabled display regions: ~60 px/s with a minimum speed floor, random direction changes every 3–8 s, soft steering near region edges.
+- Animation: real pixel-art sprite sheet (4 directions × 4 frames in one PNG), ticked at ~150ms.
+- Drag and toss: click-and-hold then move ≥ 4px drags the pig; release tosses it with friction.
+- Clicking a pig opens the `AnimalDetail` panel near the pig (edge-clamped): editable Focus title, duplicate and delete actions, task list with check-off, edit, and `✗` per task, and an "Add task…" input.
 - Focus and Task timer editing is accessed by clicking the clock icon or current remaining time. No timer renders as a small clock; a running/expired timer renders as its current time/expired status.
-- `AnimalDetail` closes on click-outside.
-- **Focus timer growth (028 + 030 done):** If a Focus has a `FocusTimer`, its current animal projection grows from 1× to 3× sprite size linearly over the timer window. Focuses without a timer stay at 1×. Expired animals become ghostly, stop moving, face away, and appear in the tray's Expired section. Adding a new task to an expired Focus clears the expired timer and revives the animal.
-- **Task timers (053 done):** Task timers are independent per Task. When a Task timer expires, `status: Expired` is persisted, `AnimalDetail` renders the Task timer as Expired, and the `task_timer_expired` notification source can emit through the platform notification sink. Task timer expiry does not affect animal rendering, tray expired state, or Focus timer status.
+- `AnimalDetail` closes on click-outside or Escape.
+- **Focus timer growth (028 + 030):** If a Focus has a `FocusTimer`, its current animal projection grows from 1× to 3× sprite size linearly over the timer window. Focuses without a timer stay at 1×. Expired animals become ghostly, stop moving, face away, and appear in the tray's Expired section. Adding a new task to an expired Focus clears the expired timer and revives the animal.
+- **Task timers (052 + 053):** Task timers are independent per Task. When a Task timer expires, `status: Expired` is persisted, `AnimalDetail` renders the Task timer as Expired, and the `task_timer_expired` notification source can emit through the platform notification sink. Task timer expiry does not affect animal rendering, tray expired state, or Focus timer status.
 - **Implementation status:** The only concrete animal today is still the pig sprite; the detail surface is animal-neutral as `AnimalDetail`.
 
-### FR4 — Menu bar item
+### FR4 — Tray menu
 
-- Tray icon in the macOS menu bar.
-- Native NSMenu with:
-  - List of current Focuses (each as a menu item showing title).
-  - Expired submenu lists expired Focuses; clicking one opens its detail card.
-  - Separator.
-  - "+ New Focus" → opens a small webview popover for title + description input.
-  - Separator.
-  - "Quit" → Cmd-Q.
-- Red badge on tray icon when over-cap.
+- Tray icon in the menu bar.
+- Native menu with:
+  - "Gather Pigs" — pulls every pig back onto the primary display.
+  - "+ New Focus" → opens a small webview window for title, description, and optional timer.
+  - One submenu per Focus with "Delete…" (confirms when `widget.confirm_delete` is on).
+  - Expired submenu listing expired Focuses; clicking one opens its detail card.
+  - "Settings…" → opens the Preferences window.
+  - "Open Overlay DevTools" (debug builds only).
+  - "Quit".
+- Tray icon turns red when over-cap.
 
-### FR5 — HTTP API
-
-Localhost-only, ephemeral port. Retained for `/checkpoint` flow (v1.3). No changes to routes.
-
-### FR6 — Caps
+### FR5 — Caps
 
 - `MAX_FOCUSES = 5`, `MAX_TASKS_PER_FOCUS = 7` (configurable in `settings.yaml`).
 - Writes exceeding caps succeed but flip over-cap flag.
-- Tray icon shows red badge while over.
-- macOS notification fires once per `under → over` transition.
+- Tray icon turns red while over.
+- System notification fires once per `under → over` transition.
 
-### FR7 — Configuration
+### FR6 — Configuration
 
 `~/.adhd-ranch/settings.yaml`:
 ```yaml
@@ -123,51 +119,50 @@ displays:
   enabled: 0
 ```
 
+Edited from the Preferences window (General, Widget, Displays, Notifications). Changes made there are persisted and applied without a restart (050). Manual file edits are picked up on app restart.
+
 Timer presets available at Focus creation and in `AnimalDetail` clock dropdowns: No timer / 2m / 4m / 8m / 16m / 32m / Custom (free integer minutes). `AnimalDetail` allows start/restart/clear for the Focus timer and each Task timer.
-
-### FR8 — Audit log
-
-Retained. Every accepted/rejected proposal appended to `~/.adhd-ranch/decisions.jsonl`. Unused in v1.2 but preserved for v1.3.
 
 ## Non-functional requirements
 
 - **Latency:** pig count reflects file changes within 1s of save.
 - **Click-through:** hit-test polling at ~60fps (16ms); transition latency < 32ms.
-- **Reliability:** atomic writes (tmpfile + rename), per-file `flock`. No partial-write corruption.
+- **Reliability:** atomic writes (tmpfile + rename) behind an exclusive lock file. No partial-write corruption.
 - **Footprint:** Tauri release build < 20 MB on disk; idle RAM < 50 MB.
 - **Privacy:** zero outbound network. No telemetry.
 
-## Success metrics (v1.2)
+## Success metrics
 
 - Author can name their active Focuses by glancing at the screen without opening any tool.
 - Pigs are visible and not disruptive — clicks pass through to other apps with < 32ms latency.
 - Click-a-pig → task card round trip feels instant (< 100ms perceived).
 
-## Out of scope / v1.3+
+## Out of scope
 
-- `/checkpoint` slash command + agent proposal flow.
-- `merge_focus` and `complete_task` proposal kinds.
-- Menu bar Focus detail (clicking Focus in menu → highlight pig, open detail).
+- Agent integrations of any kind.
+- Menu bar Focus detail for non-expired Focuses (clicking a Focus in the menu → highlight pig, open detail).
 - Notification-hook forwarding.
-- Linux + Windows ports.
 - External aggregators: Jira, GitHub, Linear.
 - Multi-machine sync.
 
 ## Open questions / risks
 
 - **R1.** Click-through latency: 16ms Rust poll + IPC round-trip should feel transparent, but needs real-device testing.
-- **R2.** ~~NSEvent.mouseLocation coordinate space~~ — resolved for single-monitor. `drag_active: AtomicBool` in hit-test thread prevents click-through race during drag. Real-device mixed-monitor drag still needs periodic validation.
-- **R3.** ~~Multiple monitors: pigs spawn on primary monitor only.~~ 024 `display/` refactor fixed logical coordinate math and window sizing. 049 added DisplaySpace: Rust owns monitor geometry, React movement consumes normalized visible monitor regions, and RanchAnimals cannot wander into invisible gaps inside the overlay span.
+- **R2.** ~~Cursor coordinate space~~ — resolved for single-monitor. `drag_active: AtomicBool` in hit-test thread prevents click-through race during drag. Real-device mixed-monitor drag still needs periodic validation.
+- **R3.** ~~Multiple monitors: pigs spawn on primary monitor only.~~ 024 `display/` refactor fixed logical coordinate math and window sizing. 049 added DisplaySpace: Rust owns monitor geometry, React movement consumes normalized visible monitor regions, and RanchAnimals cannot wander into invisible gaps inside the overlay span. Only the primary display is enabled by default (icebox 021).
 - **R4.** Pig positions on resize: if screen resolution changes (external monitor connect/disconnect), pigs reset to safe positions.
-- **R5.** Always-on-top + fullscreen apps: at kCGFloatingWindowLevel (3), pigs disappear behind fullscreen apps. Acceptable for v1.2.
+- **R5.** Always-on-top + fullscreen apps: at kCGFloatingWindowLevel (3), pigs disappear behind fullscreen apps. Acceptable for now.
 
 ## Implementation phases
 
 1. **Phase 0 (done):** Tauri skeleton, storage, HTTP API, markdown read/write, caps, file watcher, proposals queue.
 2. **Phase 1 (done):** Custom titlebar, app menu, always-on-top, regular Mac app.
 3. **Phase 2 (done):** Transparent fullscreen window, click-through Rust polling thread, `PigSprite` placeholder, `usePigMovement`, animal detail card, tray icon + live focus list, typed errors, structured logging.
-4. **Phase 3 (done):** ~~New-focus creation from tray (014)~~, ~~delete from tray (015)~~, ~~configurable display spanning (017)~~, ~~real sprite sheet (016)~~.
-5. **Phase 3 polish (done):** ~~Larger pig hitbox + `buildHitRects` (018)~~, ~~AnimalDetail redesign — opaque, 340px, inline task add (019)~~, ~~drag-and-toss pig physics with friction (020)~~.
-6. **Phase 3 polish (done):** ~~Display subsystem refactor (024)~~, ~~Pig freeze regression fix + keep-still toggle (025)~~, ~~Settings/preferences consolidation (026)~~, ~~timer growth + expired tray list (030)~~, ~~DisplaySpace seam for RanchAnimal movement (049)~~.
-7. **Icebox:** all-monitors default on first launch (021), wrangle pig / wrangle all (022).
-8. **Phase 4 — Agent flow (v1.3):** Restore `/checkpoint` command + proposal queue UI (tray submenu or modal).
+4. **Phase 3 (done):** New-focus creation from tray (014), delete from tray (015), configurable display spanning (017), real sprite sheet (016).
+5. **Phase 3 polish (done):** Larger pig hitbox (018), AnimalDetail redesign (019), drag-and-toss physics (020), display subsystem refactor (024), pig freeze fix + keep-still (025), settings/preferences (026, 027, 032), DisplaySpace seam (049).
+6. **Phase 4 — Timers (done):** Focus timers (028), timer expiry + notification sources (029), growth + expired tray list (030), Task timers + clock dropdowns (052), Task timer expiry workflow (053).
+7. **Phase 5 — Architecture deepening (done):** IPC layer (033), domain invariants (034), store tests (035), ts-rs types (036), reader/writer collapse (037–041), domain timer ticker (044), focus document module (048), settings update workflow (050).
+8. **Phase 6 — Distribution (done):** Focus duplication, first-launch example Focus, Windows data paths (#66); manual cross-platform release workflow (#72).
+9. **Baseline cleanup (done):** removed the unused Proposal queue, decision log, localhost HTTP API, and orphaned frontend components.
+10. **Open:** notification source registry (031), RanchAnimal vocabulary seam (051).
+11. **Icebox:** all-monitors default on first launch (021), wrangle pig / wrangle all (022).

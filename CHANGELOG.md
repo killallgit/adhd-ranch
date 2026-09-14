@@ -6,6 +6,51 @@ All notable changes to adhd-ranch. Follows [Keep a Changelog](https://keepachang
 
 ## [Unreleased]
 
+### Changed — 050 settings update workflow (PR #71)
+
+- `ui_bridge::update_settings` delegates to `SettingsWorkflow` in `src-tauri/src/app/settings_workflow.rs`: persist `settings.yaml`, commit in-memory settings, apply widget settings, reapply overlays when displays change, refresh long-lived settings consumers, rebuild the tray.
+
+### Fixed — 050
+
+- Caps, notification source toggles, and the tray over-cap icon now see Preferences changes without a restart. They previously kept the `Settings` copied at startup.
+
+### Removed
+
+- Proposal queue and decision log: `Proposal`/`Decision` domain types, `proposals.jsonl`/`decisions.jsonl` storage, `ProposalLifecycle`, the `list_proposals`/`create_proposal`/`accept_proposal`/`reject_proposal` Tauri commands, and the `proposals-changed` watcher. Nothing in the app created or displayed Proposals. `NewFocus` moved to `crates/domain/src/new_focus.rs`.
+- `crates/http-api` — the localhost HTTP API and its `run/port` file. It had no client.
+- Unreachable frontend modules left over from the old widget window and proposal UI: `PendingTray`, `EditProposalModal`, `FocusList`, `FocusCard`, `TaskRow`, `Titlebar`, `CapBadge`, `NewFocusForm`, `useAppState`, `api/caps`, `api/proposals`, the proposal readers, `fixtureFocusWriter`, `lib/capState`, `types/error`, `types/proposal`, generated Proposal types, and their CSS.
+- `task install-skill` — it copied `skill/checkpoint.md`, which was deleted in `a04868a`.
+
+### Docs
+
+- README, CONTEXT, PRD, and CLAUDE.md describe the app as it is on `main`: no agent flow, no network API.
+- Issues 046 (superseded by 053) and 050 moved to `issues/done/`; issue 047 closed and ADR-0003 marked superseded.
+- Added an architecture diagram at `docs/diagrams/adhd-ranch.architecture.html`.
+
+## [0.1.2] — 2026-09-14
+
+### Changed
+
+- Releases are created by a manually dispatched `release.yml` workflow instead of release-please (PRs #67–#72). It publishes a draft release only after every package builds, attaches `SHA256SUMS.txt`, generates provenance attestations, and keeps assets for the newest two releases.
+
+## [0.1.1] — 2026-05-20
+
+### Added
+
+- Focus duplication from `AnimalDetail` (`duplicate_focus`) (PR #66).
+- First launch creates one example Focus; a marker file keeps it from returning after the user clears every Focus.
+- Windows data root: `%APPDATA%\adhd-ranch\`.
+
+### Changed
+
+- Refreshed app icons.
+
+## [0.1.0] — 2026-05-19
+
+First tagged GitHub release. Adds cross-platform release builds (macOS universal `.dmg`, Windows NSIS, Linux `.AppImage`/`.deb`) and a Windows build smoke workflow (PR #62).
+
+Includes the entries below from 024 through 053. Also shipped but not itemized here: 026/027/032 preferences, 029 notification sources, 030 timer growth + expired tray list, 036 ts-rs types, 037–041 reader/writer collapse, 044 timer ticker, 048 focus document module, 049 DisplaySpace movement.
+
 ### Added — 053 task timer expiry workflow
 
 - Task timers now participate in the background expiry workflow: expired Task timers persist `status: Expired` in `task-timers.json`.
@@ -17,7 +62,7 @@ All notable changes to adhd-ranch. Follows [Keep a Changelog](https://keepachang
 - Timer expiry orchestration moved into a testable commands-layer workflow; Tauri now adapts the workflow to platform notifications and UI events.
 - Task timer expiry remains scoped to `AnimalDetail` and notifications; it does not affect animal rendering, tray expired state, or Focus timer status.
 
-### Added — 052 task timers and clock dropdown editing (PR #60, in flight)
+### Added — 052 task timers and clock dropdown editing (PR #60)
 
 - `Task.timer: Option<FocusTimer>` — Tasks can carry independent countdown timers.
 - `task-timers.json` — optional per-Focus sidecar storing Task timers by task index; deleting a Task removes the matching timer entry.
@@ -30,7 +75,7 @@ All notable changes to adhd-ranch. Follows [Keep a Changelog](https://keepachang
 - Timer editing is now accessed by clicking the clock icon or current time instead of showing an always-visible picker.
 - Removed the heavy offset shadow behind `AnimalDetail` that produced a rounded/bubbly artifact around the card.
 
-### Added — 034 focus/task invariants in domain (PR #40, in flight)
+### Added — 034 focus/task invariants in domain (PR #40)
 
 - `crates/domain/src/error.rs` — new `DomainError` enum: `EmptyTitle`, `EmptyTaskText`
 - `NewFocus::new(title, description) -> Result<Self, DomainError>` validated constructor
@@ -43,7 +88,7 @@ All notable changes to adhd-ranch. Follows [Keep a Changelog](https://keepachang
 - `Commands::create_focus` and `Commands::append_task` no longer carry their own `trim().is_empty()` guards; they call `NewFocus::new` and `TaskText::new` instead
 - Focus title and task text invariants now enforced once in `crates/domain/`
 
-### Added — 035 unit tests for `MarkdownFocusStore` (PR #41, in flight)
+### Added — 035 unit tests for `MarkdownFocusStore` (PR #41)
 
 - 8 direct unit tests in `crates/storage/src/focus_store.rs`: create/list roundtrip, timer sidecar present/absent, delete + delete-of-unknown, corrupted `timer.json`, append/delete task persistence
 - Storage seam now independently trusted without going through `Commands`
@@ -52,7 +97,7 @@ All notable changes to adhd-ranch. Follows [Keep a Changelog](https://keepachang
 
 - `MarkdownFocusStore::list()` degrades to `timer: None` when `timer.json` is corrupted instead of failing the whole load — UI keeps showing the focus, user can recreate the timer
 
-### Changed — 033 pig/drag IPC moved into `api/` layer (PR #39, in flight)
+### Changed — 033 pig/drag IPC moved into `api/` layer (PR #39)
 
 - `src/api/pig.ts` — new typed wrappers: `setPigDragActive`, `updatePigRects`, `subscribeGatherPigs`, `subscribeDisplayRegion`
 - `src/types/pig.ts` — shared `SpawnRegion`, `PigHitRect` (api/ no longer depends on hooks/)
@@ -77,7 +122,7 @@ All notable changes to adhd-ranch. Follows [Keep a Changelog](https://keepachang
 - `focusWriter.ts` — `createFocus` accepts and forwards `timer_preset`
 - `create_focus` atomic: rollback (remove focus dir) if `timer.json` write fails after `focus.md` committed
 
-### Added — 024 display subsystem (WIP, PR #27 — cross-monitor drag still broken)
+### Added — 024 display subsystem (PR #27, merged with cross-monitor drag still broken; 049 later reworked movement)
 
 - `display/` module tree replaces `app/overlay_manager.rs` + `app/pig_hittest.rs`
   - `display/monitor.rs` — `LogicalMonitor`, `compute_span`, `disambiguate_names` (7 unit tests)
@@ -116,6 +161,10 @@ All notable changes to adhd-ranch. Follows [Keep a Changelog](https://keepachang
 - `gather()` places pigs relative to `primaryRegion` top-right instead of raw `screenW`
 - New-focus window: dark opaque background (`rgba(22,22,26,0.97)`), larger padding, readable inputs
 - Confirm-delete dialog removed from tray — deletes immediately; setting tracked in #027
+
+---
+
+The milestones below predate GitHub release tags. Their version numbers were never tagged.
 
 ## [1.2.1] — 2026-05-03 — Phase 3 polish
 

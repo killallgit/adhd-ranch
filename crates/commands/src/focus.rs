@@ -23,7 +23,7 @@ pub struct CreatedFocus {
     pub id: String,
 }
 
-pub(crate) fn create_focus_in_store(
+fn create_focus_in_store(
     store: &Arc<dyn FocusStore>,
     clock: &Clock,
     id_gen: &IdGen,
@@ -181,7 +181,7 @@ fn duplicate_title(title: &str, focuses: &[Focus]) -> String {
 mod tests {
     use super::*;
     use adhd_ranch_domain::{Settings, TimerStatus};
-    use adhd_ranch_storage::{JsonlDecisionLog, JsonlProposalQueue, MarkdownFocusStore};
+    use adhd_ranch_storage::MarkdownFocusStore;
     use std::sync::Arc;
     use tempfile::TempDir;
 
@@ -191,14 +191,8 @@ mod tests {
         std::fs::create_dir_all(&focuses_root).unwrap();
         let store: Arc<dyn adhd_ranch_storage::FocusStore> =
             Arc::new(MarkdownFocusStore::new(focuses_root));
-        let queue: Arc<dyn adhd_ranch_storage::ProposalQueue> =
-            Arc::new(JsonlProposalQueue::new(dir.path().join("proposals.jsonl")));
-        let decisions: Arc<dyn adhd_ranch_storage::DecisionLog> =
-            Arc::new(JsonlDecisionLog::new(dir.path().join("decisions.jsonl")));
         let commands = Commands::new(
             store,
-            queue,
-            decisions,
             Arc::new(|| "2026-01-01T00:00:00Z".to_string()),
             Arc::new(move || clock_secs_val),
             Arc::new(|| "test-id".to_string()),

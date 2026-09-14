@@ -1,5 +1,7 @@
 # 046 — Extract timer-expiry workflow out of `app/`
 
+> **Closed — superseded by 053.** `TimerExpiryWorkflow` in `crates/commands/src/timer_expiry.rs` owns tick → persist → notification requests behind an injected `NotificationSink`, with unit tests. `src-tauri/src/app/timer_expiry.rs` runs the 1s loop and adapts the returned events to Tauri emits and platform notifications. The type names differ from the target shape below.
+
 ## Parent PRD
 
 CLAUDE.md §Data/view separation — `app/` is the composition root that wires everything in `main.rs`; not domain workflow.

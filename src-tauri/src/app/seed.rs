@@ -43,7 +43,7 @@ mod tests {
     use super::*;
     use adhd_ranch_commands::Commands;
     use adhd_ranch_domain::Settings;
-    use adhd_ranch_storage::{JsonlDecisionLog, JsonlProposalQueue, MarkdownFocusStore};
+    use adhd_ranch_storage::MarkdownFocusStore;
     use std::sync::Arc;
     use tempfile::TempDir;
 
@@ -52,8 +52,6 @@ mod tests {
         std::fs::create_dir_all(&focuses_root).unwrap();
         Commands::new(
             Arc::new(MarkdownFocusStore::new(focuses_root)),
-            Arc::new(JsonlProposalQueue::new(root.join("proposals.jsonl"))),
-            Arc::new(JsonlDecisionLog::new(root.join("decisions.jsonl"))),
             Arc::new(|| "2026-05-20T00:00:00Z".to_string()),
             Arc::new(|| 1_779_235_200),
             Arc::new(|| "example-id".to_string()),
