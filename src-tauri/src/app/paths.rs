@@ -34,6 +34,30 @@ pub fn settings_file() -> io::Result<PathBuf> {
     Ok(data_root()?.join("settings.yaml"))
 }
 
+pub fn claude_sessions_dir() -> io::Result<PathBuf> {
+    Ok(data_root()?.join("sessions").join("claude"))
+}
+
+pub fn claude_hook_script() -> io::Result<PathBuf> {
+    Ok(data_root()?.join("hooks").join("claude-session.sh"))
+}
+
+pub fn claude_settings_file() -> io::Result<PathBuf> {
+    claude_settings_file_from_env(|key| std::env::var_os(key))
+}
+
+fn claude_settings_file_from_env(
+    mut var: impl FnMut(&str) -> Option<OsString>,
+) -> io::Result<PathBuf> {
+    if let Some(config_dir) = var("CLAUDE_CONFIG_DIR") {
+        return Ok(PathBuf::from(config_dir).join("settings.json"));
+    }
+    let home = var("HOME")
+        .or_else(|| var("USERPROFILE"))
+        .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "home directory not found"))?;
+    Ok(PathBuf::from(home).join(".claude").join("settings.json"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -58,6 +82,28 @@ mod tests {
         assert_eq!(
             root(&[("HOME", "/Users/ryan")]).unwrap(),
             PathBuf::from("/Users/ryan").join(".adhd-ranch")
+        );
+    }
+
+    #[test]
+    fn claude_settings_default_to_home_dot_claude() {
+        let vars: HashMap<&str, OsString> =
+            HashMap::from([("HOME", OsString::from("/Users/ryan"))]);
+        assert_eq!(
+            claude_settings_file_from_env(|key| vars.get(key).cloned()).unwrap(),
+            PathBuf::from("/Users/ryan/.claude/settings.json")
+        );
+    }
+
+    #[test]
+    fn claude_config_dir_overrides_home_for_claude_settings() {
+        let vars: HashMap<&str, OsString> = HashMap::from([
+            ("CLAUDE_CONFIG_DIR", OsString::from("/tmp/claude")),
+            ("HOME", OsString::from("/Users/ryan")),
+        ]);
+        assert_eq!(
+            claude_settings_file_from_env(|key| vars.get(key).cloned()).unwrap(),
+            PathBuf::from("/tmp/claude/settings.json")
         );
     }
 

@@ -225,6 +225,7 @@ mod tests {
             notifications,
             widget: Widget::default(),
             displays: adhd_ranch_domain::DisplayConfig::default(),
+            agents: adhd_ranch_domain::AgentsConfig::default(),
         }
     }
 

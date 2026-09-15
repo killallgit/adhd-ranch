@@ -4,16 +4,19 @@ use adhd_ranch_commands::SettingsProvider;
 use adhd_ranch_domain::{cap_state, Focus, Settings, TimerStatus};
 use adhd_ranch_storage::FocusStore;
 use tauri::image::Image;
-use tauri::menu::{IsMenuItem, Menu, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder};
+use tauri::menu::{
+    CheckMenuItemBuilder, IsMenuItem, Menu, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder,
+};
 use tauri::tray::{TrayIcon, TrayIconBuilder};
 use tauri::{AppHandle, Emitter, Manager, Wry};
 
-use super::SettingsState;
+use super::{SettingsPathState, SettingsState};
 
 const QUIT_ID: &str = "tray-quit";
 const NO_FOCUSES_ID: &str = "tray-no-focuses";
 const NEW_FOCUS_ID: &str = "tray-new-focus";
 const GATHER_PIGS_ID: &str = "tray-gather-pigs";
+const AGENTS_AS_ANIMALS_ID: &str = "tray-agents-as-animals";
 const DELETE_PREFIX: &str = "tray-delete-";
 const OPEN_FOCUS_PREFIX: &str = "tray-open-focus-";
 const TRAY_OPEN_PREFS_ID: &str = "tray-open-prefs";
@@ -33,7 +36,7 @@ pub fn setup(
             Vec::new()
         }
     };
-    let menu = build_menu(app, &focuses)?;
+    let menu = build_menu(app, &focuses, settings.agents.enabled)?;
     let over_cap = cap_state(&focuses, settings.caps).any_over();
 
     let mut builder = TrayIconBuilder::with_id("main-tray")
@@ -56,6 +59,9 @@ pub fn setup(
                 if let Some(win) = app.get_webview_window("overlay-0") {
                     let _ = win.emit("gather-pigs", ());
                 }
+            } else if id == AGENTS_AS_ANIMALS_ID {
+                let app_handle = app.clone();
+                std::thread::spawn(move || toggle_agents(app_handle));
             } else if id == QUIT_ID {
                 app.exit(0);
             } else if id == NEW_FOCUS_ID {
@@ -105,10 +111,11 @@ pub fn rebuild_handler(
                 return;
             }
         };
-        if let Ok(menu) = build_menu(&handle, &focuses) {
+        let current = settings.get();
+        if let Ok(menu) = build_menu(&handle, &focuses, current.agents.enabled) {
             let _ = tray.set_menu(Some(menu));
         }
-        let over_cap = cap_state(&focuses, settings.get().caps).any_over();
+        let over_cap = cap_state(&focuses, current.caps).any_over();
         if over_cap {
             let _ = tray.set_icon(Some(red_icon()));
         } else if let Some(icon) = handle.default_window_icon() {
@@ -119,11 +126,19 @@ pub fn rebuild_handler(
     })
 }
 
-fn build_menu(handle: &AppHandle<Wry>, focuses: &[Focus]) -> tauri::Result<Menu<Wry>> {
+fn build_menu(
+    handle: &AppHandle<Wry>,
+    focuses: &[Focus],
+    agents_enabled: bool,
+) -> tauri::Result<Menu<Wry>> {
     let mut items: Vec<Box<dyn IsMenuItem<Wry>>> = Vec::new();
 
     let gather = MenuItemBuilder::with_id(GATHER_PIGS_ID, "Gather Pigs").build(handle)?;
     items.push(Box::new(gather));
+    let agents = CheckMenuItemBuilder::with_id(AGENTS_AS_ANIMALS_ID, "Agents as Animals")
+        .checked(agents_enabled)
+        .build(handle)?;
+    items.push(Box::new(agents));
     items.push(Box::new(PredefinedMenuItem::separator(handle)?));
     let new_focus = MenuItemBuilder::with_id(NEW_FOCUS_ID, "+ New Focus").build(handle)?;
     items.push(Box::new(new_focus));
@@ -211,6 +226,33 @@ fn partition_focuses_for_menu(focuses: &[Focus]) -> MenuFocusSections<'_> {
     MenuFocusSections { list, expired }
 }
 
+fn with_agents_toggled(settings: &Settings) -> Settings {
+    let mut next = settings.clone();
+    next.agents.enabled = !settings.agents.enabled;
+    next
+}
+
+fn toggle_agents(app: AppHandle<Wry>) {
+    let (Some(state), Some(path)) = (
+        app.try_state::<SettingsState>(),
+        app.try_state::<SettingsPathState>(),
+    ) else {
+        return;
+    };
+    let Ok(current) = state.0.lock().map(|settings| settings.clone()) else {
+        log::error!("tray toggle agents: settings lock poisoned");
+        return;
+    };
+    let workflow = super::settings_workflow::workflow_for_app(
+        app.clone(),
+        Arc::clone(&state.0),
+        path.0.clone(),
+    );
+    if let Err(e) = workflow.update(with_agents_toggled(&current)) {
+        log::error!("tray toggle agents: {e:?}");
+    }
+}
+
 fn handle_delete(app: AppHandle<Wry>, focus_id: String) {
     let confirm = app
         .try_state::<SettingsState>()
@@ -254,8 +296,12 @@ pub fn rebuild_tray_menu(app: &AppHandle<Wry>) {
         .try_state::<crate::ui_bridge::CommandsState>()
         .and_then(|s| s.0.list_focuses().ok())
         .unwrap_or_default();
+    let agents_enabled = app
+        .try_state::<SettingsState>()
+        .and_then(|s| s.0.lock().ok().map(|s| s.agents.enabled))
+        .unwrap_or(false);
     if let Some(tray) = app.tray_by_id("main-tray") {
-        if let Ok(menu) = build_menu(app, &focuses) {
+        if let Ok(menu) = build_menu(app, &focuses, agents_enabled) {
             let _ = tray.set_menu(Some(menu));
         }
         let over_cap = app
@@ -298,6 +344,22 @@ mod tests {
                 status,
             }),
         }
+    }
+
+    #[test]
+    fn toggling_agents_flips_only_the_agents_setting() {
+        let settings = Settings::default();
+
+        let toggled = with_agents_toggled(&settings);
+
+        assert!(toggled.agents.enabled);
+        assert_eq!(
+            Settings {
+                agents: settings.agents,
+                ..toggled
+            },
+            settings
+        );
     }
 
     #[test]

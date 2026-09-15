@@ -1,4 +1,5 @@
 pub mod cap_notifier;
+mod claude_hook;
 pub mod menu;
 pub mod paths;
 pub mod seed;
@@ -12,9 +13,11 @@ use std::time::Duration;
 
 use crate::display::monitor::LogicalMonitor;
 use crate::display::{DisplayManager, DisplayManagerState, DisplayService};
-use adhd_ranch_commands::{CapEvaluator, Commands};
+use adhd_ranch_commands::{Animals, CapEvaluator, Commands};
 use adhd_ranch_domain::{DisplayConfig, OverCapMonitor, RectUpdater, Settings};
-use adhd_ranch_storage::{watch_path, FocusStore, FocusWatcher, MarkdownFocusStore};
+use adhd_ranch_storage::{
+    watch_path, ClaudeSessionStore, FocusStore, FocusWatcher, MarkdownFocusStore,
+};
 use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 use time::format_description::well_known::Rfc3339;
 
@@ -22,6 +25,7 @@ use crate::ui_bridge;
 use cap_notifier::TauriCapNotifier;
 
 pub const FOCUSES_CHANGED_EVENT: &str = "focuses-changed";
+pub const ANIMALS_CHANGED_EVENT: &str = "animals-changed";
 
 pub struct MonitorsState(pub Vec<LogicalMonitor>);
 pub struct DisplayConfigState(pub Arc<Mutex<DisplayConfig>>);
@@ -38,6 +42,7 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
+            ui_bridge::list_animals,
             ui_bridge::list_focuses,
             ui_bridge::create_focus,
             ui_bridge::duplicate_focus,
@@ -103,6 +108,16 @@ pub fn run() {
 
         app.manage(ui_bridge::CommandsState(commands));
 
+        let sessions_dir = paths::claude_sessions_dir()?;
+        std::fs::create_dir_all(&sessions_dir)?;
+        if settings.agents.enabled {
+            claude_hook::register(&sessions_dir);
+        }
+        app.manage(ui_bridge::AnimalsState(Arc::new(Animals::new(
+            Arc::new(ClaudeSessionStore::new(sessions_dir.clone())),
+            Arc::clone(&settings_provider),
+        ))));
+
         // Enumerate connected monitors and store for tray + overlay management.
         let mut monitor_infos: Vec<LogicalMonitor> = match app.available_monitors() {
             Ok(monitors) => monitors
@@ -151,9 +166,17 @@ pub fn run() {
                 ),
             ],
         )?;
+        let animals_watcher = install_change_handlers(
+            &sessions_dir,
+            vec![emit_event_handler(
+                app.handle().clone(),
+                ANIMALS_CHANGED_EVENT,
+            )],
+        )?;
         app.manage(TrayHandle(tray_icon));
         app.manage(WatcherHandles {
             _focuses: focuses_watcher,
+            _animals: animals_watcher,
         });
 
         timer_expiry::spawn(app.handle().clone(), store);
@@ -223,6 +246,7 @@ struct TrayHandle(tauri::tray::TrayIcon<tauri::Wry>);
 #[allow(dead_code)]
 struct WatcherHandles {
     _focuses: FocusWatcher,
+    _animals: FocusWatcher,
 }
 
 type ChangeHandler = Box<dyn Fn() + Send + 'static>;

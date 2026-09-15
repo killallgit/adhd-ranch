@@ -39,6 +39,13 @@ impl Default for Caps {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "export-ts", derive(ts_rs::TS))]
+#[cfg_attr(feature = "export-ts", ts(export))]
+pub struct AgentsConfig {
+    pub enabled: bool,
+}
+
 /// Which monitor indices have an active overlay window. Default: primary only (index 0).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "export-ts", derive(ts_rs::TS))]
@@ -63,6 +70,8 @@ pub struct Settings {
     pub notifications: NotificationSettings,
     pub widget: Widget,
     pub displays: DisplayConfig,
+    #[serde(default)]
+    pub agents: AgentsConfig,
 }
 
 impl Settings {
@@ -81,12 +90,13 @@ impl Settings {
             notifications.push_str(&format!("  {k}: {v}\n"));
         }
         format!(
-            "caps:\n  max_focuses: {}\n  max_tasks_per_focus: {}\n{notifications}widget:\n  always_on_top: {}\n  confirm_delete: {}\ndisplays:\n  enabled: {}\n",
+            "caps:\n  max_focuses: {}\n  max_tasks_per_focus: {}\n{notifications}widget:\n  always_on_top: {}\n  confirm_delete: {}\ndisplays:\n  enabled: {}\nagents:\n  enabled: {}\n",
             self.caps.max_focuses,
             self.caps.max_tasks_per_focus,
             self.widget.always_on_top,
             self.widget.confirm_delete,
             enabled.join(","),
+            self.agents.enabled,
         )
     }
 
@@ -107,6 +117,7 @@ impl Settings {
                         "notifications" => "notifications",
                         "widget" => "widget",
                         "displays" => "displays",
+                        "agents" => "agents",
                         _ => "",
                     };
                 }
@@ -141,6 +152,11 @@ impl Settings {
                 ("widget", "confirm_delete") => {
                     if let Some(b) = parse_bool(value) {
                         settings.widget.confirm_delete = b;
+                    }
+                }
+                ("agents", "enabled") => {
+                    if let Some(b) = parse_bool(value) {
+                        settings.agents.enabled = b;
                     }
                 }
                 ("displays", "enabled") => {
@@ -265,8 +281,32 @@ mod tests {
             displays: DisplayConfig {
                 enabled_indices: vec![0, 2],
             },
+            agents: AgentsConfig { enabled: true },
         };
         assert_eq!(Settings::parse_yaml(&s.to_yaml()), s);
+    }
+
+    #[test]
+    fn agents_default_to_disabled() {
+        let s = Settings::parse_yaml("widget:\n  always_on_top: true\n");
+        assert!(!s.agents.enabled);
+    }
+
+    #[test]
+    fn parses_agents_enabled_true() {
+        let s = Settings::parse_yaml("agents:\n  enabled: true\n");
+        assert!(s.agents.enabled);
+    }
+
+    #[test]
+    fn settings_json_without_agents_deserializes_disabled() {
+        let json = serde_json::to_value(Settings::default()).unwrap();
+        let mut object = json.as_object().unwrap().clone();
+        object.remove("agents");
+
+        let s: Settings = serde_json::from_value(serde_json::Value::Object(object)).unwrap();
+
+        assert!(!s.agents.enabled);
     }
 
     #[test]

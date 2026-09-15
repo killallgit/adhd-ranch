@@ -3,8 +3,10 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { act } from "react";
 import { describe, expect, it, vi } from "vitest";
+import { createFixtureAnimalReader } from "../api/fixtureAnimalReader";
 import { createFixtureFocusReader } from "../api/fixtureFocusReader";
 import type { FocusWriter } from "../api/focusWriter";
+import type { PigSubject } from "../hooks/usePigMovement";
 import type { Focus } from "../types/focus";
 import { App } from "./App";
 
@@ -20,10 +22,10 @@ vi.mock(import("../hooks/usePigMovement"), async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...actual,
-    usePigMovement: (focuses: readonly Focus[]) => ({
-      pigs: focuses.map((f) => ({
-        id: f.id,
-        name: f.title,
+    usePigMovement: (subjects: readonly PigSubject[]) => ({
+      pigs: subjects.map((subject) => ({
+        id: subject.id,
+        name: subject.name,
         x: 100,
         y: 100,
         vx: 1,
@@ -40,6 +42,8 @@ vi.mock(import("../hooks/usePigMovement"), async (importOriginal) => {
     }),
   };
 });
+
+const noAgents = createFixtureAnimalReader([]);
 
 const sample: Focus[] = [
   { id: "a", title: "Customer X bug", description: "", created_at: "", tasks: [] },
@@ -71,6 +75,7 @@ describe("App overlay", () => {
         focusReader={createFixtureFocusReader([])}
         focusWriter={noopFocusWriter()}
         onWriteFailure={() => {}}
+        animalReader={noAgents}
       />,
     );
     expect(document.querySelector(".overlay-root")).toBeInTheDocument();
@@ -83,6 +88,7 @@ describe("App overlay", () => {
         focusReader={createFixtureFocusReader(sample)}
         focusWriter={noopFocusWriter()}
         onWriteFailure={() => {}}
+        animalReader={noAgents}
       />,
     );
     await waitFor(() => {
@@ -98,6 +104,7 @@ describe("App overlay", () => {
         focusReader={createFixtureFocusReader(sample)}
         focusWriter={writer}
         onWriteFailure={() => {}}
+        animalReader={noAgents}
       />,
     );
 
@@ -120,6 +127,7 @@ describe("App overlay", () => {
         focusReader={createFixtureFocusReader(sample)}
         focusWriter={noopFocusWriter()}
         onWriteFailure={() => {}}
+        animalReader={noAgents}
       />,
     );
 
@@ -148,6 +156,7 @@ describe("App overlay", () => {
           ])}
           focusWriter={noopFocusWriter()}
           onWriteFailure={() => {}}
+          animalReader={noAgents}
         />,
       );
 
@@ -173,6 +182,7 @@ describe("App overlay", () => {
         ])}
         focusWriter={noopFocusWriter()}
         onWriteFailure={() => {}}
+        animalReader={noAgents}
       />,
     );
 
@@ -207,6 +217,7 @@ describe("App overlay", () => {
         ])}
         focusWriter={noopFocusWriter()}
         onWriteFailure={() => {}}
+        animalReader={noAgents}
       />,
     );
 
@@ -226,6 +237,7 @@ describe("App overlay", () => {
         focusReader={createFixtureFocusReader(sample)}
         focusWriter={noopFocusWriter()}
         onWriteFailure={() => {}}
+        animalReader={noAgents}
       />,
     );
 
@@ -235,5 +247,35 @@ describe("App overlay", () => {
     });
 
     expect(screen.getByLabelText("focus title")).toHaveValue("API refactor");
+  });
+
+  it("spawns agent pigs alongside focus pigs", async () => {
+    render(
+      <App
+        focusReader={createFixtureFocusReader(sample)}
+        focusWriter={noopFocusWriter()}
+        onWriteFailure={() => {}}
+        animalReader={createFixtureAnimalReader([{ id: "session-1", name: "adhd-ranch" }])}
+      />,
+    );
+
+    expect(await screen.findByText("adhd-ranch")).toBeInTheDocument();
+    expect(screen.getByText("Customer X bug")).toBeInTheDocument();
+    expect(screen.getByText("API refactor")).toBeInTheDocument();
+  });
+
+  it("does not open animal detail when an agent pig is clicked", async () => {
+    render(
+      <App
+        focusReader={createFixtureFocusReader(sample)}
+        focusWriter={noopFocusWriter()}
+        onWriteFailure={() => {}}
+        animalReader={createFixtureAnimalReader([{ id: "session-1", name: "adhd-ranch" }])}
+      />,
+    );
+
+    await userEvent.click(await screen.findByText("adhd-ranch"));
+
+    expect(screen.queryByPlaceholderText("Add task…")).not.toBeInTheDocument();
   });
 });

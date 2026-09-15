@@ -1,11 +1,11 @@
 use adhd_ranch_domain::Settings;
 use adhd_ranch_storage::write_settings;
-use tauri::{AppHandle, Manager, Wry};
+use tauri::{AppHandle, Emitter, Manager, Wry};
 
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
-use super::{DisplayConfigState, MonitorsState};
+use super::{DisplayConfigState, MonitorsState, ANIMALS_CHANGED_EVENT};
 
 pub trait SettingsPersistence: Send + Sync {
     fn persist(&self, settings: &Settings) -> Result<(), SettingsWorkflowError>;
@@ -45,6 +45,11 @@ pub trait SettingsEffects: Send + Sync {
         previous: &Settings,
         next: &Settings,
     ) -> Result<(), SettingsWorkflowError>;
+    fn apply_agents(
+        &self,
+        previous: &Settings,
+        next: &Settings,
+    ) -> Result<(), SettingsWorkflowError>;
     fn refresh_runtime_consumers(&self, settings: &Settings) -> Result<(), SettingsWorkflowError>;
     fn rebuild_tray(&self) -> Result<(), SettingsWorkflowError>;
 }
@@ -63,6 +68,14 @@ where
         next: &Settings,
     ) -> Result<(), SettingsWorkflowError> {
         (**self).apply_displays(previous, next)
+    }
+
+    fn apply_agents(
+        &self,
+        previous: &Settings,
+        next: &Settings,
+    ) -> Result<(), SettingsWorkflowError> {
+        (**self).apply_agents(previous, next)
     }
 
     fn refresh_runtime_consumers(&self, settings: &Settings) -> Result<(), SettingsWorkflowError> {
@@ -109,10 +122,19 @@ where
         if previous.displays != next.displays {
             self.effects.apply_displays(&previous, &next)?;
         }
+        if previous.agents != next.agents {
+            self.effects.apply_agents(&previous, &next)?;
+        }
         self.effects.refresh_runtime_consumers(&next)?;
         self.effects.rebuild_tray()?;
         Ok(())
     }
+}
+
+// Turning agents off only hides their animals; the Claude hook stays registered
+// so the user's Claude settings are never edited behind their back.
+fn agents_turned_on(previous: &Settings, next: &Settings) -> bool {
+    !previous.agents.enabled && next.agents.enabled
 }
 
 pub struct FileSettingsPersistence {
@@ -218,6 +240,21 @@ impl SettingsEffects for TauriSettingsEffects {
         Ok(())
     }
 
+    fn apply_agents(
+        &self,
+        previous: &Settings,
+        next: &Settings,
+    ) -> Result<(), SettingsWorkflowError> {
+        if agents_turned_on(previous, next) {
+            let sessions_dir = super::paths::claude_sessions_dir()
+                .map_err(|e| SettingsWorkflowError::Effect(format!("claude sessions dir: {e}")))?;
+            super::claude_hook::register(&sessions_dir);
+        }
+        self.app
+            .emit(ANIMALS_CHANGED_EVENT, ())
+            .map_err(|e| SettingsWorkflowError::Effect(format!("emit animals-changed: {e}")))
+    }
+
     fn refresh_runtime_consumers(&self, _settings: &Settings) -> Result<(), SettingsWorkflowError> {
         Ok(())
     }
@@ -244,10 +281,10 @@ pub fn workflow_for_app(
 mod tests {
     use std::sync::{Arc, Mutex};
 
-    use adhd_ranch_domain::{Caps, Settings};
+    use adhd_ranch_domain::{AgentsConfig, Caps, Settings};
 
     use super::{
-        SettingsEffects, SettingsPersistence, SettingsRuntime, SettingsWorkflow,
+        agents_turned_on, SettingsEffects, SettingsPersistence, SettingsRuntime, SettingsWorkflow,
         SettingsWorkflowError,
     };
 
@@ -339,6 +376,15 @@ mod tests {
             Ok(())
         }
 
+        fn apply_agents(
+            &self,
+            _previous: &Settings,
+            _next: &Settings,
+        ) -> Result<(), SettingsWorkflowError> {
+            self.calls.lock().unwrap().push("agents");
+            Ok(())
+        }
+
         fn refresh_runtime_consumers(
             &self,
             _settings: &Settings,
@@ -359,6 +405,13 @@ mod tests {
                 max_focuses,
                 ..Caps::default()
             },
+            ..Settings::default()
+        }
+    }
+
+    fn settings_with_agents(enabled: bool) -> Settings {
+        Settings {
+            agents: AgentsConfig { enabled },
             ..Settings::default()
         }
     }
@@ -422,5 +475,35 @@ mod tests {
             effects.calls(),
             vec!["widget", "displays", "runtime", "tray"]
         );
+    }
+
+    #[test]
+    fn agents_update_applies_agents_effect_before_runtime_refresh() {
+        let persistence = Arc::new(RecordingPersistence::new());
+        let runtime = Arc::new(RecordingRuntime::new(settings_with_agents(false)));
+        let effects = Arc::new(RecordingEffects::default());
+        let workflow = SettingsWorkflow::new(persistence.clone(), runtime.clone(), effects.clone());
+
+        workflow.update(settings_with_agents(true)).unwrap();
+
+        assert_eq!(persistence.persisted(), vec![settings_with_agents(true)]);
+        assert_eq!(runtime.settings(), settings_with_agents(true));
+        assert_eq!(effects.calls(), vec!["widget", "agents", "runtime", "tray"]);
+    }
+
+    #[test]
+    fn enabling_agents_counts_as_turning_them_on() {
+        assert!(agents_turned_on(
+            &settings_with_agents(false),
+            &settings_with_agents(true)
+        ));
+    }
+
+    #[test]
+    fn disabling_agents_does_not_count_as_turning_them_on() {
+        assert!(!agents_turned_on(
+            &settings_with_agents(true),
+            &settings_with_agents(false)
+        ));
     }
 }

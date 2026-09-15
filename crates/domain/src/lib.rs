@@ -1,5 +1,7 @@
+pub mod animal;
 pub mod cap_monitor;
 pub mod caps;
+pub mod claude_hook;
 pub mod error;
 pub mod focus;
 pub mod monitor;
@@ -12,6 +14,7 @@ pub mod slug;
 pub mod timer;
 pub mod timer_ticker;
 
+pub use animal::Animal;
 pub use cap_monitor::{CapTransition, OverCapMonitor};
 pub use caps::{cap_state, CapState};
 pub use error::DomainError;
@@ -24,7 +27,7 @@ pub use notification::{
 };
 pub use parse::{parse_focus_md, ParseError};
 pub use pig_rect::{PigRect, RectUpdater};
-pub use settings::{Caps, DisplayConfig, Settings, Widget};
+pub use settings::{AgentsConfig, Caps, DisplayConfig, Settings, Widget};
 pub use slug::slugify;
 pub use timer::{growth_factor, timer_remaining_secs, FocusTimer, TimerPreset, TimerStatus};
 pub use timer_ticker::{tick, TimerTransition, TimerTransitionTarget};

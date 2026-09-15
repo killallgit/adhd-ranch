@@ -16,10 +16,10 @@ Completed issue files live in `issues/done/`. Do not pick up files from `issues/
 
 Closed without implementation:
 
-- 042 — Unify cap-state behind a single `CapStatus` projection. Premise was wrong; see [ADR-0001](../docs/adr/0001-cap-state-is-already-a-single-projection.md).
-- 045 — Symmetric `fixtureReader<T>` + caps fixture parity. Helper too thin to warrant abstraction; test-wrapper deletion folded into 039. See [ADR-0002](../docs/adr/0002-fixture-readers-are-too-thin-for-a-generic-helper.md).
+- 042 — Unify cap-state behind a single `CapStatus` projection. Premise was wrong: both consumers already read the same `cap_state` projection.
+- 045 — Symmetric `fixtureReader<T>` + caps fixture parity. Helper too thin to warrant abstraction; test-wrapper deletion folded into 039.
 - 046 — Timer expiry workflow module. Superseded by 053, which moved the workflow into `crates/commands`.
-- 047 — Storage transaction seam for Proposal lifecycle. The Proposal queue and HTTP API were removed; see [ADR-0003](../docs/adr/0003-storage-transaction-seam-for-proposal-lifecycle.md).
+- 047 — Storage transaction seam for Proposal lifecycle. The Proposal queue and HTTP API were removed.
 
 ### Icebox (deferred)
 

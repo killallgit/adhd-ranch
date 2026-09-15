@@ -1,8 +1,8 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-use adhd_ranch_commands::{CommandError, Commands, CreateFocusInput, CreatedFocus};
-use adhd_ranch_domain::{Focus, Settings, TimerPreset};
+use adhd_ranch_commands::{Animals, CommandError, Commands, CreateFocusInput, CreatedFocus};
+use adhd_ranch_domain::{Animal, Focus, Settings, TimerPreset};
 
 use tauri::{AppHandle, Emitter, Manager, State, Wry};
 
@@ -11,8 +11,14 @@ use adhd_ranch_domain::{PigRect, RectUpdater};
 use crate::app::{DebugOverlayState, SettingsPathState, SettingsState};
 
 pub struct CommandsState(pub Arc<Commands>);
+pub struct AnimalsState(pub Arc<Animals>);
 pub struct PigHitState(pub Arc<dyn RectUpdater>);
 pub struct DragLockState(pub Arc<AtomicBool>);
+
+#[tauri::command]
+pub fn list_animals(state: State<'_, AnimalsState>) -> Vec<Animal> {
+    state.0.list()
+}
 
 #[tauri::command]
 pub fn list_focuses(state: State<'_, CommandsState>) -> Result<Vec<Focus>, CommandError> {

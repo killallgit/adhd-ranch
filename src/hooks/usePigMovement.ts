@@ -13,7 +13,6 @@ import {
   advanceRanchAnimal,
 } from "../lib/ranchAnimalMovement";
 import type { DisplaySpace } from "../types/display";
-import type { Focus } from "../types/focus";
 import type { PigHitRect } from "../types/pig";
 
 export type { DisplaySpace, PigHitRect };
@@ -60,6 +59,12 @@ export type PigDirection = RanchAnimalDirection;
 
 export type PigState = RanchAnimalState;
 
+export interface PigSubject {
+  readonly id: string;
+  readonly name: string;
+  readonly expired: boolean;
+}
+
 export interface PigMovementResult {
   pigs: PigState[];
   startDrag: (pigId: string, x: number, y: number) => void;
@@ -73,14 +78,14 @@ function direction4(vx: number, vy: number): PigDirection {
   return vy >= 0 ? "front" : "back";
 }
 
-function initPig(focus: Focus, displaySpace: DisplaySpace, now: number): PigState {
+function initPig(subject: PigSubject, displaySpace: DisplaySpace, now: number): PigState {
   const region = displaySpace.spawnRegion;
   const angle = Math.random() * 2 * Math.PI;
   const vx = Math.cos(angle) * PIG_SPEED;
   const vy = Math.sin(angle) * PIG_SPEED;
   return {
-    id: focus.id,
-    name: focus.title,
+    id: subject.id,
+    name: subject.name,
     x: region.x + EDGE_MARGIN + Math.random() * Math.max(0, region.w - 2 * EDGE_MARGIN - PIG_SIZE),
     y: region.y + EDGE_MARGIN + Math.random() * Math.max(0, region.h - 2 * EDGE_MARGIN - PIG_SIZE),
     vx,
@@ -90,10 +95,6 @@ function initPig(focus: Focus, displaySpace: DisplaySpace, now: number): PigStat
     lastFrameAt: now,
     nextTurnAt: now + 3000 + Math.random() * 5000,
   };
-}
-
-function isExpiredFocus(focus: Focus): boolean {
-  return focus.timer?.status === "Expired";
 }
 
 function restExpiredAnimal(animal: PigState): PigState {
@@ -140,7 +141,7 @@ function defaultDisplaySpace(): DisplaySpace {
 }
 
 export function usePigMovement(
-  focuses: readonly Focus[],
+  subjects: readonly PigSubject[],
   selectedId: string | null,
   animalScales: ReadonlyMap<string, number> = new Map(),
 ): PigMovementResult {
@@ -256,7 +257,7 @@ export function usePigMovement(
     return { wasDrag: true };
   }, []);
 
-  // Sync pig list to focuses: add spawns for new, remove for deleted.
+  // Sync pig list to subjects: add spawns for new, remove for deleted.
   useEffect(() => {
     const now = performance.now();
 
@@ -264,19 +265,20 @@ export function usePigMovement(
       const prevMap = new Map(prev.map((p) => [p.id, p]));
       const fallbackIds = spawnedFromFallbackRef.current;
       const nextFallbackIds = new Set<string>();
-      const next = focuses.map((f) => {
-        const existing = prevMap.get(f.id);
+      const next = subjects.map((subject) => {
+        const existing = prevMap.get(subject.id);
         const usingFallback = displaySpace === fallbackDisplaySpaceRef.current;
-        if (existing && (!fallbackIds.has(f.id) || usingFallback)) {
-          if (fallbackIds.has(f.id)) nextFallbackIds.add(f.id);
-          const named = existing.name === f.title ? existing : { ...existing, name: f.title };
-          return isExpiredFocus(f) ? restExpiredAnimal(named) : named;
+        if (existing && (!fallbackIds.has(subject.id) || usingFallback)) {
+          if (fallbackIds.has(subject.id)) nextFallbackIds.add(subject.id);
+          const named =
+            existing.name === subject.name ? existing : { ...existing, name: subject.name };
+          return subject.expired ? restExpiredAnimal(named) : named;
         }
 
-        const pig = initPig(f, displaySpace, now);
-        if (isExpiredFocus(f)) return restExpiredAnimal(pig);
+        const pig = initPig(subject, displaySpace, now);
+        if (subject.expired) return restExpiredAnimal(pig);
         if (usingFallback) {
-          nextFallbackIds.add(f.id);
+          nextFallbackIds.add(subject.id);
         }
         return pig;
       });
@@ -284,7 +286,7 @@ export function usePigMovement(
       pigsRef.current = next;
       return next;
     });
-  }, [focuses, displaySpace]);
+  }, [subjects, displaySpace]);
 
   // Subscribe to gather-pigs / display-space events from Rust.
   // Fall back to a no-op unsubscribe if subscribe rejects so cleanup never throws.
@@ -304,8 +306,8 @@ export function usePigMovement(
 
   // rAF movement loop
   useEffect(() => {
-    const expiredFocusIds = new Set(
-      focuses.filter((focus) => focus.timer?.status === "Expired").map((focus) => focus.id),
+    const expiredIds = new Set(
+      subjects.filter((subject) => subject.expired).map((subject) => subject.id),
     );
 
     const loop = (now: number) => {
@@ -316,7 +318,7 @@ export function usePigMovement(
       const updated = pigsRef.current.map((p) => {
         // Skip tick for dragged pig — position is driven by pointer events.
         if (p.id === dragIdRef.current) return p;
-        if (expiredFocusIds.has(p.id)) return restExpiredAnimal(p);
+        if (expiredIds.has(p.id)) return restExpiredAnimal(p);
         return advanceRanchAnimal({
           animal: p,
           displaySpace,
@@ -340,7 +342,7 @@ export function usePigMovement(
 
     rafRef.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [focuses]);
+  }, [subjects]);
 
   return { pigs, startDrag, moveDrag, endDrag, setDragActive };
 }

@@ -12,7 +12,7 @@ pub fn write_settings(path: &Path, settings: &Settings) -> io::Result<()> {
 #[cfg(test)]
 mod tests {
     use adhd_ranch_domain::{
-        Caps, DisplayConfig, NotificationSettings, TimerExpiredSource, Widget,
+        AgentsConfig, Caps, DisplayConfig, NotificationSettings, TimerExpiredSource, Widget,
     };
     use tempfile::TempDir;
 
@@ -35,6 +35,7 @@ mod tests {
                 confirm_delete: true,
             },
             displays: DisplayConfig::default(),
+            agents: AgentsConfig { enabled: true },
         };
         write_settings(&path, &settings).unwrap();
         let raw = std::fs::read_to_string(&path).unwrap();
@@ -60,6 +61,7 @@ mod tests {
             displays: DisplayConfig {
                 enabled_indices: vec![0, 2],
             },
+            agents: AgentsConfig::default(),
         };
         write_settings(&path, &original).unwrap();
 

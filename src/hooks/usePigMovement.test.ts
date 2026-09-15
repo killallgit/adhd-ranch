@@ -1,6 +1,5 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { Focus } from "../types/focus";
 import {
   DRAG_THRESHOLD,
   HITBOX_PADDING,
@@ -11,7 +10,7 @@ import {
   computeTossVelocity,
   usePigMovement,
 } from "./usePigMovement";
-import type { PigState, PointerSample } from "./usePigMovement";
+import type { PigState, PigSubject, PointerSample } from "./usePigMovement";
 
 vi.mock("../api/pig", () => ({
   setPigDragActive: vi.fn().mockResolvedValue(undefined),
@@ -34,12 +33,10 @@ const makePig = (overrides?: Partial<PigState>): PigState => ({
   ...overrides,
 });
 
-const focus = (overrides?: Partial<Focus>): Focus => ({
+const subject = (overrides?: Partial<PigSubject>): PigSubject => ({
   id: "a",
-  title: "Alpha",
-  description: "",
-  created_at: "",
-  tasks: [],
+  name: "Alpha",
+  expired: false,
   ...overrides,
 });
 
@@ -175,14 +172,14 @@ describe("computeTossVelocity", () => {
 });
 
 describe("usePigMovement", () => {
-  it("refreshes an existing animal label when its focus title changes", async () => {
+  it("refreshes an existing animal label when its name changes", async () => {
     const rafSpy = vi.spyOn(window, "requestAnimationFrame").mockReturnValue(0);
     const cancelRafSpy = vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => {});
-    const originalFocus = focus({ title: "Original name" });
+    const original = subject({ name: "Original name" });
 
     const { result, rerender, unmount } = renderHook(
-      ({ focuses }: { focuses: readonly Focus[] }) => usePigMovement(focuses, null),
-      { initialProps: { focuses: [originalFocus] } },
+      ({ subjects }: { subjects: readonly PigSubject[] }) => usePigMovement(subjects, null),
+      { initialProps: { subjects: [original] } },
     );
 
     await waitFor(() => expect(result.current.pigs[0]?.name).toBe("Original name"));
@@ -191,7 +188,7 @@ describe("usePigMovement", () => {
       y: result.current.pigs[0]?.y,
     };
 
-    rerender({ focuses: [{ ...originalFocus, title: "Updated name" }] });
+    rerender({ subjects: [{ ...original, name: "Updated name" }] });
 
     await waitFor(() => expect(result.current.pigs[0]?.name).toBe("Updated name"));
     expect(result.current.pigs[0]).toMatchObject(firstPosition);
@@ -204,13 +201,11 @@ describe("usePigMovement", () => {
   it("stops expired animals and faces them away", async () => {
     const rafSpy = vi.spyOn(window, "requestAnimationFrame").mockReturnValue(0);
     const cancelRafSpy = vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => {});
-    const runningFocus = focus({
-      timer: { duration_secs: 120, started_at: 1_000, status: "Running" },
-    });
+    const running = subject();
 
     const { result, rerender, unmount } = renderHook(
-      ({ focuses }: { focuses: readonly Focus[] }) => usePigMovement(focuses, null),
-      { initialProps: { focuses: [runningFocus] } },
+      ({ subjects }: { subjects: readonly PigSubject[] }) => usePigMovement(subjects, null),
+      { initialProps: { subjects: [running] } },
     );
 
     await waitFor(() => expect(result.current.pigs[0]?.id).toBe("a"));
@@ -219,14 +214,7 @@ describe("usePigMovement", () => {
       y: result.current.pigs[0]?.y,
     };
 
-    rerender({
-      focuses: [
-        {
-          ...runningFocus,
-          timer: { duration_secs: 120, started_at: 1_000, status: "Expired" },
-        },
-      ],
-    });
+    rerender({ subjects: [{ ...running, expired: true }] });
 
     await waitFor(() => expect(result.current.pigs[0]?.direction).toBe("back"));
     expect(result.current.pigs[0]).toMatchObject({

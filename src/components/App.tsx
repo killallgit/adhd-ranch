@@ -1,14 +1,15 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { FocusWriter } from "../api/focusWriter";
 import type { PolledReader } from "../api/polledReader";
 import { useConfirmDelete } from "../hooks/useConfirmDelete";
 import { useDebugOverlay } from "../hooks/useDebugOverlay";
 import { type ReportWriteFailure, useFocusController } from "../hooks/useFocusController";
 import { useOpenFocusDetailRequest } from "../hooks/useOpenFocusDetailRequest";
-import { PIG_SIZE, usePigMovement } from "../hooks/usePigMovement";
+import { PIG_SIZE, type PigSubject, usePigMovement } from "../hooks/usePigMovement";
 import { usePolledReader } from "../hooks/usePolledReader";
 import { ranchAnimalScale } from "../hooks/useRanchAnimalScale";
 import { useViewport } from "../hooks/useViewport";
+import type { Animal } from "../types/animal";
 import type { Focus } from "../types/focus";
 import type { TimerPreset } from "../types/timer";
 import { AnimalDetail } from "./AnimalDetail";
@@ -18,11 +19,30 @@ export interface AppProps {
   readonly focusReader: PolledReader<readonly Focus[]>;
   readonly focusWriter: FocusWriter;
   readonly onWriteFailure: ReportWriteFailure;
+  readonly animalReader: PolledReader<readonly Animal[]>;
 }
 
 const EMPTY_FOCUSES: readonly Focus[] = [];
+const EMPTY_ANIMALS: readonly Animal[] = [];
 
-export function App({ focusReader, focusWriter, onWriteFailure }: AppProps) {
+// Agent session ids and Focus ids come from different sources, so agent pigs get
+// their own id space in the overlay.
+function agentPigId(animal: Animal): string {
+  return `agent:${animal.id}`;
+}
+
+function pigSubjects(focuses: readonly Focus[], animals: readonly Animal[]): readonly PigSubject[] {
+  return [
+    ...focuses.map((focus) => ({
+      id: focus.id,
+      name: focus.title,
+      expired: focus.timer?.status === "Expired",
+    })),
+    ...animals.map((animal) => ({ id: agentPigId(animal), name: animal.name, expired: false })),
+  ];
+}
+
+export function App({ focusReader, focusWriter, onWriteFailure, animalReader }: AppProps) {
   const focusController = useFocusController(focusWriter, onWriteFailure);
   const focusState = usePolledReader(focusReader);
   const readerFocuses = focusState.status === "ready" ? focusState.value : EMPTY_FOCUSES;
@@ -32,6 +52,10 @@ export function App({ focusReader, focusWriter, onWriteFailure }: AppProps) {
   } | null>(null);
   const focuses =
     optimisticFocuses?.source === readerFocuses ? optimisticFocuses.value : readerFocuses;
+  const animalState = usePolledReader(animalReader);
+  const animals = animalState.status === "ready" ? animalState.value : EMPTY_ANIMALS;
+  const subjects = useMemo(() => pigSubjects(focuses, animals), [focuses, animals]);
+  const agentPigIds = useMemo(() => new Set(animals.map(agentPigId)), [animals]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const confirmDelete = useConfirmDelete();
   const animalScales = new Map(
@@ -41,7 +65,7 @@ export function App({ focusReader, focusWriter, onWriteFailure }: AppProps) {
     ]),
   );
   const { pigs, startDrag, moveDrag, endDrag, setDragActive } = usePigMovement(
-    focuses,
+    subjects,
     selectedId,
     animalScales,
   );
@@ -150,7 +174,9 @@ export function App({ focusReader, focusWriter, onWriteFailure }: AppProps) {
           name={pig.name}
           scale={animalScales.get(pig.id) ?? 1}
           expired={focuses.find((f) => f.id === pig.id)?.timer?.status === "Expired"}
-          onClick={() => setSelectedId(pig.id)}
+          onClick={() => {
+            if (!agentPigIds.has(pig.id)) setSelectedId(pig.id);
+          }}
           onDragStart={(x, y) => startDrag(pig.id, x, y)}
           onDragMove={moveDrag}
           onDragEnd={endDrag}
