@@ -1,5 +1,14 @@
 import { invoke } from "@tauri-apps/api/core";
+import type { TimerOwner } from "../types/generated/TimerOwner";
 import type { TimerPreset } from "../types/timer";
+
+export const focusTimer = (focusId: string): TimerOwner => ({ kind: "focus", focus_id: focusId });
+
+export const taskTimer = (focusId: string, index: number): TimerOwner => ({
+  kind: "task",
+  focus_id: focusId,
+  index,
+});
 
 export type WriteOutcome =
   | { ok: true }
@@ -20,10 +29,8 @@ export interface FocusWriter {
   deleteTask(focusId: string, index: number): Promise<WriteOutcome>;
   updateTask(focusId: string, index: number, text: string): Promise<WriteOutcome>;
   toggleTask(focusId: string, index: number, done: boolean): Promise<WriteOutcome>;
-  startTimer(focusId: string, preset: TimerPreset): Promise<WriteOutcome>;
-  clearTimer(focusId: string): Promise<WriteOutcome>;
-  startTaskTimer(focusId: string, index: number, preset: TimerPreset): Promise<WriteOutcome>;
-  clearTaskTimer(focusId: string, index: number): Promise<WriteOutcome>;
+  startTimer(owner: TimerOwner, preset: TimerPreset): Promise<WriteOutcome>;
+  clearTimer(owner: TimerOwner): Promise<WriteOutcome>;
 }
 
 function toFailure(e: unknown): WriteOutcome {
@@ -75,17 +82,11 @@ export function createTauriFocusWriter(): FocusWriter {
     toggleTask(focusId, index, done) {
       return runInvoke("toggle_task", { focusId, index, done });
     },
-    startTimer(focusId, preset) {
-      return runInvoke("start_timer", { focusId, preset });
+    startTimer(owner, preset) {
+      return runInvoke("start_timer", { owner, preset });
     },
-    clearTimer(focusId) {
-      return runInvoke("clear_timer", { focusId });
-    },
-    startTaskTimer(focusId, index, preset) {
-      return runInvoke("start_task_timer", { focusId, index, preset });
-    },
-    clearTaskTimer(focusId, index) {
-      return runInvoke("clear_task_timer", { focusId, index });
+    clearTimer(owner) {
+      return runInvoke("clear_timer", { owner });
     },
   };
 }

@@ -3,11 +3,12 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 use adhd_ranch_domain::{
-    parse_focus_md, slugify, Focus, FocusTimer, NewFocus, ParseError, TimerStatus,
+    parse_focus_md, slugify, Focus, FocusTimer, NewFocus, ParseError, TimerOwner,
 };
 
 use crate::atomic::atomic_write;
 use crate::focus_document::{FocusDocument, FocusDocumentError};
+use crate::timer_store::TimerStore;
 
 #[derive(Debug)]
 pub enum FocusStoreError {
@@ -57,15 +58,6 @@ pub trait FocusStore: Send + Sync {
     fn delete_task(&self, focus_id: &str, index: usize) -> Result<(), FocusStoreError>;
     fn update_task(&self, focus_id: &str, index: usize, text: &str) -> Result<(), FocusStoreError>;
     fn toggle_task(&self, focus_id: &str, index: usize, done: bool) -> Result<(), FocusStoreError>;
-    fn update_timer(&self, focus_id: &str, timer: &FocusTimer) -> Result<(), FocusStoreError>;
-    fn clear_timer(&self, focus_id: &str) -> Result<(), FocusStoreError>;
-    fn update_task_timer(
-        &self,
-        focus_id: &str,
-        index: usize,
-        timer: &FocusTimer,
-    ) -> Result<(), FocusStoreError>;
-    fn clear_task_timer(&self, focus_id: &str, index: usize) -> Result<(), FocusStoreError>;
 }
 
 pub struct MarkdownFocusStore {
@@ -216,9 +208,6 @@ impl FocusStore for MarkdownFocusStore {
             .append_task(text)
             .into_raw();
         atomic_write(&self.focus_md(focus_id), next.as_bytes())?;
-        if let Err(err) = self.clear_expired_timer(focus_id) {
-            log::warn!("failed to clear expired timer after appending task to {focus_id}: {err}");
-        }
         Ok(())
     }
 
@@ -252,8 +241,32 @@ impl FocusStore for MarkdownFocusStore {
         atomic_write(&self.focus_md(focus_id), next.as_bytes())?;
         Ok(())
     }
+}
 
-    fn update_timer(&self, focus_id: &str, timer: &FocusTimer) -> Result<(), FocusStoreError> {
+impl TimerStore for MarkdownFocusStore {
+    fn focuses(&self) -> Result<Vec<Focus>, FocusStoreError> {
+        FocusStore::list(self)
+    }
+
+    fn write_timer(
+        &self,
+        owner: &TimerOwner,
+        timer: Option<&FocusTimer>,
+    ) -> Result<(), FocusStoreError> {
+        match (owner, timer) {
+            (TimerOwner::Focus { focus_id }, Some(timer)) => {
+                self.write_focus_timer(focus_id, timer)
+            }
+            (TimerOwner::Focus { focus_id }, None) => self.remove_focus_timer(focus_id),
+            (TimerOwner::Task { focus_id, index }, timer) => {
+                self.write_task_timer(focus_id, *index, timer)
+            }
+        }
+    }
+}
+
+impl MarkdownFocusStore {
+    fn write_focus_timer(&self, focus_id: &str, timer: &FocusTimer) -> Result<(), FocusStoreError> {
         let dir = self.root.join(focus_id);
         if !dir.is_dir() {
             return Err(FocusStoreError::NotFound(focus_id.to_string()));
@@ -268,7 +281,7 @@ impl FocusStore for MarkdownFocusStore {
         }
     }
 
-    fn clear_timer(&self, focus_id: &str) -> Result<(), FocusStoreError> {
+    fn remove_focus_timer(&self, focus_id: &str) -> Result<(), FocusStoreError> {
         let dir = self.root.join(focus_id);
         if !dir.is_dir() {
             return Err(FocusStoreError::NotFound(focus_id.to_string()));
@@ -280,11 +293,11 @@ impl FocusStore for MarkdownFocusStore {
         }
     }
 
-    fn update_task_timer(
+    fn write_task_timer(
         &self,
         focus_id: &str,
         index: usize,
-        timer: &FocusTimer,
+        timer: Option<&FocusTimer>,
     ) -> Result<(), FocusStoreError> {
         let task_count = self.task_count(focus_id)?;
         if index >= task_count {
@@ -295,26 +308,10 @@ impl FocusStore for MarkdownFocusStore {
         }
         let mut timers = self.read_task_timers(focus_id)?;
         timers.resize(task_count, None);
-        timers[index] = Some(timer.clone());
+        timers[index] = timer.cloned();
         self.write_task_timers(focus_id, &timers)
     }
 
-    fn clear_task_timer(&self, focus_id: &str, index: usize) -> Result<(), FocusStoreError> {
-        let task_count = self.task_count(focus_id)?;
-        if index >= task_count {
-            return Err(FocusStoreError::TaskIndexOutOfRange {
-                focus_id: focus_id.to_string(),
-                index,
-            });
-        }
-        let mut timers = self.read_task_timers(focus_id)?;
-        timers.resize(task_count, None);
-        timers[index] = None;
-        self.write_task_timers(focus_id, &timers)
-    }
-}
-
-impl MarkdownFocusStore {
     fn task_count(&self, focus_id: &str) -> Result<usize, FocusStoreError> {
         let raw = self.read_focus(focus_id)?;
         let focus = parse_focus_md(&raw).map_err(|error| FocusStoreError::Parse {
@@ -358,26 +355,6 @@ impl MarkdownFocusStore {
         }
         Ok(())
     }
-
-    fn clear_expired_timer(&self, focus_id: &str) -> Result<(), FocusStoreError> {
-        let path = self.timer_json(focus_id);
-        let raw = match fs::read_to_string(&path) {
-            Ok(raw) => raw,
-            Err(err) if err.kind() == io::ErrorKind::NotFound => return Ok(()),
-            Err(err) => return Err(err.into()),
-        };
-        let Ok(timer) = serde_json::from_str::<FocusTimer>(&raw) else {
-            return Ok(());
-        };
-        if timer.status != TimerStatus::Expired {
-            return Ok(());
-        }
-        match fs::remove_file(&path) {
-            Ok(()) => Ok(()),
-            Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(()),
-            Err(err) => Err(err.into()),
-        }
-    }
 }
 
 fn map_document_error(focus_id: &str, error: FocusDocumentError) -> FocusStoreError {
@@ -391,8 +368,10 @@ fn map_document_error(focus_id: &str, error: FocusDocumentError) -> FocusStoreEr
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use adhd_ranch_domain::TimerStatus;
     use tempfile::TempDir;
+
+    use super::*;
 
     fn write_focus(root: &Path, slug: &str, body: &str) {
         let dir = root.join(slug);
@@ -490,7 +469,8 @@ mod tests {
     }
 
     #[test]
-    fn append_task_clears_expired_timer_sidecar() {
+    fn append_task_leaves_an_expired_timer_to_the_caller() {
+        // Revive is a Timer rule and lives in commands now: storage just writes the Task.
         let dir = TempDir::new().unwrap();
         write_focus(dir.path(), "a", &focus_md("a", &["existing"]));
         let timer_path = dir.path().join("a/timer.json");
@@ -508,10 +488,8 @@ mod tests {
 
         store.append_task("a", "revive me").unwrap();
 
-        assert!(!timer_path.exists());
-        let focuses = store.list().unwrap();
-        assert!(focuses[0].timer.is_none());
-        assert_eq!(focuses[0].tasks.len(), 2);
+        assert!(timer_path.exists());
+        assert_eq!(FocusStore::list(&store).unwrap()[0].tasks.len(), 2);
     }
 
     #[test]
@@ -807,7 +785,7 @@ mod tests {
     }
 
     #[test]
-    fn update_timer_persists_new_status() {
+    fn writing_a_focus_timer_persists_new_status() {
         let dir = TempDir::new().unwrap();
         let store = MarkdownFocusStore::new(dir.path());
         let timer = FocusTimer {
@@ -828,7 +806,9 @@ mod tests {
             status: adhd_ranch_domain::TimerStatus::Expired,
             ..timer
         };
-        store.update_timer(&slug, &expired).unwrap();
+        store
+            .write_timer(&TimerOwner::focus(&slug), Some(&expired))
+            .unwrap();
 
         let focuses = store.list().unwrap();
         assert_eq!(
@@ -838,7 +818,7 @@ mod tests {
     }
 
     #[test]
-    fn update_timer_missing_focus_returns_not_found() {
+    fn writing_a_focus_timer_for_a_missing_focus_is_not_found() {
         let dir = TempDir::new().unwrap();
         let store = MarkdownFocusStore::new(dir.path());
         let timer = FocusTimer {
@@ -846,12 +826,14 @@ mod tests {
             started_at: 0,
             status: adhd_ranch_domain::TimerStatus::Running,
         };
-        let err = store.update_timer("does-not-exist", &timer).unwrap_err();
+        let err = store
+            .write_timer(&TimerOwner::focus("does-not-exist"), Some(&timer))
+            .unwrap_err();
         assert!(matches!(err, FocusStoreError::NotFound(_)));
     }
 
     #[test]
-    fn clear_timer_removes_timer_sidecar() {
+    fn clearing_a_focus_timer_removes_the_sidecar() {
         let dir = TempDir::new().unwrap();
         let store = MarkdownFocusStore::new(dir.path());
         let timer = FocusTimer {
@@ -868,7 +850,7 @@ mod tests {
             )
             .unwrap();
 
-        store.clear_timer(&slug).unwrap();
+        store.write_timer(&TimerOwner::focus(&slug), None).unwrap();
 
         let focuses = store.list().unwrap();
         assert!(focuses[0].timer.is_none());
@@ -885,7 +867,9 @@ mod tests {
             status: adhd_ranch_domain::TimerStatus::Running,
         };
 
-        store.update_task_timer("a", 1, &timer).unwrap();
+        store
+            .write_timer(&TimerOwner::task("a", 1), Some(&timer))
+            .unwrap();
 
         let focuses = store.list().unwrap();
         assert!(focuses[0].tasks[0].timer.is_none());
@@ -893,7 +877,7 @@ mod tests {
     }
 
     #[test]
-    fn update_task_timer_persists_expired_status_by_focus_and_task_index() {
+    fn writing_a_task_timer_persists_expired_status_by_task_index() {
         let dir = TempDir::new().unwrap();
         write_focus(dir.path(), "a", &focus_md("a", &["one", "two"]));
         let store = MarkdownFocusStore::new(dir.path());
@@ -902,13 +886,17 @@ mod tests {
             started_at: 1_700_000_000,
             status: adhd_ranch_domain::TimerStatus::Running,
         };
-        store.update_task_timer("a", 1, &running).unwrap();
+        store
+            .write_timer(&TimerOwner::task("a", 1), Some(&running))
+            .unwrap();
 
         let expired = FocusTimer {
             status: adhd_ranch_domain::TimerStatus::Expired,
             ..running
         };
-        store.update_task_timer("a", 1, &expired).unwrap();
+        store
+            .write_timer(&TimerOwner::task("a", 1), Some(&expired))
+            .unwrap();
 
         let focuses = store.list().unwrap();
         assert!(focuses[0].tasks[0].timer.is_none());
@@ -916,7 +904,7 @@ mod tests {
     }
 
     #[test]
-    fn update_task_timer_errors_when_index_out_of_range() {
+    fn writing_a_task_timer_past_the_last_task_is_out_of_range() {
         let dir = TempDir::new().unwrap();
         write_focus(dir.path(), "a", &focus_md("a", &["one"]));
         let store = MarkdownFocusStore::new(dir.path());
@@ -926,7 +914,9 @@ mod tests {
             status: adhd_ranch_domain::TimerStatus::Expired,
         };
 
-        let err = store.update_task_timer("a", 1, &timer).unwrap_err();
+        let err = store
+            .write_timer(&TimerOwner::task("a", 1), Some(&timer))
+            .unwrap_err();
 
         assert!(matches!(
             err,
@@ -947,7 +937,9 @@ mod tests {
             started_at: 1_700_000_000,
             status: adhd_ranch_domain::TimerStatus::Running,
         };
-        store.update_task_timer("a", 0, &timer).unwrap();
+        store
+            .write_timer(&TimerOwner::task("a", 0), Some(&timer))
+            .unwrap();
 
         store.delete_task("a", 0).unwrap();
 

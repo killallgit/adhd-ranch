@@ -38,16 +38,16 @@ Starting, clearing, reviving and expiring a Timer all go through one module keye
 
 ## Acceptance criteria
 
-- [ ] `TimerOwner` exists in `domain` and is the only way callers name a Timer's owner
-- [ ] `Timers` exposes `start`, `clear`, `revive_if_expired` and `expire_due`; `TimerExpiryWorkflow` is gone
-- [ ] `Timers` is constructed once in `app::run`; the 1s loop does not rebuild it or its sink per tick
-- [ ] `TimerStore` has one write method; `FocusStore` no longer has any timer method
-- [ ] An in-memory `TimerStore` adapter replaces the `unimplemented!()` stubs in `commands` tests
-- [ ] Revive lives in `Commands::append_task`; `MarkdownFocusStore::append_task` no longer touches `timer.json`
-- [ ] Two Tauri timer commands, with `TimerOwner` in `src/types/generated/`
-- [ ] Existing expiry, notification, revive and task-timer-sidecar tests pass through the new interface
-- [ ] `with_timer_preset`, `timer_preset()` and `growth_factor` are deleted
-- [ ] `task check` green
+- [x] `TimerOwner` exists in `domain` and is the only way callers name a Timer's owner
+- [x] `Timers` exposes `start`, `clear`, `revive_if_expired` and `expire_due`; `TimerExpiryWorkflow` is gone
+- [x] `Timers` is constructed once in `app::run`; the 1s loop does not rebuild it or its sink per tick
+- [x] `TimerStore` has one write method (`focuses` + `write_timer`); `FocusStore` no longer has any timer method
+- [x] An in-memory `TimerStore` adapter replaces the `unimplemented!()` stubs in `commands` tests
+- [x] Revive lives in `Commands::append_task`; `MarkdownFocusStore::append_task` no longer touches `timer.json`
+- [x] Two Tauri timer commands, with `TimerOwner` in `src/types/generated/`
+- [x] Existing expiry, notification, revive and task-timer-sidecar tests pass through the new interface
+- [x] `with_timer_preset`, `timer_preset()` and `growth_factor` are deleted
+- [x] `task check` green
 
 ## Blocked by
 

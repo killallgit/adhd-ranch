@@ -1,8 +1,10 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-use adhd_ranch_commands::{AgentSessions, CommandError, Commands, CreateFocusInput, CreatedFocus};
-use adhd_ranch_domain::{AgentSession, Focus, Settings, TimerPreset};
+use adhd_ranch_commands::{
+    AgentSessions, CommandError, Commands, CreateFocusInput, CreatedFocus, Timers,
+};
+use adhd_ranch_domain::{AgentSession, Focus, Settings, TimerOwner, TimerPreset};
 
 use tauri::{AppHandle, Emitter, Manager, State, Wry};
 
@@ -12,6 +14,7 @@ use crate::app::{DebugOverlayState, SettingsPathState, SettingsState};
 
 pub struct CommandsState(pub Arc<Commands>);
 pub struct AgentSessionsState(pub Arc<AgentSessions>);
+pub struct TimersState(pub Arc<Timers>);
 pub struct PigHitState(pub Arc<dyn RectUpdater>);
 pub struct DragLockState(pub Arc<AtomicBool>);
 
@@ -136,51 +139,24 @@ pub fn toggle_task(
 
 #[tauri::command]
 pub fn start_timer(
-    focus_id: String,
+    owner: TimerOwner,
     preset: TimerPreset,
-    state: State<'_, CommandsState>,
+    state: State<'_, TimersState>,
 ) -> Result<(), CommandError> {
     state
         .0
-        .start_timer(&focus_id, preset)
-        .inspect(|_| log::info!("timer started on {focus_id}"))
-        .inspect_err(|e| log::error!("start_timer({focus_id:?}): {e}"))
+        .start(&owner, &preset)
+        .inspect(|_| log::info!("timer started on {owner:?}"))
+        .inspect_err(|e| log::error!("start_timer({owner:?}): {e}"))
 }
 
 #[tauri::command]
-pub fn clear_timer(focus_id: String, state: State<'_, CommandsState>) -> Result<(), CommandError> {
+pub fn clear_timer(owner: TimerOwner, state: State<'_, TimersState>) -> Result<(), CommandError> {
     state
         .0
-        .clear_timer(&focus_id)
-        .inspect(|_| log::info!("timer cleared on {focus_id}"))
-        .inspect_err(|e| log::error!("clear_timer({focus_id:?}): {e}"))
-}
-
-#[tauri::command]
-pub fn start_task_timer(
-    focus_id: String,
-    index: usize,
-    preset: TimerPreset,
-    state: State<'_, CommandsState>,
-) -> Result<(), CommandError> {
-    state
-        .0
-        .start_task_timer(&focus_id, index, preset)
-        .inspect(|_| log::info!("task timer started on {focus_id}:{index}"))
-        .inspect_err(|e| log::error!("start_task_timer({focus_id:?}, {index}): {e}"))
-}
-
-#[tauri::command]
-pub fn clear_task_timer(
-    focus_id: String,
-    index: usize,
-    state: State<'_, CommandsState>,
-) -> Result<(), CommandError> {
-    state
-        .0
-        .clear_task_timer(&focus_id, index)
-        .inspect(|_| log::info!("task timer cleared on {focus_id}:{index}"))
-        .inspect_err(|e| log::error!("clear_task_timer({focus_id:?}, {index}): {e}"))
+        .clear(&owner)
+        .inspect(|_| log::info!("timer cleared on {owner:?}"))
+        .inspect_err(|e| log::error!("clear_timer({owner:?}): {e}"))
 }
 
 #[tauri::command]

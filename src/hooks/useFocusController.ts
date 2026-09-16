@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { FocusWriter, WriteOutcome } from "../api/focusWriter";
+import { type FocusWriter, type WriteOutcome, focusTimer, taskTimer } from "../api/focusWriter";
 import type { TimerPreset } from "../types/timer";
 
 export type ReportWriteFailure = (op: string, outcome: WriteOutcome) => void;
@@ -62,16 +62,16 @@ export function useFocusController(
         return run("toggle_task", () => focusWriter.toggleTask(focusId, index, done));
       },
       startTimer(focusId: string, preset: TimerPreset) {
-        return run("start_timer", () => focusWriter.startTimer(focusId, preset));
+        return run("start_timer", () => focusWriter.startTimer(focusTimer(focusId), preset));
       },
       clearTimer(focusId: string) {
-        return run("clear_timer", () => focusWriter.clearTimer(focusId));
+        return run("clear_timer", () => focusWriter.clearTimer(focusTimer(focusId)));
       },
       startTaskTimer(focusId: string, index: number, preset: TimerPreset) {
-        return run("start_task_timer", () => focusWriter.startTaskTimer(focusId, index, preset));
+        return run("start_timer", () => focusWriter.startTimer(taskTimer(focusId, index), preset));
       },
       clearTaskTimer(focusId: string, index: number) {
-        return run("clear_task_timer", () => focusWriter.clearTaskTimer(focusId, index));
+        return run("clear_timer", () => focusWriter.clearTimer(taskTimer(focusId, index)));
       },
     };
   }, [focusWriter, onWriteFailure]);

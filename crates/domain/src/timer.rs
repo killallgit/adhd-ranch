@@ -33,6 +33,38 @@ impl TimerPreset {
     }
 }
 
+/// What a Timer is attached to. Every Timer has exactly one Owner, and every
+/// Owner has at most one Timer.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+#[cfg_attr(feature = "export-ts", derive(ts_rs::TS))]
+#[cfg_attr(feature = "export-ts", ts(export))]
+pub enum TimerOwner {
+    Focus { focus_id: String },
+    Task { focus_id: String, index: usize },
+}
+
+impl TimerOwner {
+    pub fn focus(focus_id: impl Into<String>) -> Self {
+        Self::Focus {
+            focus_id: focus_id.into(),
+        }
+    }
+
+    pub fn task(focus_id: impl Into<String>, index: usize) -> Self {
+        Self::Task {
+            focus_id: focus_id.into(),
+            index,
+        }
+    }
+
+    pub fn focus_id(&self) -> &str {
+        match self {
+            Self::Focus { focus_id } | Self::Task { focus_id, .. } => focus_id,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "export-ts", derive(ts_rs::TS))]
 #[cfg_attr(feature = "export-ts", ts(export))]
@@ -54,16 +86,6 @@ pub fn timer_remaining_secs(timer: &FocusTimer, now_secs: i64) -> Option<u64> {
     } else {
         Some(timer.duration_secs - elapsed)
     }
-}
-
-/// Returns a growth multiplier in 1.0..=3.0 based on elapsed time vs total duration.
-/// 1.0 at t=0, 3.0 at t>=duration_secs.
-pub fn growth_factor(elapsed_secs: u64, duration_secs: u64) -> f32 {
-    if duration_secs == 0 {
-        return 3.0;
-    }
-    let progress = (elapsed_secs as f32 / duration_secs as f32).clamp(0.0, 1.0);
-    1.0 + progress * 2.0
 }
 
 #[cfg(test)]
@@ -116,26 +138,6 @@ mod tests {
     #[test]
     fn custom_preset_saturates_on_overflow() {
         assert_eq!(TimerPreset::Custom(u64::MAX).duration_secs(), u64::MAX);
-    }
-
-    #[test]
-    fn growth_factor_at_start_is_one() {
-        assert!((growth_factor(0, 120) - 1.0).abs() < f32::EPSILON);
-    }
-
-    #[test]
-    fn growth_factor_at_half_duration_is_two() {
-        assert!((growth_factor(60, 120) - 2.0).abs() < f32::EPSILON);
-    }
-
-    #[test]
-    fn growth_factor_at_full_duration_is_three() {
-        assert!((growth_factor(120, 120) - 3.0).abs() < f32::EPSILON);
-    }
-
-    #[test]
-    fn growth_factor_past_duration_clamped_to_three() {
-        assert!((growth_factor(9999, 120) - 3.0).abs() < f32::EPSILON);
     }
 
     #[test]

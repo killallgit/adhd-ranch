@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createTauriFocusWriter } from "./focusWriter";
+import { createTauriFocusWriter, focusTimer, taskTimer } from "./focusWriter";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
@@ -57,15 +57,15 @@ describe("tauriFocusWriter", () => {
     expect(outcome).toEqual({ ok: false, kind: "not_found", message: "focus missing: x" });
   });
 
-  it("startTimer forwards focusId + preset", async () => {
+  it("startTimer forwards the Focus owner + preset", async () => {
     mockInvoke.mockResolvedValueOnce(undefined);
     const writer = createTauriFocusWriter();
 
-    const outcome = await writer.startTimer("focus-1", "Eight");
+    const outcome = await writer.startTimer(focusTimer("focus-1"), "Eight");
 
     expect(outcome).toEqual({ ok: true });
     expect(mockInvoke).toHaveBeenCalledWith("start_timer", {
-      focusId: "focus-1",
+      owner: { kind: "focus", focus_id: "focus-1" },
       preset: "Eight",
     });
   });
@@ -86,47 +86,45 @@ describe("tauriFocusWriter", () => {
     mockInvoke.mockResolvedValueOnce(undefined);
     const writer = createTauriFocusWriter();
 
-    await writer.startTimer("focus-1", { Custom: 15 });
+    await writer.startTimer(focusTimer("focus-1"), { Custom: 15 });
 
     expect(mockInvoke).toHaveBeenCalledWith("start_timer", {
-      focusId: "focus-1",
+      owner: { kind: "focus", focus_id: "focus-1" },
       preset: { Custom: 15 },
     });
   });
 
-  it("clearTimer forwards focusId", async () => {
+  it("clearTimer forwards the Focus owner", async () => {
     mockInvoke.mockResolvedValueOnce(undefined);
     const writer = createTauriFocusWriter();
 
-    await writer.clearTimer("focus-1");
+    await writer.clearTimer(focusTimer("focus-1"));
 
     expect(mockInvoke).toHaveBeenCalledWith("clear_timer", {
-      focusId: "focus-1",
+      owner: { kind: "focus", focus_id: "focus-1" },
     });
   });
 
-  it("startTaskTimer forwards focusId + index + preset", async () => {
+  it("startTimer takes the same command for a Task owner", async () => {
     mockInvoke.mockResolvedValueOnce(undefined);
     const writer = createTauriFocusWriter();
 
-    await writer.startTaskTimer("focus-1", 2, "Eight");
+    await writer.startTimer(taskTimer("focus-1", 2), "Eight");
 
-    expect(mockInvoke).toHaveBeenCalledWith("start_task_timer", {
-      focusId: "focus-1",
-      index: 2,
+    expect(mockInvoke).toHaveBeenCalledWith("start_timer", {
+      owner: { kind: "task", focus_id: "focus-1", index: 2 },
       preset: "Eight",
     });
   });
 
-  it("clearTaskTimer forwards focusId + index", async () => {
+  it("clearTimer takes the same command for a Task owner", async () => {
     mockInvoke.mockResolvedValueOnce(undefined);
     const writer = createTauriFocusWriter();
 
-    await writer.clearTaskTimer("focus-1", 2);
+    await writer.clearTimer(taskTimer("focus-1", 2));
 
-    expect(mockInvoke).toHaveBeenCalledWith("clear_task_timer", {
-      focusId: "focus-1",
-      index: 2,
+    expect(mockInvoke).toHaveBeenCalledWith("clear_timer", {
+      owner: { kind: "task", focus_id: "focus-1", index: 2 },
     });
   });
 });
