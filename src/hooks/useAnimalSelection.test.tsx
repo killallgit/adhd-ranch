@@ -53,6 +53,31 @@ describe("useAnimalSelection", () => {
     expect(result.current.selected).toBeNull();
   });
 
+  it("forgets an Animal that is gone, so a later Animal with the same id is not selected", () => {
+    // Focus ids are slugs, so deleting "Customer X bug" and creating it again
+    // later must not reopen the card on its own.
+    const { result, rerender } = renderHook(({ animals }) => useAnimalSelection(animals), {
+      initialProps: { animals: [focusAnimal("customer-x-bug")] as readonly Animal[] },
+    });
+    act(() => result.current.select("customer-x-bug"));
+
+    rerender({ animals: [] });
+    rerender({ animals: [focusAnimal("customer-x-bug")] });
+
+    expect(result.current.selected).toBeNull();
+  });
+
+  it("does not keep an open request for an Animal that is not on the ranch", () => {
+    const { result, rerender } = renderHook(({ animals }) => useAnimalSelection(animals), {
+      initialProps: { animals: [] as readonly Animal[] },
+    });
+
+    act(() => result.current.select("ghost"));
+    rerender({ animals: [focusAnimal("ghost")] });
+
+    expect(result.current.selected).toBeNull();
+  });
+
   it("closes the selection", () => {
     const { result } = renderHook(() => useAnimalSelection([focusAnimal("a")]));
     act(() => result.current.select("a"));

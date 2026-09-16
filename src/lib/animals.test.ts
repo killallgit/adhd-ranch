@@ -18,8 +18,11 @@ describe("animalScale", () => {
     expect(animalScale(1_000, 120, 1_060_000)).toBe(2);
   });
 
-  it("clamps to 3 at or after the Timer duration", () => {
+  it("clamps to 3 at the Timer duration", () => {
     expect(animalScale(1_000, 120, 1_120_000)).toBe(3);
+  });
+
+  it("stays at 3 past the Timer duration", () => {
     expect(animalScale(1_000, 120, 2_000_000)).toBe(3);
   });
 });

@@ -39,10 +39,10 @@ One pure projection decides what every Animal is, and a selection that no longer
 - [x] Rust `Animal` is `AgentSession` end to end, including the command, the event name and `src/types/generated/`
 - [x] `projectAnimals` is pure, takes `nowMs`, and owns id namespacing, `expired` and `scale`
 - [x] `App.tsx` contains no `agent:` prefixing, no `agentPigIds` set, no `animalScales` map and no duplicate `expired` lookup
-- [x] `useAnimalSelection` derives the selected Animal; selecting an agent Animal is not possible
+- [x] `useAnimalSelection` derives the selected Animal and forgets one that is gone; selecting an agent Animal is not possible
 - [x] Test: a selection whose Focus has vanished resolves to none and the hit rect is narrow again
 - [x] `usePigMovement` takes projected Animals; `PigSubject` is gone
-- [x] Projection rules (id namespacing, expired, scale, ordering) are covered by `projectAnimals` tests; the App tests keep only what they assert about rendering
+- [x] Projection rules (id namespacing, expired, scale, ordering) are covered by `projectAnimals` tests; the App tests keep their rendering assertions plus the stale-selection regression
 - [x] `task check` green
 
 ## Blocked by

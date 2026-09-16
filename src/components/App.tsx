@@ -1,14 +1,14 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import type { FocusWriter } from "../api/focusWriter";
 import type { PolledReader } from "../api/polledReader";
 import { useAnimalSelection } from "../hooks/useAnimalSelection";
+import { useAnimals } from "../hooks/useAnimals";
 import { useConfirmDelete } from "../hooks/useConfirmDelete";
 import { useDebugOverlay } from "../hooks/useDebugOverlay";
 import { type ReportWriteFailure, useFocusController } from "../hooks/useFocusController";
 import { PIG_SIZE, usePigMovement } from "../hooks/usePigMovement";
 import { usePolledReader } from "../hooks/usePolledReader";
 import { useViewport } from "../hooks/useViewport";
-import { projectAnimals } from "../lib/animals";
 import type { AgentSession } from "../types/agentSession";
 import type { Focus } from "../types/focus";
 import type { TimerPreset } from "../types/timer";
@@ -37,11 +37,8 @@ export function App({ focusReader, focusWriter, onWriteFailure, agentSessionRead
     optimisticFocuses?.source === readerFocuses ? optimisticFocuses.value : readerFocuses;
   const sessionState = usePolledReader(agentSessionReader);
   const sessions = sessionState.status === "ready" ? sessionState.value : EMPTY_SESSIONS;
-  const animals = projectAnimals(focuses, sessions, Date.now());
-  const animalsById = useMemo(
-    () => new Map(animals.map((animal) => [animal.id, animal])),
-    [animals],
-  );
+  const animals = useAnimals(focuses, sessions);
+  const animalsById = new Map(animals.map((animal) => [animal.id, animal]));
   const { selected, select, close } = useAnimalSelection(animals);
   const selectedFocus = selected?.focus ?? null;
   const confirmDelete = useConfirmDelete();

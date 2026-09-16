@@ -6,6 +6,14 @@ All notable changes to adhd-ranch. Follows [Keep a Changelog](https://keepachang
 
 ## [Unreleased]
 
+### Changed
+
+- `projectAnimals` turns Focuses and Agent Sessions into one Animal list, and selection is derived from it. The Rust `Animal` is now `AgentSession` (055).
+
+### Fixed
+
+- Deleting the selected Focus no longer leaves the overlay swallowing every click, and a Focus created later with the same title no longer reopens its card on its own (055).
+
 ## [0.1.3] — 2026-09-14
 
 ### Changed — 050 settings update workflow (PR #71)

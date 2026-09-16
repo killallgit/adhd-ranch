@@ -23,6 +23,14 @@ export function useAnimalSelection(animals: readonly Animal[]): AnimalSelection 
     };
   }, [select]);
 
+  // Focus ids are slugs, so they come back: an id that stops resolving is dropped
+  // rather than left to match a later Focus that happens to share the title.
+  useEffect(() => {
+    if (requestedId !== null && !animals.some((animal) => animal.id === requestedId)) {
+      setRequestedId(null);
+    }
+  }, [animals, requestedId]);
+
   const requested = animals.find((animal) => animal.id === requestedId);
   const selected = requested?.kind === "focus" ? requested : null;
 
