@@ -1,4 +1,4 @@
-pub mod animal;
+pub mod agent_session;
 pub mod cap_monitor;
 pub mod caps;
 pub mod claude_hook;
@@ -14,7 +14,7 @@ pub mod slug;
 pub mod timer;
 pub mod timer_ticker;
 
-pub use animal::Animal;
+pub use agent_session::AgentSession;
 pub use cap_monitor::{CapTransition, OverCapMonitor};
 pub use caps::{cap_state, CapState};
 pub use error::DomainError;

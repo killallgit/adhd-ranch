@@ -149,7 +149,7 @@ Timer presets available at Focus creation and in `AnimalDetail` clock dropdowns:
 
 - **R1.** Click-through latency: 16ms Rust poll + IPC round-trip should feel transparent, but needs real-device testing.
 - **R2.** ~~Cursor coordinate space~~ — resolved for single-monitor. `drag_active: AtomicBool` in hit-test thread prevents click-through race during drag. Real-device mixed-monitor drag still needs periodic validation.
-- **R3.** ~~Multiple monitors: pigs spawn on primary monitor only.~~ 024 `display/` refactor fixed logical coordinate math and window sizing. 049 added DisplaySpace: Rust owns monitor geometry, React movement consumes normalized visible monitor regions, and RanchAnimals cannot wander into invisible gaps inside the overlay span. Only the primary display is enabled by default (icebox 021).
+- **R3.** ~~Multiple monitors: pigs spawn on primary monitor only.~~ 024 `display/` refactor fixed logical coordinate math and window sizing. 049 added DisplaySpace: Rust owns monitor geometry, React movement consumes normalized visible monitor regions, and Animals cannot wander into invisible gaps inside the overlay span. Only the primary display is enabled by default (icebox 021).
 - **R4.** Pig positions on resize: if screen resolution changes (external monitor connect/disconnect), pigs reset to safe positions.
 - **R5.** Always-on-top + fullscreen apps: at kCGFloatingWindowLevel (3), pigs disappear behind fullscreen apps. Acceptable for now.
 
@@ -164,5 +164,5 @@ Timer presets available at Focus creation and in `AnimalDetail` clock dropdowns:
 7. **Phase 5 — Architecture deepening (done):** IPC layer (033), domain invariants (034), store tests (035), ts-rs types (036), reader/writer collapse (037–041), domain timer ticker (044), focus document module (048), settings update workflow (050).
 8. **Phase 6 — Distribution (done):** Focus duplication, first-launch example Focus, Windows data paths (#66); manual cross-platform release workflow (#72).
 9. **Baseline cleanup (done):** removed the unused Proposal queue, decision log, localhost HTTP API, and orphaned frontend components.
-10. **Open:** notification source registry (031), RanchAnimal vocabulary seam (051).
+10. **Open:** notification source registry (031), Timers module (054), Animal vocabulary for shared movement code (051).
 11. **Icebox:** all-monitors default on first launch (021), wrangle pig / wrangle all (022).

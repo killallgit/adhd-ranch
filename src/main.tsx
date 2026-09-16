@@ -1,7 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { type WriteOutcome, createTauriFocusWriter } from "./api/focusWriter";
-import { createTauriAnimalReader } from "./api/tauriAnimalReader";
+import { createTauriAgentSessionReader } from "./api/tauriAgentSessionReader";
 import { createTauriFocusReader } from "./api/tauriFocusReader";
 import { App } from "./components/App";
 import "./styles.css";
@@ -11,7 +11,7 @@ if (!rootEl) throw new Error("missing #root");
 
 const focusReader = createTauriFocusReader();
 const focusWriter = createTauriFocusWriter();
-const animalReader = createTauriAnimalReader();
+const agentSessionReader = createTauriAgentSessionReader();
 
 function reportWriteFailure(op: string, outcome: WriteOutcome) {
   if (!outcome.ok) console.warn(`[adhd-ranch] ${op} failed`, outcome.kind, outcome.message);
@@ -23,7 +23,7 @@ ReactDOM.createRoot(rootEl).render(
       focusReader={focusReader}
       focusWriter={focusWriter}
       onWriteFailure={reportWriteFailure}
-      animalReader={animalReader}
+      agentSessionReader={agentSessionReader}
     />
   </React.StrictMode>,
 );

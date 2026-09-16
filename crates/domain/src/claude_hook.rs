@@ -2,7 +2,7 @@ use std::path::Path;
 
 use serde_json::{json, Value};
 
-use crate::animal::Animal;
+use crate::agent_session::AgentSession;
 
 const HOOK_TIMEOUT_SECS: u64 = 5;
 
@@ -37,7 +37,7 @@ pub enum HookRegistration {
     UnsupportedSettings,
 }
 
-pub fn animal_from_session_start(payload: &str) -> Option<Animal> {
+pub fn agent_session_from_payload(payload: &str) -> Option<AgentSession> {
     let value: Value = serde_json::from_str(payload).ok()?;
     let id = value.get("session_id")?.as_str()?.trim();
     if id.is_empty() {
@@ -49,7 +49,7 @@ pub fn animal_from_session_start(payload: &str) -> Option<Animal> {
         .and_then(|cwd| Path::new(cwd).file_name())
         .and_then(|name| name.to_str())
         .unwrap_or(id);
-    Some(Animal {
+    Some(AgentSession {
         id: id.to_string(),
         name: name.to_string(),
     })
@@ -166,14 +166,14 @@ mod tests {
     }
 
     #[test]
-    fn animal_is_named_after_the_session_working_directory() {
-        let animal =
-            animal_from_session_start(r#"{"session_id":"abc-123","cwd":"/code/adhd-ranch"}"#)
+    fn session_is_named_after_its_working_directory() {
+        let session =
+            agent_session_from_payload(r#"{"session_id":"abc-123","cwd":"/code/adhd-ranch"}"#)
                 .unwrap();
 
         assert_eq!(
-            animal,
-            Animal {
+            session,
+            AgentSession {
                 id: "abc-123".into(),
                 name: "adhd-ranch".into()
             }
@@ -181,20 +181,20 @@ mod tests {
     }
 
     #[test]
-    fn animal_without_cwd_is_named_after_its_session_id() {
-        let animal = animal_from_session_start(r#"{"session_id":"abc-123"}"#).unwrap();
+    fn session_without_cwd_is_named_after_its_id() {
+        let session = agent_session_from_payload(r#"{"session_id":"abc-123"}"#).unwrap();
 
-        assert_eq!(animal.name, "abc-123");
+        assert_eq!(session.name, "abc-123");
     }
 
     #[test]
-    fn payload_without_session_id_has_no_animal() {
-        assert_eq!(animal_from_session_start(r#"{"cwd":"/code"}"#), None);
+    fn payload_without_session_id_yields_nothing() {
+        assert_eq!(agent_session_from_payload(r#"{"cwd":"/code"}"#), None);
     }
 
     #[test]
-    fn malformed_payload_has_no_animal() {
-        assert_eq!(animal_from_session_start("{not json"), None);
+    fn malformed_payload_yields_nothing() {
+        assert_eq!(agent_session_from_payload("{not json"), None);
     }
 
     #[test]

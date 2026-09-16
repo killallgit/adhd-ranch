@@ -1,5 +1,6 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import type { Animal, FocusAnimal } from "../types/animal";
 import {
   DRAG_THRESHOLD,
   HITBOX_PADDING,
@@ -10,7 +11,7 @@ import {
   computeTossVelocity,
   usePigMovement,
 } from "./usePigMovement";
-import type { PigState, PigSubject, PointerSample } from "./usePigMovement";
+import type { PigState, PointerSample } from "./usePigMovement";
 
 vi.mock("../api/pig", () => ({
   setPigDragActive: vi.fn().mockResolvedValue(undefined),
@@ -33,10 +34,21 @@ const makePig = (overrides?: Partial<PigState>): PigState => ({
   ...overrides,
 });
 
-const subject = (overrides?: Partial<PigSubject>): PigSubject => ({
+const focus = (id: string, title: string) => ({
+  id,
+  title,
+  description: "",
+  created_at: "",
+  tasks: [],
+});
+
+const subject = (overrides?: Partial<FocusAnimal>): Animal => ({
+  kind: "focus",
   id: "a",
   name: "Alpha",
   expired: false,
+  scale: 1,
+  focus: focus("a", "Alpha"),
   ...overrides,
 });
 
@@ -178,7 +190,7 @@ describe("usePigMovement", () => {
     const original = subject({ name: "Original name" });
 
     const { result, rerender, unmount } = renderHook(
-      ({ subjects }: { subjects: readonly PigSubject[] }) => usePigMovement(subjects, null),
+      ({ subjects }: { subjects: readonly Animal[] }) => usePigMovement(subjects, null),
       { initialProps: { subjects: [original] } },
     );
 
@@ -204,7 +216,7 @@ describe("usePigMovement", () => {
     const running = subject();
 
     const { result, rerender, unmount } = renderHook(
-      ({ subjects }: { subjects: readonly PigSubject[] }) => usePigMovement(subjects, null),
+      ({ subjects }: { subjects: readonly Animal[] }) => usePigMovement(subjects, null),
       { initialProps: { subjects: [running] } },
     );
 

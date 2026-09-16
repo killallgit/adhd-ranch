@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   setPigDragActive,
   subscribeDisplaySpace,
@@ -12,6 +12,7 @@ import {
   type RanchAnimalState,
   advanceRanchAnimal,
 } from "../lib/ranchAnimalMovement";
+import type { Animal } from "../types/animal";
 import type { DisplaySpace } from "../types/display";
 import type { PigHitRect } from "../types/pig";
 
@@ -59,12 +60,6 @@ export type PigDirection = RanchAnimalDirection;
 
 export type PigState = RanchAnimalState;
 
-export interface PigSubject {
-  readonly id: string;
-  readonly name: string;
-  readonly expired: boolean;
-}
-
 export interface PigMovementResult {
   pigs: PigState[];
   startDrag: (pigId: string, x: number, y: number) => void;
@@ -78,14 +73,20 @@ function direction4(vx: number, vy: number): PigDirection {
   return vy >= 0 ? "front" : "back";
 }
 
-function initPig(subject: PigSubject, displaySpace: DisplaySpace, now: number): PigState {
+interface RosterEntry {
+  readonly id: string;
+  readonly name: string;
+  readonly expired: boolean;
+}
+
+function initPig(animal: RosterEntry, displaySpace: DisplaySpace, now: number): PigState {
   const region = displaySpace.spawnRegion;
   const angle = Math.random() * 2 * Math.PI;
   const vx = Math.cos(angle) * PIG_SPEED;
   const vy = Math.sin(angle) * PIG_SPEED;
   return {
-    id: subject.id,
-    name: subject.name,
+    id: animal.id,
+    name: animal.name,
     x: region.x + EDGE_MARGIN + Math.random() * Math.max(0, region.w - 2 * EDGE_MARGIN - PIG_SIZE),
     y: region.y + EDGE_MARGIN + Math.random() * Math.max(0, region.h - 2 * EDGE_MARGIN - PIG_SIZE),
     vx,
@@ -141,9 +142,8 @@ function defaultDisplaySpace(): DisplaySpace {
 }
 
 export function usePigMovement(
-  subjects: readonly PigSubject[],
+  animals: readonly Animal[],
   selectedId: string | null,
-  animalScales: ReadonlyMap<string, number> = new Map(),
 ): PigMovementResult {
   const [pigs, setPigs] = useState<PigState[]>([]);
   const pigsRef = useRef<PigState[]>([]);
@@ -159,7 +159,7 @@ export function usePigMovement(
   });
   // DisplaySpace is updated when Rust emits display-space.
   const displaySpaceRef = useRef<DisplaySpace>(displaySpace);
-  const animalScalesRef = useRef<ReadonlyMap<string, number>>(animalScales);
+  const animalScalesRef = useRef<ReadonlyMap<string, number>>(new Map());
   const spawnedFromFallbackRef = useRef<Set<string>>(new Set());
 
   // Drag state — refs to avoid stale closures in the rAF loop.
@@ -169,7 +169,19 @@ export function usePigMovement(
 
   // Keep selectedId ref in sync so the rAF loop sees the latest value without restarting.
   selectedIdRef.current = selectedId;
-  animalScalesRef.current = animalScales;
+  animalScalesRef.current = new Map(animals.map((animal) => [animal.id, animal.scale]));
+
+  // Scale changes every frame while a timer runs, so `animals` is a fresh array on
+  // every render. Spawning and resting only care about who is on the ranch, so the
+  // roster is keyed on that and the rAF loop is left alone in between.
+  const rosterKey = animals
+    .map((animal) => `${animal.id}\u0000${animal.name}\u0000${animal.expired}`)
+    .join("\u0001");
+  // biome-ignore lint/correctness/useExhaustiveDependencies: rosterKey is the value identity of animals
+  const roster = useMemo<readonly RosterEntry[]>(
+    () => animals.map(({ id, name, expired }) => ({ id, name, expired })),
+    [rosterKey],
+  );
 
   const setDisplaySpace = useCallback((space: DisplaySpace) => {
     displaySpaceRef.current = space;
@@ -257,7 +269,7 @@ export function usePigMovement(
     return { wasDrag: true };
   }, []);
 
-  // Sync pig list to subjects: add spawns for new, remove for deleted.
+  // Sync pig list to Animals: add spawns for new, remove for deleted.
   useEffect(() => {
     const now = performance.now();
 
@@ -265,20 +277,20 @@ export function usePigMovement(
       const prevMap = new Map(prev.map((p) => [p.id, p]));
       const fallbackIds = spawnedFromFallbackRef.current;
       const nextFallbackIds = new Set<string>();
-      const next = subjects.map((subject) => {
-        const existing = prevMap.get(subject.id);
+      const next = roster.map((animal) => {
+        const existing = prevMap.get(animal.id);
         const usingFallback = displaySpace === fallbackDisplaySpaceRef.current;
-        if (existing && (!fallbackIds.has(subject.id) || usingFallback)) {
-          if (fallbackIds.has(subject.id)) nextFallbackIds.add(subject.id);
+        if (existing && (!fallbackIds.has(animal.id) || usingFallback)) {
+          if (fallbackIds.has(animal.id)) nextFallbackIds.add(animal.id);
           const named =
-            existing.name === subject.name ? existing : { ...existing, name: subject.name };
-          return subject.expired ? restExpiredAnimal(named) : named;
+            existing.name === animal.name ? existing : { ...existing, name: animal.name };
+          return animal.expired ? restExpiredAnimal(named) : named;
         }
 
-        const pig = initPig(subject, displaySpace, now);
-        if (subject.expired) return restExpiredAnimal(pig);
+        const pig = initPig(animal, displaySpace, now);
+        if (animal.expired) return restExpiredAnimal(pig);
         if (usingFallback) {
-          nextFallbackIds.add(subject.id);
+          nextFallbackIds.add(animal.id);
         }
         return pig;
       });
@@ -286,7 +298,7 @@ export function usePigMovement(
       pigsRef.current = next;
       return next;
     });
-  }, [subjects, displaySpace]);
+  }, [roster, displaySpace]);
 
   // Subscribe to gather-pigs / display-space events from Rust.
   // Fall back to a no-op unsubscribe if subscribe rejects so cleanup never throws.
@@ -307,7 +319,7 @@ export function usePigMovement(
   // rAF movement loop
   useEffect(() => {
     const expiredIds = new Set(
-      subjects.filter((subject) => subject.expired).map((subject) => subject.id),
+      roster.filter((animal) => animal.expired).map((animal) => animal.id),
     );
 
     const loop = (now: number) => {
@@ -342,7 +354,7 @@ export function usePigMovement(
 
     rafRef.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [subjects]);
+  }, [roster]);
 
   return { pigs, startDrag, moveDrag, endDrag, setDragActive };
 }

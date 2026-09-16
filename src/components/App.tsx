@@ -1,15 +1,15 @@
 import { useMemo, useState } from "react";
 import type { FocusWriter } from "../api/focusWriter";
 import type { PolledReader } from "../api/polledReader";
+import { useAnimalSelection } from "../hooks/useAnimalSelection";
 import { useConfirmDelete } from "../hooks/useConfirmDelete";
 import { useDebugOverlay } from "../hooks/useDebugOverlay";
 import { type ReportWriteFailure, useFocusController } from "../hooks/useFocusController";
-import { useOpenFocusDetailRequest } from "../hooks/useOpenFocusDetailRequest";
-import { PIG_SIZE, type PigSubject, usePigMovement } from "../hooks/usePigMovement";
+import { PIG_SIZE, usePigMovement } from "../hooks/usePigMovement";
 import { usePolledReader } from "../hooks/usePolledReader";
-import { ranchAnimalScale } from "../hooks/useRanchAnimalScale";
 import { useViewport } from "../hooks/useViewport";
-import type { Animal } from "../types/animal";
+import { projectAnimals } from "../lib/animals";
+import type { AgentSession } from "../types/agentSession";
 import type { Focus } from "../types/focus";
 import type { TimerPreset } from "../types/timer";
 import { AnimalDetail } from "./AnimalDetail";
@@ -19,30 +19,13 @@ export interface AppProps {
   readonly focusReader: PolledReader<readonly Focus[]>;
   readonly focusWriter: FocusWriter;
   readonly onWriteFailure: ReportWriteFailure;
-  readonly animalReader: PolledReader<readonly Animal[]>;
+  readonly agentSessionReader: PolledReader<readonly AgentSession[]>;
 }
 
 const EMPTY_FOCUSES: readonly Focus[] = [];
-const EMPTY_ANIMALS: readonly Animal[] = [];
+const EMPTY_SESSIONS: readonly AgentSession[] = [];
 
-// Agent session ids and Focus ids come from different sources, so agent pigs get
-// their own id space in the overlay.
-function agentPigId(animal: Animal): string {
-  return `agent:${animal.id}`;
-}
-
-function pigSubjects(focuses: readonly Focus[], animals: readonly Animal[]): readonly PigSubject[] {
-  return [
-    ...focuses.map((focus) => ({
-      id: focus.id,
-      name: focus.title,
-      expired: focus.timer?.status === "Expired",
-    })),
-    ...animals.map((animal) => ({ id: agentPigId(animal), name: animal.name, expired: false })),
-  ];
-}
-
-export function App({ focusReader, focusWriter, onWriteFailure, animalReader }: AppProps) {
+export function App({ focusReader, focusWriter, onWriteFailure, agentSessionReader }: AppProps) {
   const focusController = useFocusController(focusWriter, onWriteFailure);
   const focusState = usePolledReader(focusReader);
   const readerFocuses = focusState.status === "ready" ? focusState.value : EMPTY_FOCUSES;
@@ -52,30 +35,24 @@ export function App({ focusReader, focusWriter, onWriteFailure, animalReader }: 
   } | null>(null);
   const focuses =
     optimisticFocuses?.source === readerFocuses ? optimisticFocuses.value : readerFocuses;
-  const animalState = usePolledReader(animalReader);
-  const animals = animalState.status === "ready" ? animalState.value : EMPTY_ANIMALS;
-  const subjects = useMemo(() => pigSubjects(focuses, animals), [focuses, animals]);
-  const agentPigIds = useMemo(() => new Set(animals.map(agentPigId)), [animals]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const confirmDelete = useConfirmDelete();
-  const animalScales = new Map(
-    focuses.map((focus) => [
-      focus.id,
-      ranchAnimalScale(focus.timer?.started_at ?? null, focus.timer?.duration_secs ?? null),
-    ]),
+  const sessionState = usePolledReader(agentSessionReader);
+  const sessions = sessionState.status === "ready" ? sessionState.value : EMPTY_SESSIONS;
+  const animals = projectAnimals(focuses, sessions, Date.now());
+  const animalsById = useMemo(
+    () => new Map(animals.map((animal) => [animal.id, animal])),
+    [animals],
   );
+  const { selected, select, close } = useAnimalSelection(animals);
+  const selectedFocus = selected?.focus ?? null;
+  const confirmDelete = useConfirmDelete();
   const { pigs, startDrag, moveDrag, endDrag, setDragActive } = usePigMovement(
-    subjects,
-    selectedId,
-    animalScales,
+    animals,
+    selected?.id ?? null,
   );
   const { screenW, screenH } = useViewport();
   const { visible: showDebug, topOffset: debugTopOffset } = useDebugOverlay();
 
-  const selectedPig = pigs.find((p) => p.id === selectedId);
-  const selectedFocus = focuses.find((f) => f.id === selectedId);
-
-  useOpenFocusDetailRequest(focuses, setSelectedId);
+  const selectedPig = pigs.find((p) => p.id === selected?.id);
 
   async function handleClearTask(index: number) {
     if (!selectedFocus) return;
@@ -164,35 +141,37 @@ export function App({ focusReader, focusWriter, onWriteFailure, animalReader }: 
           overlay-debug | w={screenW} h={screenH} | focuses={focuses.length} pigs={pigs.length}
         </div>
       )}
-      {pigs.map((pig) => (
-        <PigSprite
-          key={pig.id}
-          x={pig.x}
-          y={pig.y}
-          direction={pig.direction}
-          frame={pig.frameIndex}
-          name={pig.name}
-          scale={animalScales.get(pig.id) ?? 1}
-          expired={focuses.find((f) => f.id === pig.id)?.timer?.status === "Expired"}
-          onClick={() => {
-            if (!agentPigIds.has(pig.id)) setSelectedId(pig.id);
-          }}
-          onDragStart={(x, y) => startDrag(pig.id, x, y)}
-          onDragMove={moveDrag}
-          onDragEnd={endDrag}
-          onSetDragActive={setDragActive}
-        />
-      ))}
-      {selectedPig && selectedFocus && (
+      {pigs.map((pig) => {
+        const animal = animalsById.get(pig.id);
+        if (!animal) return null;
+        return (
+          <PigSprite
+            key={pig.id}
+            x={pig.x}
+            y={pig.y}
+            direction={pig.direction}
+            frame={pig.frameIndex}
+            name={pig.name}
+            scale={animal.scale}
+            expired={animal.expired}
+            onClick={() => select(pig.id)}
+            onDragStart={(x, y) => startDrag(pig.id, x, y)}
+            onDragMove={moveDrag}
+            onDragEnd={endDrag}
+            onSetDragActive={setDragActive}
+          />
+        );
+      })}
+      {selectedPig && selected && selectedFocus && (
         <AnimalDetail
           focus={selectedFocus}
           animalX={selectedPig.x}
           animalY={selectedPig.y}
-          animalSize={PIG_SIZE * (animalScales.get(selectedPig.id) ?? 1)}
+          animalSize={PIG_SIZE * selected.scale}
           viewportW={screenW}
           viewportH={screenH}
           confirmDelete={confirmDelete}
-          onClose={() => setSelectedId(null)}
+          onClose={close}
           onClearTask={handleClearTask}
           onAddTask={handleAddTask}
           onRenameFocus={handleRenameFocus}

@@ -44,8 +44,15 @@ _Avoid_: clear, remove
 An optional countdown attached to exactly one Focus or one Task. Say "Focus Timer" or "Task Timer" only when the owner matters.
 _Avoid_: FocusTimer (for the general concept), countdown
 
+**Timer Owner**:
+The Focus or the Task a Timer is attached to. Every Timer has exactly one Owner, and every Owner has at most one Timer.
+
 **Expired**:
 The state of a Timer whose countdown has run out. Only Timers expire.
+
+**Revive** (a Focus):
+Return a Focus whose Timer expired to normal by clearing that Timer. Adding a Task revives its Focus. Tasks are never revived: an expired Task Timer stays until the user clears or restarts it.
+_Avoid_: reset, un-expire, restart
 
 **Clear** (a Timer):
 Remove a Timer from its owner. Clearing an expired Timer returns its owner to normal.

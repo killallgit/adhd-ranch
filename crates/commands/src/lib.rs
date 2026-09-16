@@ -3,13 +3,13 @@ use std::sync::Arc;
 use adhd_ranch_domain::Settings;
 use adhd_ranch_storage::FocusStore;
 
-pub mod animals;
+pub mod agent_sessions;
 pub mod caps;
 pub mod error;
 pub mod focus;
 pub mod timer_expiry;
 
-pub use animals::Animals;
+pub use agent_sessions::AgentSessions;
 pub use caps::{CapEvaluator, CapNotifier};
 pub use error::CommandError;
 pub use focus::{CreateFocusInput, CreatedFocus};

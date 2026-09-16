@@ -4,13 +4,16 @@ Each issue is a self-contained vertical slice that one person or coding agent ca
 
 ## Priority queue
 
+- [055](055-animal-projection.md) — Animal projection and selection (fixes the stale-selection click swallow)
+- [054](054-timers-module.md) — Timers module keyed by Timer Owner
 - [031](031-notification-source-settings.md) — Notification source settings registry (GH #31)
 
 ### Architecture queue (deepening)
 
 These are not required before 031. Pick one when we choose to spend a slice on internal seams or future-proofing.
 
-- [051](051-ranch-animal-vocabulary-seam.md) — RanchAnimal vocabulary seam for future animal types
+- [056](056-task-timer-binding.md) — Task Timers drift when Tasks are hand-edited (blocked by 054)
+- [051](051-ranch-animal-vocabulary-seam.md) — Animal vocabulary for shared movement code (blocked by 055)
 
 Completed issue files live in `issues/done/`. Do not pick up files from `issues/done/` or `issues/icebox/`.
 
