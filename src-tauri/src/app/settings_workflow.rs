@@ -5,7 +5,7 @@ use tauri::{AppHandle, Emitter, Manager, Wry};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
-use super::{DisplayConfigState, MonitorsState, ANIMALS_CHANGED_EVENT};
+use super::{DisplayConfigState, MonitorsState, AGENT_SESSIONS_CHANGED_EVENT};
 
 pub trait SettingsPersistence: Send + Sync {
     fn persist(&self, settings: &Settings) -> Result<(), SettingsWorkflowError>;
@@ -251,8 +251,8 @@ impl SettingsEffects for TauriSettingsEffects {
             super::claude_hook::register(&sessions_dir);
         }
         self.app
-            .emit(ANIMALS_CHANGED_EVENT, ())
-            .map_err(|e| SettingsWorkflowError::Effect(format!("emit animals-changed: {e}")))
+            .emit(AGENT_SESSIONS_CHANGED_EVENT, ())
+            .map_err(|e| SettingsWorkflowError::Effect(format!("emit agent-sessions-changed: {e}")))
     }
 
     fn refresh_runtime_consumers(&self, _settings: &Settings) -> Result<(), SettingsWorkflowError> {

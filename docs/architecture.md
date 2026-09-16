@@ -57,7 +57,7 @@ created_at: 2026-04-30T12:00:00Z
 
 ## Display spanning
 
-Display spanning uses a Rust-emitted DisplaySpace model so monitor geometry policy is local to the display module, while RanchAnimal movement consumes normalized visible monitor regions instead of the raw overlay span.
+Display spanning uses a Rust-emitted DisplaySpace model so monitor geometry policy is local to the display module, while Animal movement consumes normalized visible monitor regions instead of the raw overlay span.
 
 ## Core interaction loop
 
@@ -68,7 +68,7 @@ Display spanning uses a Rust-emitted DisplaySpace model so monitor geometry poli
 5. **Add a task.** Type in "Add task…" input in AnimalDetail → Enter → `append_task` Tauri command → markdown updated.
 6. **Create a Focus.** *(014)* Tray → "+ New Focus" → small webview form → `create_focus` → new pig spawns. Timer dropdown (No timer / 2m / 4m / 8m / 16m / 32m / Custom) optionally attaches a `FocusTimer` (028). Focus and Task timers can later be started or cleared from `AnimalDetail` (052).
 7. **Delete a Focus.** *(015, 027)* Tray → Focus submenu → "Delete…", or the delete button in `AnimalDetail` → `delete_focus` → pig disappears. Asks for confirmation when `widget.confirm_delete` is on.
-8. **Configure displays.** *(017, 049)* Preferences → Displays — check/uncheck monitors. Enabled monitors share one spanning overlay window; RanchAnimals spawn in the primary display region and move only inside normalized visible monitor regions. Persists in `settings.yaml`. The display module owns monitor geometry, and React owns movement over the emitted DisplaySpace model.
+8. **Configure displays.** *(017, 049)* Preferences → Displays — check/uncheck monitors. Enabled monitors share one spanning overlay window; Animals spawn in the primary display region and move only inside normalized visible monitor regions. Persists in `settings.yaml`. The display module owns monitor geometry, and React owns movement over the emitted DisplaySpace model.
 9. **Change settings.** *(026, 032, 050)* Tray → "Settings…" or app menu → "Preferences…" opens the Preferences window. `update_settings` runs the settings workflow: persist `settings.yaml`, commit the in-memory settings, apply widget changes, reapply overlays when displays changed, refresh long-lived settings consumers, and rebuild the tray. Caps and notification toggles take effect without a restart.
 
 ## Application
@@ -110,8 +110,8 @@ An opt-in overlay mode that adds one pig per running Claude Code session alongsi
 - **Toggle.** The tray's "Agents as Animals" check item flips `agents.enabled` through the settings workflow (persist, commit, effects, tray rebuild). The workflow's agents effect runs only when the value changes.
 - **Hook install.** When agents are enabled at startup, or turned on from the tray, the app writes `~/.adhd-ranch/hooks/claude-session.sh` and adds `SessionStart` / `SessionEnd` command hooks for it to `~/.claude/settings.json` (or `$CLAUDE_CONFIG_DIR/settings.json`). Registration is idempotent: it matches on the exact command, keeps the settings file's key order and permissions, writes through a symlink, and leaves unparseable settings untouched. Turning agents off never removes the hook; it only hides agent pigs.
 - **Session files.** On `SessionStart` the script writes the hook payload to `~/.adhd-ranch/sessions/claude/<session_id>.json`; on `SessionEnd` it deletes that file. Session ids that aren't letters, digits, and dashes are ignored.
-- **Projection.** A watcher on the sessions directory emits `animals-changed`; the overlay calls `list_animals`, which reads the session files (one Animal per file, named after the session's working directory) and returns an empty list while `agents.enabled` is false. Toggling also emits `animals-changed` so pigs appear or vanish immediately.
-- **Overlay.** Agent pigs use `agent:<session_id>` ids, have no detail card, and never enter the selected state. Sessions that crash without `SessionEnd` leave their file behind until it is deleted.
+- **Projection.** A watcher on the sessions directory emits `agent-sessions-changed`; the overlay calls `list_agent_sessions`, which reads the session files (one Agent Session per file, named after its working directory) and returns an empty list while `agents.enabled` is false. Toggling also emits `agent-sessions-changed` so pigs appear or vanish immediately.
+- **Overlay.** `projectAnimals` turns Focuses and Agent Sessions into one Animal list: agent Animals take `agent:<session_id>` ids, are never selectable, and have no detail card. Selection is derived from that list, so an Animal that disappears closes its card and narrows the overlay's hit rect in the same render. Sessions that crash without `SessionEnd` leave their file behind until it is deleted.
 
 ## Configuration
 

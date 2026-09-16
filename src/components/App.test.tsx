@@ -3,10 +3,10 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { act } from "react";
 import { describe, expect, it, vi } from "vitest";
-import { createFixtureAnimalReader } from "../api/fixtureAnimalReader";
+import { createFixtureAgentSessionReader } from "../api/fixtureAgentSessionReader";
 import { createFixtureFocusReader } from "../api/fixtureFocusReader";
 import type { FocusWriter } from "../api/focusWriter";
-import type { PigSubject } from "../hooks/usePigMovement";
+import type { Animal } from "../types/animal";
 import type { Focus } from "../types/focus";
 import { App } from "./App";
 
@@ -18,32 +18,40 @@ vi.mock("@tauri-apps/api/event", () => ({
   listen: vi.fn().mockResolvedValue(() => {}),
 }));
 
+// The overlay widens its hit rect to the whole viewport while an Animal is
+// selected, so what App passes as selectedId decides whether clicks reach the
+// desktop behind it.
+const movement = vi.hoisted(() => ({ selectedId: null as string | null }));
+
 vi.mock(import("../hooks/usePigMovement"), async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...actual,
-    usePigMovement: (subjects: readonly PigSubject[]) => ({
-      pigs: subjects.map((subject) => ({
-        id: subject.id,
-        name: subject.name,
-        x: 100,
-        y: 100,
-        vx: 1,
-        vy: 0,
-        frameIndex: 0,
-        direction: "right" as "left" | "right",
-        lastFrameAt: 0,
-        nextTurnAt: 9_999_999,
-      })),
-      startDrag: vi.fn(),
-      moveDrag: vi.fn(),
-      endDrag: vi.fn(() => ({ wasDrag: false })),
-      setDragActive: vi.fn(),
-    }),
+    usePigMovement: (animals: readonly Animal[], selectedId: string | null) => {
+      movement.selectedId = selectedId;
+      return {
+        pigs: animals.map((animal) => ({
+          id: animal.id,
+          name: animal.name,
+          x: 100,
+          y: 100,
+          vx: 1,
+          vy: 0,
+          frameIndex: 0,
+          direction: "right" as "left" | "right",
+          lastFrameAt: 0,
+          nextTurnAt: 9_999_999,
+        })),
+        startDrag: vi.fn(),
+        moveDrag: vi.fn(),
+        endDrag: vi.fn(() => ({ wasDrag: false })),
+        setDragActive: vi.fn(),
+      };
+    },
   };
 });
 
-const noAgents = createFixtureAnimalReader([]);
+const noAgents = createFixtureAgentSessionReader([]);
 
 const sample: Focus[] = [
   { id: "a", title: "Customer X bug", description: "", created_at: "", tasks: [] },
@@ -75,7 +83,7 @@ describe("App overlay", () => {
         focusReader={createFixtureFocusReader([])}
         focusWriter={noopFocusWriter()}
         onWriteFailure={() => {}}
-        animalReader={noAgents}
+        agentSessionReader={noAgents}
       />,
     );
     expect(document.querySelector(".overlay-root")).toBeInTheDocument();
@@ -88,7 +96,7 @@ describe("App overlay", () => {
         focusReader={createFixtureFocusReader(sample)}
         focusWriter={noopFocusWriter()}
         onWriteFailure={() => {}}
-        animalReader={noAgents}
+        agentSessionReader={noAgents}
       />,
     );
     await waitFor(() => {
@@ -104,7 +112,7 @@ describe("App overlay", () => {
         focusReader={createFixtureFocusReader(sample)}
         focusWriter={writer}
         onWriteFailure={() => {}}
-        animalReader={noAgents}
+        agentSessionReader={noAgents}
       />,
     );
 
@@ -127,7 +135,7 @@ describe("App overlay", () => {
         focusReader={createFixtureFocusReader(sample)}
         focusWriter={noopFocusWriter()}
         onWriteFailure={() => {}}
-        animalReader={noAgents}
+        agentSessionReader={noAgents}
       />,
     );
 
@@ -156,7 +164,7 @@ describe("App overlay", () => {
           ])}
           focusWriter={noopFocusWriter()}
           onWriteFailure={() => {}}
-          animalReader={noAgents}
+          agentSessionReader={noAgents}
         />,
       );
 
@@ -182,7 +190,7 @@ describe("App overlay", () => {
         ])}
         focusWriter={noopFocusWriter()}
         onWriteFailure={() => {}}
-        animalReader={noAgents}
+        agentSessionReader={noAgents}
       />,
     );
 
@@ -217,7 +225,7 @@ describe("App overlay", () => {
         ])}
         focusWriter={noopFocusWriter()}
         onWriteFailure={() => {}}
-        animalReader={noAgents}
+        agentSessionReader={noAgents}
       />,
     );
 
@@ -237,7 +245,7 @@ describe("App overlay", () => {
         focusReader={createFixtureFocusReader(sample)}
         focusWriter={noopFocusWriter()}
         onWriteFailure={() => {}}
-        animalReader={noAgents}
+        agentSessionReader={noAgents}
       />,
     );
 
@@ -255,7 +263,9 @@ describe("App overlay", () => {
         focusReader={createFixtureFocusReader(sample)}
         focusWriter={noopFocusWriter()}
         onWriteFailure={() => {}}
-        animalReader={createFixtureAnimalReader([{ id: "session-1", name: "adhd-ranch" }])}
+        agentSessionReader={createFixtureAgentSessionReader([
+          { id: "session-1", name: "adhd-ranch" },
+        ])}
       />,
     );
 
@@ -264,13 +274,43 @@ describe("App overlay", () => {
     expect(screen.getByText("API refactor")).toBeInTheDocument();
   });
 
+  it("closes animal detail when the selected focus disappears", async () => {
+    // A selection that outlives its Focus used to keep the overlay's full-viewport
+    // hit rect, swallowing every click on the desktop behind it.
+    const { rerender } = render(
+      <App
+        focusReader={createFixtureFocusReader(sample)}
+        focusWriter={noopFocusWriter()}
+        onWriteFailure={() => {}}
+        agentSessionReader={noAgents}
+      />,
+    );
+
+    await userEvent.click(await screen.findByText("Customer X bug"));
+    expect(screen.getByLabelText("focus title")).toHaveValue("Customer X bug");
+
+    rerender(
+      <App
+        focusReader={createFixtureFocusReader([])}
+        focusWriter={noopFocusWriter()}
+        onWriteFailure={() => {}}
+        agentSessionReader={noAgents}
+      />,
+    );
+
+    await waitFor(() => expect(screen.queryByLabelText("focus title")).not.toBeInTheDocument());
+    expect(movement.selectedId).toBeNull();
+  });
+
   it("does not open animal detail when an agent pig is clicked", async () => {
     render(
       <App
         focusReader={createFixtureFocusReader(sample)}
         focusWriter={noopFocusWriter()}
         onWriteFailure={() => {}}
-        animalReader={createFixtureAnimalReader([{ id: "session-1", name: "adhd-ranch" }])}
+        agentSessionReader={createFixtureAgentSessionReader([
+          { id: "session-1", name: "adhd-ranch" },
+        ])}
       />,
     );
 

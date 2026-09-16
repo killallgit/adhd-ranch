@@ -13,7 +13,7 @@ use std::time::Duration;
 
 use crate::display::monitor::LogicalMonitor;
 use crate::display::{DisplayManager, DisplayManagerState, DisplayService};
-use adhd_ranch_commands::{Animals, CapEvaluator, Commands};
+use adhd_ranch_commands::{AgentSessions, CapEvaluator, Commands};
 use adhd_ranch_domain::{DisplayConfig, OverCapMonitor, RectUpdater, Settings};
 use adhd_ranch_storage::{
     watch_path, ClaudeSessionStore, FocusStore, FocusWatcher, MarkdownFocusStore,
@@ -25,7 +25,7 @@ use crate::ui_bridge;
 use cap_notifier::TauriCapNotifier;
 
 pub const FOCUSES_CHANGED_EVENT: &str = "focuses-changed";
-pub const ANIMALS_CHANGED_EVENT: &str = "animals-changed";
+pub const AGENT_SESSIONS_CHANGED_EVENT: &str = "agent-sessions-changed";
 
 pub struct MonitorsState(pub Vec<LogicalMonitor>);
 pub struct DisplayConfigState(pub Arc<Mutex<DisplayConfig>>);
@@ -42,7 +42,7 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
-            ui_bridge::list_animals,
+            ui_bridge::list_agent_sessions,
             ui_bridge::list_focuses,
             ui_bridge::create_focus,
             ui_bridge::duplicate_focus,
@@ -113,7 +113,7 @@ pub fn run() {
         if settings.agents.enabled {
             claude_hook::register(&sessions_dir);
         }
-        app.manage(ui_bridge::AnimalsState(Arc::new(Animals::new(
+        app.manage(ui_bridge::AgentSessionsState(Arc::new(AgentSessions::new(
             Arc::new(ClaudeSessionStore::new(sessions_dir.clone())),
             Arc::clone(&settings_provider),
         ))));
@@ -166,17 +166,17 @@ pub fn run() {
                 ),
             ],
         )?;
-        let animals_watcher = install_change_handlers(
+        let agent_sessions_watcher = install_change_handlers(
             &sessions_dir,
             vec![emit_event_handler(
                 app.handle().clone(),
-                ANIMALS_CHANGED_EVENT,
+                AGENT_SESSIONS_CHANGED_EVENT,
             )],
         )?;
         app.manage(TrayHandle(tray_icon));
         app.manage(WatcherHandles {
             _focuses: focuses_watcher,
-            _animals: animals_watcher,
+            _agent_sessions: agent_sessions_watcher,
         });
 
         timer_expiry::spawn(app.handle().clone(), store);
@@ -246,7 +246,7 @@ struct TrayHandle(tauri::tray::TrayIcon<tauri::Wry>);
 #[allow(dead_code)]
 struct WatcherHandles {
     _focuses: FocusWatcher,
-    _animals: FocusWatcher,
+    _agent_sessions: FocusWatcher,
 }
 
 type ChangeHandler = Box<dyn Fn() + Send + 'static>;

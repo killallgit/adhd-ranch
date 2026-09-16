@@ -1,11 +1,11 @@
 use std::fs;
 use std::path::PathBuf;
 
-use adhd_ranch_domain::claude_hook::animal_from_session_start;
-use adhd_ranch_domain::Animal;
+use adhd_ranch_domain::claude_hook::agent_session_from_payload;
+use adhd_ranch_domain::AgentSession;
 
-pub trait AnimalStore: Send + Sync {
-    fn list(&self) -> Vec<Animal>;
+pub trait AgentSessionStore: Send + Sync {
+    fn list(&self) -> Vec<AgentSession>;
 }
 
 pub struct ClaudeSessionStore {
@@ -18,8 +18,8 @@ impl ClaudeSessionStore {
     }
 }
 
-impl AnimalStore for ClaudeSessionStore {
-    fn list(&self) -> Vec<Animal> {
+impl AgentSessionStore for ClaudeSessionStore {
+    fn list(&self) -> Vec<AgentSession> {
         let entries = match fs::read_dir(&self.sessions_dir) {
             Ok(entries) => entries,
             Err(error) => {
@@ -31,15 +31,15 @@ impl AnimalStore for ClaudeSessionStore {
             }
         };
 
-        let mut animals: Vec<Animal> = entries
+        let mut sessions: Vec<AgentSession> = entries
             .filter_map(Result::ok)
             .map(|entry| entry.path())
             .filter(|path| path.extension().is_some_and(|ext| ext == "json"))
             .filter_map(|path| fs::read_to_string(path).ok())
-            .filter_map(|payload| animal_from_session_start(&payload))
+            .filter_map(|payload| agent_session_from_payload(&payload))
             .collect();
-        animals.sort_by(|a, b| a.id.cmp(&b.id));
-        animals
+        sessions.sort_by(|a, b| a.id.cmp(&b.id));
+        sessions
     }
 }
 
@@ -53,21 +53,21 @@ mod tests {
     }
 
     #[test]
-    fn lists_one_animal_per_session_file() {
+    fn lists_one_session_per_file() {
         let dir = TempDir::new().unwrap();
         write_session(&dir, "b.json", r#"{"session_id":"b","cwd":"/code/two"}"#);
         write_session(&dir, "a.json", r#"{"session_id":"a","cwd":"/code/one"}"#);
 
-        let animals = ClaudeSessionStore::new(dir.path().to_path_buf()).list();
+        let sessions = ClaudeSessionStore::new(dir.path().to_path_buf()).list();
 
         assert_eq!(
-            animals,
+            sessions,
             vec![
-                Animal {
+                AgentSession {
                     id: "a".into(),
                     name: "one".into()
                 },
-                Animal {
+                AgentSession {
                     id: "b".into(),
                     name: "two".into()
                 },
@@ -80,9 +80,9 @@ mod tests {
         let dir = TempDir::new().unwrap();
         write_session(&dir, ".a.json.tmp", r#"{"session_id":"a"}"#);
 
-        let animals = ClaudeSessionStore::new(dir.path().to_path_buf()).list();
+        let sessions = ClaudeSessionStore::new(dir.path().to_path_buf()).list();
 
-        assert!(animals.is_empty());
+        assert!(sessions.is_empty());
     }
 
     #[test]
@@ -90,17 +90,17 @@ mod tests {
         let dir = TempDir::new().unwrap();
         write_session(&dir, "a.json", "{truncated");
 
-        let animals = ClaudeSessionStore::new(dir.path().to_path_buf()).list();
+        let sessions = ClaudeSessionStore::new(dir.path().to_path_buf()).list();
 
-        assert!(animals.is_empty());
+        assert!(sessions.is_empty());
     }
 
     #[test]
-    fn missing_sessions_dir_lists_no_animals() {
+    fn missing_sessions_dir_lists_no_sessions() {
         let dir = TempDir::new().unwrap();
 
-        let animals = ClaudeSessionStore::new(dir.path().join("missing")).list();
+        let sessions = ClaudeSessionStore::new(dir.path().join("missing")).list();
 
-        assert!(animals.is_empty());
+        assert!(sessions.is_empty());
     }
 }
