@@ -45,7 +45,7 @@ impl Timers {
     }
 
     /// A Timer running from now for the preset's duration.
-    pub fn running(&self, preset: &TimerPreset) -> FocusTimer {
+    pub(crate) fn running(&self, preset: &TimerPreset) -> FocusTimer {
         FocusTimer {
             duration_secs: preset.duration_secs(),
             started_at: (self.clock_secs)(),

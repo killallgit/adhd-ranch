@@ -43,10 +43,11 @@ pub fn spawn(timers: Arc<Timers>) {
             // The store is synchronous file I/O; move it off the async runtime
             // thread so concurrent IPC handlers aren't blocked for a tick.
             let timers = timers.clone();
-            if let Err(e) =
-                tokio::task::spawn_blocking(move || timers.expire_due(current_unix_secs())).await
+            match tokio::task::spawn_blocking(move || timers.expire_due(current_unix_secs())).await
             {
-                log::error!("timer_expiry: worker join failed: {e}");
+                Ok(Ok(())) => {}
+                Ok(Err(e)) => log::error!("timer_expiry: expiry failed: {e}"),
+                Err(e) => log::error!("timer_expiry: worker join failed: {e}"),
             }
         }
     });
