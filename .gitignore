@@ -1,4 +1,6 @@
+# agent worktrees and per-user overrides; the shared .claude/settings.json is tracked
 .claude/settings.local.json
+.claude/worktrees/
 tmp
 ___*
 emdash
