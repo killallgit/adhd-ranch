@@ -1,8 +1,6 @@
 use std::sync::Arc;
 
-use adhd_ranch_domain::{
-    slugify, Caps, Focus, FocusTimer, NewFocus, TaskText, TimerPreset, TimerStatus,
-};
+use adhd_ranch_domain::{slugify, Caps, Focus, FocusTimer, NewFocus, TaskText, TimerPreset};
 use adhd_ranch_storage::FocusStore;
 use serde::{Deserialize, Serialize};
 
@@ -41,13 +39,11 @@ impl Commands {
     }
 
     pub fn create_focus(&self, input: CreateFocusInput) -> Result<CreatedFocus, CommandError> {
-        let timer = input.timer_preset.as_ref().map(|preset| FocusTimer {
-            duration_secs: preset.duration_secs(),
-            started_at: (self.clock_secs)(),
-            status: TimerStatus::Running,
-        });
-        let new_focus =
-            NewFocus::new(input.title, input.description)?.with_timer_preset(input.timer_preset);
+        let timer = input
+            .timer_preset
+            .as_ref()
+            .map(|preset| self.timers.running(preset));
+        let new_focus = NewFocus::new(input.title, input.description)?;
         let slug =
             create_focus_in_store(&self.store, &self.clock, &self.id_gen, &new_focus, timer)?;
         Ok(CreatedFocus { id: slug })
@@ -79,6 +75,11 @@ impl Commands {
     pub fn append_task(&self, focus_id: &str, text: &str) -> Result<(), CommandError> {
         let text = TaskText::new(text)?;
         self.store.append_task(focus_id, text.as_str())?;
+        // Adding a Task revives its Focus. Best effort: the Task is written, and a
+        // stale expired Timer is worth less than failing the write the user asked for.
+        if let Err(error) = self.timers.revive_if_expired(focus_id) {
+            log::warn!("append_task: could not revive {focus_id}: {error}");
+        }
         Ok(())
     }
 
@@ -119,41 +120,6 @@ impl Commands {
         Ok(())
     }
 
-    pub fn start_timer(&self, focus_id: &str, preset: TimerPreset) -> Result<(), CommandError> {
-        let timer = FocusTimer {
-            duration_secs: preset.duration_secs(),
-            started_at: (self.clock_secs)(),
-            status: TimerStatus::Running,
-        };
-        self.store.update_timer(focus_id, &timer)?;
-        Ok(())
-    }
-
-    pub fn clear_timer(&self, focus_id: &str) -> Result<(), CommandError> {
-        self.store.clear_timer(focus_id)?;
-        Ok(())
-    }
-
-    pub fn start_task_timer(
-        &self,
-        focus_id: &str,
-        index: usize,
-        preset: TimerPreset,
-    ) -> Result<(), CommandError> {
-        let timer = FocusTimer {
-            duration_secs: preset.duration_secs(),
-            started_at: (self.clock_secs)(),
-            status: TimerStatus::Running,
-        };
-        self.store.update_task_timer(focus_id, index, &timer)?;
-        Ok(())
-    }
-
-    pub fn clear_task_timer(&self, focus_id: &str, index: usize) -> Result<(), CommandError> {
-        self.store.clear_task_timer(focus_id, index)?;
-        Ok(())
-    }
-
     pub fn caps(&self) -> Caps {
         self.settings().caps
     }
@@ -183,27 +149,51 @@ mod tests {
     use adhd_ranch_domain::{Settings, TimerStatus};
     use adhd_ranch_storage::MarkdownFocusStore;
     use std::sync::Arc;
+
+    use adhd_ranch_domain::{TimerOwner, TimerPreset};
     use tempfile::TempDir;
 
-    fn build_commands(clock_secs_val: i64) -> (Commands, TempDir) {
+    use crate::Timers;
+
+    // Timers only ever writes Expired through expiry; tests that need an expired
+    // Focus start one and run the clock past it.
+    fn expire_focus_timer(timers: &Timers, focus_id: &str) {
+        timers
+            .start(&TimerOwner::focus(focus_id), &TimerPreset::Two)
+            .unwrap();
+        timers.expire_due(i64::MAX).unwrap();
+    }
+
+    struct SilentSink;
+
+    impl crate::NotificationSink for SilentSink {
+        fn notify(&self, _request: crate::NotificationRequest) {}
+    }
+
+    fn build_commands(clock_secs_val: i64) -> (Commands, Arc<Timers>, TempDir) {
         let dir = TempDir::new().unwrap();
         let focuses_root = dir.path().join("focuses");
         std::fs::create_dir_all(&focuses_root).unwrap();
-        let store: Arc<dyn adhd_ranch_storage::FocusStore> =
-            Arc::new(MarkdownFocusStore::new(focuses_root));
-        let commands = Commands::new(
-            store,
-            Arc::new(|| "2026-01-01T00:00:00Z".to_string()),
+        let markdown = Arc::new(MarkdownFocusStore::new(focuses_root));
+        let timers = Arc::new(Timers::new(
+            markdown.clone(),
             Arc::new(move || clock_secs_val),
+            Arc::new(Settings::default),
+            Arc::new(SilentSink),
+        ));
+        let commands = Commands::new(
+            markdown,
+            timers.clone(),
+            Arc::new(|| "2026-01-01T00:00:00Z".to_string()),
             Arc::new(|| "test-id".to_string()),
             Arc::new(Settings::default),
         );
-        (commands, dir)
+        (commands, timers, dir)
     }
 
     #[test]
     fn create_focus_without_preset_stores_no_timer() {
-        let (commands, _dir) = build_commands(1_000_000);
+        let (commands, _timers, _dir) = build_commands(1_000_000);
         commands
             .create_focus(CreateFocusInput {
                 title: "No timer focus".into(),
@@ -218,7 +208,7 @@ mod tests {
 
     #[test]
     fn create_focus_blank_title_returns_bad_request() {
-        let (commands, _dir) = build_commands(0);
+        let (commands, _timers, _dir) = build_commands(0);
         let err = commands
             .create_focus(CreateFocusInput {
                 title: "  ".into(),
@@ -231,7 +221,7 @@ mod tests {
 
     #[test]
     fn append_task_blank_text_returns_bad_request() {
-        let (commands, _dir) = build_commands(0);
+        let (commands, _timers, _dir) = build_commands(0);
         let created = commands
             .create_focus(CreateFocusInput {
                 title: "Real focus".into(),
@@ -245,7 +235,7 @@ mod tests {
 
     #[test]
     fn append_task_revives_expired_focus() {
-        let (commands, _dir) = build_commands(1_700_000_000);
+        let (commands, timers, _dir) = build_commands(1_700_000_000);
         let created = commands
             .create_focus(CreateFocusInput {
                 title: "Dead focus".into(),
@@ -253,17 +243,7 @@ mod tests {
                 timer_preset: None,
             })
             .unwrap();
-        commands
-            .store
-            .update_timer(
-                &created.id,
-                &FocusTimer {
-                    duration_secs: 60,
-                    started_at: 1_000,
-                    status: TimerStatus::Expired,
-                },
-            )
-            .unwrap();
+        expire_focus_timer(&timers, &created.id);
 
         commands.append_task(&created.id, "new life").unwrap();
 
@@ -274,7 +254,7 @@ mod tests {
 
     #[test]
     fn duplicate_focus_copies_title_description_and_tasks() {
-        let (commands, _dir) = build_commands(1_000_000);
+        let (commands, _timers, _dir) = build_commands(1_000_000);
         let created = commands
             .create_focus(CreateFocusInput {
                 title: "Ship it".into(),
@@ -306,7 +286,7 @@ mod tests {
 
     #[test]
     fn duplicate_focus_uses_numeric_suffix_when_copy_exists() {
-        let (commands, _dir) = build_commands(1_000_000);
+        let (commands, _timers, _dir) = build_commands(1_000_000);
         let created = commands
             .create_focus(CreateFocusInput {
                 title: "Ship it".into(),
@@ -322,14 +302,14 @@ mod tests {
 
     #[test]
     fn duplicate_focus_unknown_id_returns_not_found() {
-        let (commands, _dir) = build_commands(1_000_000);
+        let (commands, _timers, _dir) = build_commands(1_000_000);
         let err = commands.duplicate_focus("missing").unwrap_err();
         assert!(matches!(err, CommandError::NotFound(_)));
     }
 
     #[test]
     fn rename_focus_updates_title() {
-        let (commands, _dir) = build_commands(0);
+        let (commands, _timers, _dir) = build_commands(0);
         let created = commands
             .create_focus(CreateFocusInput {
                 title: "Old".into(),
@@ -344,7 +324,7 @@ mod tests {
 
     #[test]
     fn rename_focus_blank_title_returns_bad_request() {
-        let (commands, _dir) = build_commands(0);
+        let (commands, _timers, _dir) = build_commands(0);
         let created = commands
             .create_focus(CreateFocusInput {
                 title: "Real".into(),
@@ -358,7 +338,7 @@ mod tests {
 
     #[test]
     fn update_task_blank_text_returns_bad_request() {
-        let (commands, _dir) = build_commands(0);
+        let (commands, _timers, _dir) = build_commands(0);
         let created = commands
             .create_focus(CreateFocusInput {
                 title: "Has tasks".into(),
@@ -373,7 +353,7 @@ mod tests {
 
     #[test]
     fn update_task_replaces_text() {
-        let (commands, _dir) = build_commands(0);
+        let (commands, _timers, _dir) = build_commands(0);
         let created = commands
             .create_focus(CreateFocusInput {
                 title: "Has tasks".into(),
@@ -389,7 +369,7 @@ mod tests {
 
     #[test]
     fn toggle_task_round_trip() {
-        let (commands, _dir) = build_commands(0);
+        let (commands, _timers, _dir) = build_commands(0);
         let created = commands
             .create_focus(CreateFocusInput {
                 title: "Has tasks".into(),
@@ -405,9 +385,9 @@ mod tests {
     }
 
     #[test]
-    fn start_timer_sets_running_timer_with_preset_duration() {
+    fn starting_a_focus_timer_writes_it_to_the_focus_dir() {
         let started_at = 1_700_000_500_i64;
-        let (commands, _dir) = build_commands(started_at);
+        let (commands, timers, _dir) = build_commands(started_at);
         let created = commands
             .create_focus(CreateFocusInput {
                 title: "No timer yet".into(),
@@ -416,8 +396,8 @@ mod tests {
             })
             .unwrap();
 
-        commands
-            .start_timer(&created.id, TimerPreset::Four)
+        timers
+            .start(&TimerOwner::focus(&created.id), &TimerPreset::Four)
             .unwrap();
 
         let focuses = commands.list_focuses().unwrap();
@@ -428,17 +408,17 @@ mod tests {
     }
 
     #[test]
-    fn start_timer_unknown_focus_returns_not_found() {
-        let (commands, _dir) = build_commands(0);
-        let err = commands
-            .start_timer("does-not-exist", TimerPreset::Two)
+    fn starting_a_timer_on_an_unknown_focus_is_not_found() {
+        let (_commands, timers, _dir) = build_commands(0);
+        let err = timers
+            .start(&TimerOwner::focus("does-not-exist"), &TimerPreset::Two)
             .unwrap_err();
         assert!(matches!(err, CommandError::NotFound(_)));
     }
 
     #[test]
-    fn clear_timer_removes_focus_timer() {
-        let (commands, _dir) = build_commands(1_700_000_500);
+    fn clearing_a_focus_timer_removes_the_sidecar() {
+        let (commands, timers, _dir) = build_commands(1_700_000_500);
         let created = commands
             .create_focus(CreateFocusInput {
                 title: "Timed".into(),
@@ -447,16 +427,16 @@ mod tests {
             })
             .unwrap();
 
-        commands.clear_timer(&created.id).unwrap();
+        timers.clear(&TimerOwner::focus(&created.id)).unwrap();
 
         let focuses = commands.list_focuses().unwrap();
         assert!(focuses[0].timer.is_none());
     }
 
     #[test]
-    fn start_task_timer_sets_running_timer_on_task() {
+    fn starting_a_task_timer_writes_only_that_task() {
         let started_at = 1_700_000_500_i64;
-        let (commands, _dir) = build_commands(started_at);
+        let (commands, timers, _dir) = build_commands(started_at);
         let created = commands
             .create_focus(CreateFocusInput {
                 title: "Task timers".into(),
@@ -467,8 +447,8 @@ mod tests {
         commands.append_task(&created.id, "one").unwrap();
         commands.append_task(&created.id, "two").unwrap();
 
-        commands
-            .start_task_timer(&created.id, 1, TimerPreset::Four)
+        timers
+            .start(&TimerOwner::task(&created.id, 1), &TimerPreset::Four)
             .unwrap();
 
         let focuses = commands.list_focuses().unwrap();
@@ -485,7 +465,7 @@ mod tests {
     #[test]
     fn create_focus_with_preset_stores_timer_with_correct_duration() {
         let started_at = 1_700_000_000_i64;
-        let (commands, _dir) = build_commands(started_at);
+        let (commands, _timers, _dir) = build_commands(started_at);
         commands
             .create_focus(CreateFocusInput {
                 title: "Timer focus".into(),

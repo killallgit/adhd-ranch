@@ -8,6 +8,7 @@ All notable changes to adhd-ranch. Follows [Keep a Changelog](https://keepachang
 
 ### Changed
 
+- One `Timers` module owns starting, clearing, reviving and expiring a Timer, keyed by Timer Owner. Storage exposes a single `write_timer`, and IPC collapses to `start_timer(owner, preset)` and `clear_timer(owner)` (054).
 - `projectAnimals` turns Focuses and Agent Sessions into one Animal list, and selection is derived from it. The Rust `Animal` is now `AgentSession` (055).
 
 ### Fixed

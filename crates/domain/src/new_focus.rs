@@ -1,7 +1,6 @@
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::error::DomainError;
-use crate::timer::TimerPreset;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "export-ts", derive(ts_rs::TS))]
@@ -9,8 +8,6 @@ use crate::timer::TimerPreset;
 pub struct NewFocus {
     title: String,
     description: String,
-    #[serde(skip_serializing_if = "Option::is_none", default)]
-    timer_preset: Option<TimerPreset>,
 }
 
 impl NewFocus {
@@ -25,7 +22,6 @@ impl NewFocus {
         Ok(Self {
             title,
             description: description.into(),
-            timer_preset: None,
         })
     }
 
@@ -36,16 +32,6 @@ impl NewFocus {
     pub fn description(&self) -> &str {
         &self.description
     }
-
-    pub fn timer_preset(&self) -> Option<&TimerPreset> {
-        self.timer_preset.as_ref()
-    }
-
-    #[must_use]
-    pub fn with_timer_preset(mut self, timer_preset: Option<TimerPreset>) -> Self {
-        self.timer_preset = timer_preset;
-        self
-    }
 }
 
 impl<'de> Deserialize<'de> for NewFocus {
@@ -55,12 +41,9 @@ impl<'de> Deserialize<'de> for NewFocus {
             title: String,
             #[serde(default)]
             description: String,
-            #[serde(default)]
-            timer_preset: Option<TimerPreset>,
         }
         let raw = Raw::deserialize(d)?;
-        let nf = NewFocus::new(raw.title, raw.description).map_err(serde::de::Error::custom)?;
-        Ok(nf.with_timer_preset(raw.timer_preset))
+        NewFocus::new(raw.title, raw.description).map_err(serde::de::Error::custom)
     }
 }
 
@@ -73,7 +56,6 @@ mod tests {
         let nf = NewFocus::new("Ship it", "the bug").unwrap();
         assert_eq!(nf.title, "Ship it");
         assert_eq!(nf.description, "the bug");
-        assert_eq!(nf.timer_preset, None);
     }
 
     #[test]

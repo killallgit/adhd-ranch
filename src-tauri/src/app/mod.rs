@@ -13,7 +13,7 @@ use std::time::Duration;
 
 use crate::display::monitor::LogicalMonitor;
 use crate::display::{DisplayManager, DisplayManagerState, DisplayService};
-use adhd_ranch_commands::{AgentSessions, CapEvaluator, Commands};
+use adhd_ranch_commands::{AgentSessions, CapEvaluator, Commands, Timers};
 use adhd_ranch_domain::{DisplayConfig, OverCapMonitor, RectUpdater, Settings};
 use adhd_ranch_storage::{
     watch_path, ClaudeSessionStore, FocusStore, FocusWatcher, MarkdownFocusStore,
@@ -54,8 +54,6 @@ pub fn run() {
             ui_bridge::toggle_task,
             ui_bridge::start_timer,
             ui_bridge::clear_timer,
-            ui_bridge::start_task_timer,
-            ui_bridge::clear_task_timer,
             ui_bridge::update_pig_rects,
             ui_bridge::set_pig_drag_active,
             ui_bridge::get_settings,
@@ -74,7 +72,8 @@ pub fn run() {
         let focuses_root = paths::focuses_root()?;
         std::fs::create_dir_all(&focuses_root)?;
 
-        let store: Arc<dyn FocusStore> = Arc::new(MarkdownFocusStore::new(focuses_root.clone()));
+        let markdown_store = Arc::new(MarkdownFocusStore::new(focuses_root.clone()));
+        let store: Arc<dyn FocusStore> = markdown_store.clone();
 
         let settings_state = Arc::new(Mutex::new(settings.clone()));
         let settings_provider: adhd_ranch_commands::SettingsProvider = {
@@ -88,10 +87,19 @@ pub fn run() {
             })
         };
 
+        let timers = Arc::new(Timers::new(
+            markdown_store,
+            Arc::new(now_unix_secs),
+            Arc::clone(&settings_provider),
+            Arc::new(timer_expiry::TauriNotificationSink::new(
+                app.handle().clone(),
+            )),
+        ));
+
         let commands = Arc::new(Commands::new(
             store.clone(),
+            Arc::clone(&timers),
             Arc::new(now_rfc3339),
-            Arc::new(now_unix_secs),
             Arc::new(|| uuid::Uuid::now_v7().to_string()),
             Arc::clone(&settings_provider),
         ));
@@ -107,6 +115,7 @@ pub fn run() {
         ));
 
         app.manage(ui_bridge::CommandsState(commands));
+        app.manage(ui_bridge::TimersState(Arc::clone(&timers)));
 
         let sessions_dir = paths::claude_sessions_dir()?;
         std::fs::create_dir_all(&sessions_dir)?;
@@ -179,7 +188,7 @@ pub fn run() {
             _agent_sessions: agent_sessions_watcher,
         });
 
-        timer_expiry::spawn(app.handle().clone(), store);
+        timer_expiry::spawn(timers);
 
         Ok(())
     });

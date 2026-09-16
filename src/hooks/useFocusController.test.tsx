@@ -18,8 +18,6 @@ function createWriter(overrides: Partial<FocusWriter> = {}): FocusWriter {
     toggleTask: ok,
     startTimer: ok,
     clearTimer: ok,
-    startTaskTimer: ok,
-    clearTaskTimer: ok,
     ...overrides,
   };
 }

@@ -41,19 +41,32 @@ fn mark_seeded(marker: &Path) -> std::io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use adhd_ranch_commands::Commands;
+    use adhd_ranch_commands::{Commands, NotificationRequest, NotificationSink, Timers};
     use adhd_ranch_domain::Settings;
     use adhd_ranch_storage::MarkdownFocusStore;
     use std::sync::Arc;
     use tempfile::TempDir;
 
+    struct SilentSink;
+
+    impl NotificationSink for SilentSink {
+        fn notify(&self, _request: NotificationRequest) {}
+    }
+
     fn commands(root: &Path) -> Commands {
         let focuses_root = root.join("focuses");
         std::fs::create_dir_all(&focuses_root).unwrap();
-        Commands::new(
-            Arc::new(MarkdownFocusStore::new(focuses_root)),
-            Arc::new(|| "2026-05-20T00:00:00Z".to_string()),
+        let store = Arc::new(MarkdownFocusStore::new(focuses_root));
+        let timers = Arc::new(Timers::new(
+            store.clone(),
             Arc::new(|| 1_779_235_200),
+            Arc::new(Settings::default),
+            Arc::new(SilentSink),
+        ));
+        Commands::new(
+            store,
+            timers,
+            Arc::new(|| "2026-05-20T00:00:00Z".to_string()),
             Arc::new(|| "example-id".to_string()),
             Arc::new(Settings::default),
         )

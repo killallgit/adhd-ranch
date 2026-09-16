@@ -49,6 +49,16 @@ created_at: 2026-04-30T12:00:00Z
 - Atomic write via tmpfile + rename, serialized by an exclusive lock file per target.
 - First launch seeds one example Focus. A marker file stops it from coming back after the user clears every Focus.
 
+## Timers
+
+Every Timer rule lives in one `Timers` module in `crates/commands`, built once in `app::run`.
+
+- **Owner as data.** `TimerOwner` is `Focus { focus_id }` or `Task { focus_id, index }`, so Focus and Task Timers take the same path through `start`, `clear`, `revive_if_expired` and `expire_due`. Tasks are still matched by position (056 covers the drift when a user reorders bullets by hand).
+- **Storage seam.** `TimerStore` has three methods: `focuses()`, `timer(owner)` and `write_timer(owner, Option<FocusTimer>)`. A missing Focus or a corrupt sidecar reads as no Timer, so an unrelated broken `focus.md` cannot block a Revive. `MarkdownFocusStore` writes the sidecars; `InMemoryTimerStore` is the adapter the use-case tests run against. `FocusStore` holds no Timer methods.
+- **Expiry.** The 1s host loop calls `expire_due(now)`, which runs the pure `domain::tick`, persists `status: Expired` and notifies through the enabled notification sources. Persisted Expired status is the dedup lock, so a Timer fires once.
+- **Revive.** `Commands::append_task` revives the Focus after writing the Task, reading just that Focus's Timer: an expired Focus Timer is cleared so its Animal goes back to normal. Best effort — a failed revive logs and leaves the Task written. Task Timers are never revived.
+- **IPC.** Two commands: `start_timer(owner, preset)` and `clear_timer(owner)`.
+
 ## Domain types
 
 - `FocusTimer` stores `duration_secs`, `started_at` (unix timestamp), and `status` (`Running` | `Expired`).
@@ -83,7 +93,7 @@ Responsibilities owned by the app:
 
 - Read/write per-Focus markdown files (frontmatter + body).
 - Watch `~/.adhd-ranch/focuses/` via `notify` crate; reflect external edits live (pig count updates within 1s).
-- Run a 1s timer-expiry loop that persists expired timers and sends notifications. The UI picks up the change through the focuses watcher.
+- Run a 1s timer-expiry loop (`Timers::expire_due`) that persists expired timers and sends notifications. The UI picks up the change through the focuses watcher.
 - Enforce caps + emit overload alerts (`tauri-plugin-notification`).
 - Poll mouse position in a background thread; maintain shared pig bounding boxes; toggle click-through.
 

@@ -7,13 +7,13 @@ pub mod agent_sessions;
 pub mod caps;
 pub mod error;
 pub mod focus;
-pub mod timer_expiry;
+pub mod timers;
 
 pub use agent_sessions::AgentSessions;
 pub use caps::{CapEvaluator, CapNotifier};
 pub use error::CommandError;
 pub use focus::{CreateFocusInput, CreatedFocus};
-pub use timer_expiry::{NotificationRequest, NotificationSink, TimerExpiryWorkflow};
+pub use timers::{NotificationRequest, NotificationSink, Timers};
 
 pub type Clock = Arc<dyn Fn() -> String + Send + Sync>;
 pub type ClockSecs = Arc<dyn Fn() -> i64 + Send + Sync>;
@@ -36,8 +36,8 @@ pub type SettingsProvider = Arc<dyn SettingsReader>;
 
 pub struct Commands {
     pub(crate) store: Arc<dyn FocusStore>,
+    pub(crate) timers: Arc<Timers>,
     pub(crate) clock: Clock,
-    pub(crate) clock_secs: ClockSecs,
     pub(crate) id_gen: IdGen,
     pub(crate) settings: SettingsProvider,
 }
@@ -45,15 +45,15 @@ pub struct Commands {
 impl Commands {
     pub fn new(
         store: Arc<dyn FocusStore>,
+        timers: Arc<Timers>,
         clock: Clock,
-        clock_secs: ClockSecs,
         id_gen: IdGen,
         settings: SettingsProvider,
     ) -> Self {
         Self {
             store,
+            timers,
             clock,
-            clock_secs,
             id_gen,
             settings,
         }
@@ -74,14 +74,27 @@ mod tests {
 
     use super::*;
 
+    struct SilentSink;
+
+    impl NotificationSink for SilentSink {
+        fn notify(&self, _request: NotificationRequest) {}
+    }
+
     #[test]
     fn caps_reads_latest_settings_provider_value() {
         let dir = TempDir::new().unwrap();
         let settings = Arc::new(Mutex::new(Settings::default()));
-        let commands = Commands::new(
-            Arc::new(MarkdownFocusStore::new(dir.path().join("focuses"))),
-            Arc::new(|| "2026-01-01T00:00:00Z".to_string()),
+        let store = Arc::new(MarkdownFocusStore::new(dir.path().join("focuses")));
+        let timers = Arc::new(Timers::new(
+            store.clone(),
             Arc::new(|| 1_700_000_000),
+            Arc::new(Settings::default),
+            Arc::new(SilentSink),
+        ));
+        let commands = Commands::new(
+            store,
+            timers,
+            Arc::new(|| "2026-01-01T00:00:00Z".to_string()),
             Arc::new(|| "id-fixed".to_string()),
             {
                 let settings = settings.clone();
