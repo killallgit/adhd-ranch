@@ -248,6 +248,17 @@ impl TimerStore for MarkdownFocusStore {
         FocusStore::list(self)
     }
 
+    fn timer(&self, owner: &TimerOwner) -> Result<Option<FocusTimer>, FocusStoreError> {
+        match owner {
+            TimerOwner::Focus { focus_id } => Ok(self.read_focus_timer(focus_id)),
+            TimerOwner::Task { focus_id, index } => Ok(self
+                .read_task_timers(focus_id)?
+                .get(*index)
+                .cloned()
+                .flatten()),
+        }
+    }
+
     fn write_timer(
         &self,
         owner: &TimerOwner,
@@ -266,6 +277,13 @@ impl TimerStore for MarkdownFocusStore {
 }
 
 impl MarkdownFocusStore {
+    // A missing or corrupt sidecar reads as "no Timer": list() degrades the same
+    // way, and a Focus the user can still see should not fail a Timer read.
+    fn read_focus_timer(&self, focus_id: &str) -> Option<FocusTimer> {
+        let raw = fs::read_to_string(self.timer_json(focus_id)).ok()?;
+        serde_json::from_str(&raw).ok()
+    }
+
     fn write_focus_timer(&self, focus_id: &str, timer: &FocusTimer) -> Result<(), FocusStoreError> {
         let dir = self.root.join(focus_id);
         if !dir.is_dir() {
@@ -782,6 +800,51 @@ mod tests {
         let focuses = store.list().unwrap();
         assert_eq!(focuses.len(), 1);
         assert_eq!(focuses[0].timer, Some(timer));
+    }
+
+    #[test]
+    fn reading_a_focus_timer_returns_the_sidecar() {
+        let dir = TempDir::new().unwrap();
+        write_focus(dir.path(), "a", &focus_md("a", &["one"]));
+        let store = MarkdownFocusStore::new(dir.path());
+        let running = FocusTimer {
+            duration_secs: 120,
+            started_at: 1_000,
+            status: TimerStatus::Running,
+        };
+        store
+            .write_timer(&TimerOwner::focus("a"), Some(&running))
+            .unwrap();
+
+        assert_eq!(store.timer(&TimerOwner::focus("a")).unwrap(), Some(running));
+    }
+
+    #[test]
+    fn reading_a_timer_without_a_sidecar_is_none() {
+        let dir = TempDir::new().unwrap();
+        write_focus(dir.path(), "a", &focus_md("a", &["one"]));
+        let store = MarkdownFocusStore::new(dir.path());
+
+        assert_eq!(store.timer(&TimerOwner::focus("a")).unwrap(), None);
+        assert_eq!(store.timer(&TimerOwner::task("a", 0)).unwrap(), None);
+    }
+
+    #[test]
+    fn reading_a_corrupt_timer_sidecar_is_none() {
+        let dir = TempDir::new().unwrap();
+        write_focus(dir.path(), "a", &focus_md("a", &["one"]));
+        fs::write(dir.path().join("a/timer.json"), b"{ not json").unwrap();
+        let store = MarkdownFocusStore::new(dir.path());
+
+        assert_eq!(store.timer(&TimerOwner::focus("a")).unwrap(), None);
+    }
+
+    #[test]
+    fn reading_the_timer_of_a_missing_focus_is_none() {
+        let dir = TempDir::new().unwrap();
+        let store = MarkdownFocusStore::new(dir.path());
+
+        assert_eq!(store.timer(&TimerOwner::focus("ghost")).unwrap(), None);
     }
 
     #[test]

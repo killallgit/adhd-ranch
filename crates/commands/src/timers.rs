@@ -67,15 +67,14 @@ impl Timers {
     /// Adding a Task revives its Focus: an expired Focus Timer is cleared so the
     /// Animal goes back to normal. Tasks are never revived.
     pub fn revive_if_expired(&self, focus_id: &str) -> Result<(), CommandError> {
-        let focuses = self.store.focuses()?;
-        let expired = focuses
-            .iter()
-            .find(|focus| focus.id.0 == focus_id)
-            .and_then(|focus| focus.timer.as_ref())
+        let owner = TimerOwner::focus(focus_id);
+        let expired = self
+            .store
+            .timer(&owner)?
             .is_some_and(|timer| matches!(timer.status, TimerStatus::Expired));
 
         if expired {
-            self.clear(&TimerOwner::focus(focus_id))?;
+            self.clear(&owner)?;
         }
         Ok(())
     }
@@ -310,6 +309,21 @@ mod tests {
 
         assert_eq!(f.store.snapshot()[0].timer, Some(running));
         assert!(f.store.writes().is_empty());
+    }
+
+    #[test]
+    fn revive_reads_only_its_own_focus() {
+        // A malformed focus.md elsewhere on the ranch must not stop the Focus the
+        // user just typed into from being revived.
+        let f = fixture(vec![
+            focus("a", Some(timer(TimerStatus::Expired, 120, 500)), Vec::new()),
+            focus("b", Some(timer(TimerStatus::Running, 600, 900)), Vec::new()),
+        ]);
+
+        f.timers.revive_if_expired("a").unwrap();
+
+        assert_eq!(f.store.snapshot()[0].timer, None);
+        assert!(f.store.snapshot()[1].timer.is_some());
     }
 
     #[test]

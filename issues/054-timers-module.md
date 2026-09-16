@@ -19,7 +19,7 @@ Collapse all of it behind one module keyed by **Timer Owner**.
   - `revive_if_expired(focus_id)` — only Focuses are revived
   - `expire_due(now_secs)` — persists Expired and notifies through the enabled notification sources
 - `domain::tick` stays as the pure core inside `expire_due`. `TimerExpiryWorkflow` is deleted, and the 1s host loop calls the single long-lived `Timers` instead of rebuilding a workflow and a sink every tick.
-- Narrow `TimerStore` trait in `storage`: `list` + `write_timer(owner, Option<FocusTimer>)`. `MarkdownFocusStore` implements it, and a `pub` in-memory adapter next to it replaces the hand-written `unimplemented!()` stubs in the `commands` tests.
+- Narrow `TimerStore` trait in `storage`: `focuses` + `timer(owner)` + `write_timer(owner, Option<FocusTimer>)`. `MarkdownFocusStore` implements it, and a `pub` in-memory adapter next to it replaces the hand-written `unimplemented!()` stubs in the `commands` tests.
 - `FocusStore` loses `update_timer`, `clear_timer`, `update_task_timer` and `clear_task_timer`.
 - `Commands::append_task` calls `timers.revive_if_expired(focus_id)`. Storage stops doing it.
 - `create_focus` builds its initial running Timer through the same `Timers` helper as `start`.
@@ -41,7 +41,7 @@ Starting, clearing, reviving and expiring a Timer all go through one module keye
 - [x] `TimerOwner` exists in `domain` and is how callers name a Timer's owner for `start`, `clear` and `expire_due` (`revive_if_expired` takes a Focus id: only Focuses are revived)
 - [x] `Timers` exposes `start`, `clear`, `revive_if_expired` and `expire_due`; `TimerExpiryWorkflow` is gone
 - [x] `Timers` is constructed once in `app::run`; the 1s loop does not rebuild it or its sink per tick
-- [x] `TimerStore` has one write method (`focuses` + `write_timer`); `FocusStore` no longer has any timer method
+- [x] `TimerStore` has one write method (`focuses` + `timer` + `write_timer`); `FocusStore` no longer has any timer method
 - [x] An in-memory `TimerStore` adapter replaces the `unimplemented!()` stubs in `commands` tests
 - [x] Revive lives in `Commands::append_task`; `MarkdownFocusStore::append_task` no longer touches `timer.json`
 - [x] Two Tauri timer commands, with `TimerOwner` in `src/types/generated/`

@@ -9,6 +9,9 @@ use crate::focus_store::FocusStoreError;
 pub trait TimerStore: Send + Sync {
     /// Every Focus, with its Timers, so expiry can see what is due.
     fn focuses(&self) -> Result<Vec<Focus>, FocusStoreError>;
+    /// One Owner's Timer, or None when it has none. A Focus that isn't there
+    /// has no Timer either, so this is not an error.
+    fn timer(&self, owner: &TimerOwner) -> Result<Option<FocusTimer>, FocusStoreError>;
     fn write_timer(
         &self,
         owner: &TimerOwner,
@@ -45,6 +48,19 @@ impl InMemoryTimerStore {
 impl TimerStore for InMemoryTimerStore {
     fn focuses(&self) -> Result<Vec<Focus>, FocusStoreError> {
         Ok(self.focuses.lock().unwrap().clone())
+    }
+
+    fn timer(&self, owner: &TimerOwner) -> Result<Option<FocusTimer>, FocusStoreError> {
+        let focuses = self.focuses.lock().unwrap();
+        let Some(focus) = focuses.iter().find(|focus| focus.id.0 == owner.focus_id()) else {
+            return Ok(None);
+        };
+        Ok(match owner {
+            TimerOwner::Focus { .. } => focus.timer.clone(),
+            TimerOwner::Task { index, .. } => {
+                focus.tasks.get(*index).and_then(|task| task.timer.clone())
+            }
+        })
     }
 
     fn write_timer(
@@ -109,6 +125,37 @@ mod tests {
                 .collect(),
             timer: None,
         }
+    }
+
+    #[test]
+    fn reading_a_focus_timer_returns_what_was_written() {
+        let store = InMemoryTimerStore::new(vec![focus_with_tasks("a", 0)]);
+        store
+            .write_timer(&TimerOwner::focus("a"), Some(&timer()))
+            .unwrap();
+
+        assert_eq!(store.timer(&TimerOwner::focus("a")).unwrap(), Some(timer()));
+    }
+
+    #[test]
+    fn reading_a_task_timer_returns_what_was_written() {
+        let store = InMemoryTimerStore::new(vec![focus_with_tasks("a", 2)]);
+        store
+            .write_timer(&TimerOwner::task("a", 1), Some(&timer()))
+            .unwrap();
+
+        assert_eq!(
+            store.timer(&TimerOwner::task("a", 1)).unwrap(),
+            Some(timer())
+        );
+        assert_eq!(store.timer(&TimerOwner::task("a", 0)).unwrap(), None);
+    }
+
+    #[test]
+    fn reading_the_timer_of_an_unknown_focus_is_none() {
+        let store = InMemoryTimerStore::new(Vec::new());
+
+        assert_eq!(store.timer(&TimerOwner::focus("missing")).unwrap(), None);
     }
 
     #[test]
