@@ -13,6 +13,7 @@ import type { AgentSession } from "../types/agentSession";
 import type { Focus } from "../types/focus";
 import type { TimerPreset } from "../types/timer";
 import { AnimalDetail } from "./AnimalDetail";
+import { PenBox } from "./PenBox";
 import { PigSprite } from "./PigSprite";
 
 export interface AppProps {
@@ -42,7 +43,7 @@ export function App({ focusReader, focusWriter, onWriteFailure, agentSessionRead
   const { selected, select, close } = useAnimalSelection(animals);
   const selectedFocus = selected?.focus ?? null;
   const confirmDelete = useConfirmDelete();
-  const { pigs, startDrag, moveDrag, endDrag, setDragActive } = usePigMovement(
+  const { pigs, pens, startDrag, moveDrag, endDrag, setDragActive } = usePigMovement(
     animals,
     selected?.id ?? null,
   );
@@ -135,9 +136,13 @@ export function App({ focusReader, focusWriter, onWriteFailure, agentSessionRead
             fontFamily: "monospace",
           }}
         >
-          overlay-debug | w={screenW} h={screenH} | focuses={focuses.length} pigs={pigs.length}
+          overlay-debug | w={screenW} h={screenH} | focuses={focuses.length} pigs={pigs.length}{" "}
+          pens={pens.length}
         </div>
       )}
+      {pens.map((layout) => (
+        <PenBox key={layout.pen.id} layout={layout} />
+      ))}
       {pigs.map((pig) => {
         const animal = animalsById.get(pig.id);
         if (!animal) return null;
@@ -150,7 +155,7 @@ export function App({ focusReader, focusWriter, onWriteFailure, agentSessionRead
             frame={pig.frameIndex}
             name={pig.name}
             scale={animal.scale}
-            expired={animal.expired}
+            resting={animal.resting}
             onClick={() => select(pig.id)}
             onDragStart={(x, y) => startDrag(pig.id, x, y)}
             onDragMove={moveDrag}

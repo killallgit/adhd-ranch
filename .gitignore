@@ -23,3 +23,6 @@ tsconfig.tsbuildinfo
 
 # agent skill installer lockfile
 skills-lock.json
+
+# tauri sidecars, built from crates/hook-client
+src-tauri/binaries/

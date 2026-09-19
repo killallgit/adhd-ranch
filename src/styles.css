@@ -103,11 +103,11 @@ body,
   flex-shrink: 0;
 }
 
-.pig-sprite--expired .pig-sprite-frame {
-  animation: expired-animal-pulse 700ms ease-out 1;
+.pig-sprite--resting .pig-sprite-frame {
+  animation: resting-animal-pulse 700ms ease-out 1;
 }
 
-@keyframes expired-animal-pulse {
+@keyframes resting-animal-pulse {
   0%,
   100% {
     transform: translate(0, 0) scale(1);
@@ -483,4 +483,26 @@ body,
 
 .settings-number:focus {
   border-color: rgba(255, 255, 255, 0.4);
+}
+
+/* ── Session pens ─────────────────────────────────────────── */
+
+.pen-box {
+  position: absolute;
+  pointer-events: none;
+  border: 2px solid;
+  border-radius: 8px;
+}
+
+.pen-box-label {
+  position: absolute;
+  top: 4px;
+  left: 8px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+  white-space: nowrap;
 }

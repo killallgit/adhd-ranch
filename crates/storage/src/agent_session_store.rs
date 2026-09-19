@@ -1,44 +1,105 @@
-use std::fs;
-use std::path::PathBuf;
+use std::collections::BTreeMap;
+use std::sync::RwLock;
 
-use adhd_ranch_domain::claude_hook::agent_session_from_payload;
-use adhd_ranch_domain::AgentSession;
+use adhd_ranch_domain::agents::claude_code::hooks::{
+    agent_session_from_payload, session_id_from_payload,
+};
+use adhd_ranch_domain::agents::hooks::HookAction;
+use adhd_ranch_domain::{AgentSession, SessionActivity};
 
+/// The sessions the ranch would draw right now.
 pub trait AgentSessionStore: Send + Sync {
     fn list(&self) -> Vec<AgentSession>;
 }
 
-pub struct ClaudeSessionStore {
-    sessions_dir: PathBuf,
+/// Where a hook firing goes once it has been read off the wire.
+///
+/// The listener needs nothing more than this, so it depends on this and not on where
+/// sessions actually live.
+pub trait HookEventSink: Send + Sync {
+    /// Apply one firing, reporting whether the ranch now looks any different.
+    fn apply(&self, action: HookAction, payload: &str) -> bool;
 }
 
-impl ClaudeSessionStore {
-    pub fn new(sessions_dir: PathBuf) -> Self {
-        Self { sessions_dir }
+/// The sessions agents have told the ranch about, as they last described them.
+///
+/// Held in memory on purpose. A session exists only while the process running it
+/// does, so there is nothing here worth surviving a restart — and anything written
+/// down would have to be reconciled against reality on the way back up, which is the
+/// staleness this whole design exists to avoid.
+#[derive(Default)]
+pub struct LiveSessions {
+    sessions: RwLock<BTreeMap<String, AgentSession>>,
+}
+
+impl LiveSessions {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Forget every session.
+    ///
+    /// For when the ranch stops listening: the hooks are gone, so nothing will ever
+    /// arrive to say these sessions ended, and keeping them would mean switching
+    /// agents back on brings back animals for sessions that are long over.
+    pub fn clear(&self) -> bool {
+        let Ok(mut held) = self.sessions.write() else {
+            return false;
+        };
+        if held.is_empty() {
+            return false;
+        }
+        held.clear();
+        true
+    }
+
+    fn record(&self, payload: &str, activity: SessionActivity) -> bool {
+        let Some(session) = agent_session_from_payload(payload, activity) else {
+            return false;
+        };
+        let Ok(mut held) = self.sessions.write() else {
+            return false;
+        };
+        if held.get(&session.id) == Some(&session) {
+            return false;
+        }
+        held.insert(session.id.clone(), session);
+        true
+    }
+
+    fn forget(&self, payload: &str) -> bool {
+        let Some(id) = session_id_from_payload(payload) else {
+            return false;
+        };
+        let Ok(mut held) = self.sessions.write() else {
+            return false;
+        };
+        held.remove(&id).is_some()
     }
 }
 
-impl AgentSessionStore for ClaudeSessionStore {
-    fn list(&self) -> Vec<AgentSession> {
-        let entries = match fs::read_dir(&self.sessions_dir) {
-            Ok(entries) => entries,
-            Err(error) => {
-                log::warn!(
-                    "claude sessions: cannot read {}: {error}",
-                    self.sessions_dir.display()
-                );
-                return Vec::new();
-            }
-        };
+impl HookEventSink for LiveSessions {
+    /// A session the ranch has never heard of is taken at its word rather than
+    /// dropped: hooks installed mid-flight miss the `SessionStart` of everything
+    /// already running, and the first thing such a session says is enough to draw it.
+    fn apply(&self, action: HookAction, payload: &str) -> bool {
+        match action {
+            HookAction::End => self.forget(payload),
+            HookAction::Working => self.record(payload, SessionActivity::Working),
+            HookAction::Start | HookAction::Idle => self.record(payload, SessionActivity::Idle),
+        }
+    }
+}
 
-        let mut sessions: Vec<AgentSession> = entries
-            .filter_map(Result::ok)
-            .map(|entry| entry.path())
-            .filter(|path| path.extension().is_some_and(|ext| ext == "json"))
-            .filter_map(|path| fs::read_to_string(path).ok())
-            .filter_map(|payload| agent_session_from_payload(&payload))
-            .collect();
-        sessions.sort_by(|a, b| a.id.cmp(&b.id));
+impl AgentSessionStore for LiveSessions {
+    fn list(&self) -> Vec<AgentSession> {
+        let Ok(held) = self.sessions.read() else {
+            return Vec::new();
+        };
+        let mut sessions: Vec<AgentSession> = held.values().cloned().collect();
+        // Grouped by pen so the overlay's animals keep a stable order as sessions
+        // come and go.
+        sessions.sort_by(|a, b| (&a.pen.id, &a.id).cmp(&(&b.pen.id, &b.id)));
         sessions
     }
 }
@@ -46,61 +107,104 @@ impl AgentSessionStore for ClaudeSessionStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::TempDir;
 
-    fn write_session(dir: &TempDir, file: &str, payload: &str) {
-        fs::write(dir.path().join(file), payload).unwrap();
+    const ID: &str = "4af8005a-7a52";
+
+    fn payload(cwd: &str) -> String {
+        format!(r#"{{"session_id":"{ID}","cwd":"{cwd}"}}"#)
     }
 
     #[test]
-    fn lists_one_session_per_file() {
-        let dir = TempDir::new().unwrap();
-        write_session(&dir, "b.json", r#"{"session_id":"b","cwd":"/code/two"}"#);
-        write_session(&dir, "a.json", r#"{"session_id":"a","cwd":"/code/one"}"#);
+    fn a_started_session_is_resting() {
+        let live = LiveSessions::new();
 
-        let sessions = ClaudeSessionStore::new(dir.path().to_path_buf()).list();
+        assert!(live.apply(HookAction::Start, &payload("/code/app")));
 
-        assert_eq!(
-            sessions,
-            vec![
-                AgentSession {
-                    id: "a".into(),
-                    name: "one".into()
-                },
-                AgentSession {
-                    id: "b".into(),
-                    name: "two".into()
-                },
-            ]
+        assert_eq!(live.list()[0].activity, SessionActivity::Idle);
+    }
+
+    #[test]
+    fn a_working_session_is_working() {
+        let live = LiveSessions::new();
+        live.apply(HookAction::Start, &payload("/code/app"));
+
+        assert!(live.apply(HookAction::Working, &payload("/code/app")));
+
+        assert_eq!(live.list()[0].activity, SessionActivity::Working);
+    }
+
+    #[test]
+    fn a_session_the_ranch_never_saw_start_is_still_drawn() {
+        let live = LiveSessions::new();
+
+        assert!(live.apply(HookAction::Working, &payload("/code/app")));
+
+        assert_eq!(live.list().len(), 1);
+    }
+
+    #[test]
+    fn an_ended_session_is_gone() {
+        let live = LiveSessions::new();
+        live.apply(HookAction::Start, &payload("/code/app"));
+
+        assert!(live.apply(HookAction::End, &payload("/code/app")));
+
+        assert!(live.list().is_empty());
+    }
+
+    #[test]
+    fn repeating_what_the_ranch_already_knows_changes_nothing() {
+        let live = LiveSessions::new();
+        live.apply(HookAction::Working, &payload("/code/app"));
+
+        assert!(!live.apply(HookAction::Working, &payload("/code/app")));
+    }
+
+    #[test]
+    fn ending_a_session_the_ranch_never_knew_changes_nothing() {
+        let live = LiveSessions::new();
+
+        assert!(!live.apply(HookAction::End, &payload("/code/app")));
+    }
+
+    #[test]
+    fn a_payload_that_is_not_ours_is_ignored() {
+        let live = LiveSessions::new();
+
+        assert!(!live.apply(HookAction::Start, "not json at all"));
+        assert!(live.list().is_empty());
+    }
+
+    #[test]
+    fn sessions_are_listed_grouped_by_pen() {
+        let live = LiveSessions::new();
+        live.apply(
+            HookAction::Start,
+            r#"{"session_id":"z","cwd":"/code/alpha"}"#,
         );
+        live.apply(
+            HookAction::Start,
+            r#"{"session_id":"a","cwd":"/code/zulu"}"#,
+        );
+
+        let pens: Vec<_> = live.list().into_iter().map(|s| s.pen.name).collect();
+        assert_eq!(pens, vec!["alpha", "zulu"]);
     }
 
     #[test]
-    fn skips_in_flight_temp_files() {
-        let dir = TempDir::new().unwrap();
-        write_session(&dir, ".a.json.tmp", r#"{"session_id":"a"}"#);
+    fn clearing_empties_the_ranch() {
+        let live = LiveSessions::new();
+        live.apply(HookAction::Working, &payload("/code/app"));
 
-        let sessions = ClaudeSessionStore::new(dir.path().to_path_buf()).list();
+        assert!(live.clear());
 
-        assert!(sessions.is_empty());
+        assert!(live.list().is_empty());
     }
 
     #[test]
-    fn skips_unreadable_session_files() {
-        let dir = TempDir::new().unwrap();
-        write_session(&dir, "a.json", "{truncated");
+    fn clearing_an_empty_ranch_changes_nothing() {
+        let live = LiveSessions::new();
 
-        let sessions = ClaudeSessionStore::new(dir.path().to_path_buf()).list();
-
-        assert!(sessions.is_empty());
-    }
-
-    #[test]
-    fn missing_sessions_dir_lists_no_sessions() {
-        let dir = TempDir::new().unwrap();
-
-        let sessions = ClaudeSessionStore::new(dir.path().join("missing")).list();
-
-        assert!(sessions.is_empty());
+        assert!(!live.clear());
     }
 }

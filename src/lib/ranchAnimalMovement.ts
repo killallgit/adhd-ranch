@@ -1,4 +1,4 @@
-import type { DisplaySpace, Rect } from "../types/display";
+import type { Rect } from "../types/display";
 
 export const RANCH_ANIMAL_SIZE = 48;
 const RANCH_EDGE_MARGIN = 60;
@@ -26,7 +26,8 @@ export interface RanchAnimalState {
 
 export interface AdvanceRanchAnimalInput {
   readonly animal: RanchAnimalState;
-  readonly displaySpace: DisplaySpace;
+  /** Where this animal is allowed to roam — its pen, or the whole ranch. */
+  readonly regions: readonly Rect[];
   readonly dtMs: number;
   readonly nowMs: number;
   readonly frozen: boolean;
@@ -35,7 +36,7 @@ export interface AdvanceRanchAnimalInput {
 
 export function advanceRanchAnimal({
   animal,
-  displaySpace,
+  regions,
   dtMs,
   nowMs,
   random,
@@ -49,7 +50,7 @@ export function advanceRanchAnimal({
     };
   }
 
-  const steeringRegion = nearestRegion(animal.x, animal.y, displaySpace.movementRegions);
+  const steeringRegion = nearestRegion(animal.x, animal.y, regions);
   let { nextTurnAt } = animal;
   let { frameIndex, lastFrameAt } = animal;
   let vx = animal.vx * RANCH_FRICTION;
@@ -78,19 +79,20 @@ export function advanceRanchAnimal({
   let y = animal.y + vy * (dtMs / 1000);
 
   if (steeringRegion) {
+    const margin = edgeMargin(steeringRegion);
     const minX = steeringRegion.x;
     const maxX = steeringRegion.x + steeringRegion.w - RANCH_ANIMAL_SIZE;
     const minY = steeringRegion.y;
     const maxY = steeringRegion.y + steeringRegion.h - RANCH_ANIMAL_SIZE;
-    if (animal.x < minX + RANCH_EDGE_MARGIN) vx = Math.abs(vx);
-    if (animal.x > maxX - RANCH_EDGE_MARGIN) vx = -Math.abs(vx);
-    if (animal.y < minY + RANCH_EDGE_MARGIN) vy = Math.abs(vy);
-    if (animal.y > maxY - RANCH_EDGE_MARGIN) vy = -Math.abs(vy);
+    if (animal.x < minX + margin) vx = Math.abs(vx);
+    if (animal.x > maxX - margin) vx = -Math.abs(vx);
+    if (animal.y < minY + margin) vy = Math.abs(vy);
+    if (animal.y > maxY - margin) vy = -Math.abs(vy);
     x = animal.x + vx * (dtMs / 1000);
     y = animal.y + vy * (dtMs / 1000);
   }
 
-  const point = nearestValidPoint(x, y, displaySpace.movementRegions);
+  const point = nearestValidPoint(x, y, regions);
   if (point.x !== x) {
     vx = x > point.x ? -Math.abs(vx) : Math.abs(vx);
   }
@@ -116,6 +118,31 @@ export function advanceRanchAnimal({
     lastFrameAt,
     nextTurnAt,
   };
+}
+
+// A pen is a fraction of the ranch, so the turn-around margin has to shrink with it
+// or an animal in a small pen would be steered from both walls at once and stall.
+export function edgeMargin(region: Rect): number {
+  return Math.min(RANCH_EDGE_MARGIN, region.w / 4, region.h / 4);
+}
+
+// A resting animal never runs through advanceRanchAnimal, so this is the only thing
+// that keeps a ghost inside its pen when the pens are laid out again around it.
+export function restRanchAnimal(
+  animal: RanchAnimalState,
+  regions: readonly Rect[],
+): RanchAnimalState {
+  const point = nearestValidPoint(animal.x, animal.y, regions);
+  if (
+    animal.vx === 0 &&
+    animal.vy === 0 &&
+    animal.direction === "back" &&
+    point.x === animal.x &&
+    point.y === animal.y
+  ) {
+    return animal;
+  }
+  return { ...animal, x: point.x, y: point.y, vx: 0, vy: 0, direction: "back" };
 }
 
 function nearestRegion(x: number, y: number, regions: readonly Rect[]): Rect | null {
@@ -165,10 +192,13 @@ function nearestValidPoint(
   return best;
 }
 
+// A pen can be narrower than the animal standing in it. Parking the animal at the
+// pen's corner lets it overhang the border; letting the upper bound fall below the
+// lower one would throw it off the ranch entirely.
 function clampPointToRegion(x: number, y: number, region: Rect): { x: number; y: number } {
   return {
-    x: clamp(x, region.x, region.x + region.w - RANCH_ANIMAL_SIZE),
-    y: clamp(y, region.y, region.y + region.h - RANCH_ANIMAL_SIZE),
+    x: clamp(x, region.x, Math.max(region.x, region.x + region.w - RANCH_ANIMAL_SIZE)),
+    y: clamp(y, region.y, Math.max(region.y, region.y + region.h - RANCH_ANIMAL_SIZE)),
   };
 }
 

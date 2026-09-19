@@ -1,0 +1,143 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+#
+# Only settings that differ from CodeRabbit's defaults are listed. Tools not named
+# here keep their defaults, which already include clippy, biome, gitleaks, semgrep,
+# actionlint and github-checks.
+
+tone_instructions: >-
+  Be strict and concrete. Name the failure: a wrong result, a boundary crossed, a
+  CLAUDE.md rule broken. Say it once, briefly. Never raise missing or reworded doc
+  comments, prose style, or naming taste. No praise, no restating the code.
+
+reviews:
+  profile: assertive
+
+  # Project-management chrome on a small repo that has neither labels nor other
+  # reviewers. The summary, file list and diagrams stay: those describe the change.
+  in_progress_fortune: false
+  estimate_code_review_effort: false
+  assess_linked_issues: false
+  related_issues: false
+  related_prs: false
+  suggested_labels: false
+  suggested_reviewers: false
+
+  # Lock files and ts-rs output are written by tools, not by hand.
+  path_filters:
+    - "!**/*.lock"
+    - "!src/types/generated/**"
+
+  path_instructions:
+    - path: "**/*"
+      instructions: >-
+        Raise something only when you can name the consequence: an input that gives a
+        wrong result, a boundary the change crosses, a rule in CLAUDE.md it breaks, or
+        a failure mode the tests would not catch. Skip anything you cannot tie to one
+        of those. Never comment on absent, thin or reworded doc comments — this
+        repository's standard is that code documents itself and that comments explain
+        why, not what. Do not ask for a comment restating what the code says. Do not
+        flag naming or wording taste. Prefer one precise comment over several hedged
+        ones, and say nothing when the change is fine.
+
+    - path: "crates/domain/**/*.rs"
+      instructions: >-
+        The pure layer. Flag any I/O, filesystem or network access, Tauri import,
+        async runtime, clock read or source of randomness — those belong in storage
+        or the host. Flag global or interior mutable state. Prefer a design that
+        makes an invalid state unrepresentable over one that validates at runtime.
+
+    - path: "crates/storage/**/*.rs"
+      instructions: >-
+        Adapters over disk, sockets and watchers. Anything crossing out of this crate
+        should be a trait that callers depend on, not a concrete struct. For writes
+        to files the ranch does not own, flag any that are not atomic, drop the
+        original permissions, or could overwrite a concurrent writer's change. Flag a
+        lock held across I/O, and a spawned thread with no way to stop it.
+
+    - path: "crates/commands/**/*.rs"
+      instructions: >-
+        Use cases. These depend on storage traits and domain types, never on concrete
+        adapters. Flag a dependency constructed inside a use case instead of injected.
+
+    - path: "src-tauri/src/ui_bridge/**/*.rs"
+      instructions: >-
+        Tauri commands and events only. Flag business logic that belongs in commands
+        or domain. Every emitted event needs a string literal at the emit call or a
+        `*_EVENT` const, or the repo's `lint:ipc` check cannot see it.
+
+    - path: "src-tauri/src/app/**/*.rs"
+      instructions: >-
+        The composition root — the one place allowed to name concrete types and wire
+        them together. Flag an error that is logged and swallowed where the caller
+        needed to know the operation failed. When a setting switches a feature off,
+        check that state the feature was feeding is discarded with it: anything that
+        outlives its writer goes stale in silence and comes back wrong the next time
+        the feature is switched on.
+
+    - path: "src-tauri/build.rs"
+      instructions: >-
+        Runs on every compile of the host, on every platform. Flag anything that
+        assumes a Unix host, assumes a tool exists without checking, writes outside
+        the build directory without reason, or could deadlock on the cargo build lock.
+
+    - path: "**/*.rs"
+      instructions: >-
+        Flag `unwrap`, `expect` and `panic!` outside tests and build scripts, and
+        indexing that can panic. Flag `static mut`, `lazy_static!` or `OnceCell`
+        holding shared mutable state. Tests assert on types, error kinds and
+        structured fields — flag assertions on error message strings or log output.
+
+    - path: "src/components/**/*.tsx"
+      instructions: >-
+        View only. Flag `fetch`, `invoke`, direct IPC or any other I/O; that belongs
+        in `hooks/` or `api/`.
+
+    - path: "src/hooks/**"
+      instructions: >-
+        Flag refs or other mutable state written during render rather than in an
+        effect, effects with a missing dependency or no cleanup, and per-frame work
+        that could be memoized.
+
+    - path: "src/lib/**/*.ts"
+      instructions: >-
+        Pure helpers. Flag I/O, IPC, and reads of `Date.now` or `Math.random` that
+        are not passed in by the caller.
+
+    - path: "**/*.test.*"
+      instructions: >-
+        One concept per test, arranged-acted-asserted. Flag assertions on message
+        strings where a type, status or structured field would do.
+
+  finishing_touches:
+    # The repo's own rule is that code should be self-documenting.
+    docstrings:
+      enabled: false
+    simplify:
+      enabled: true
+
+  pre_merge_checks:
+    docstrings:
+      mode: "off"
+    title:
+      mode: warning
+      requirements: >-
+        A bracketed slug naming the change, then a short sentence in the imperative,
+        as in "[session-hooks]: Ship the hook client in the bundle".
+
+  tools:
+    # The project lints JS and TS with biome; a second opinion is noise, not signal.
+    eslint:
+      enabled: false
+    oxc:
+      enabled: false
+    # Reviews here are about code, not prose.
+    languagetool:
+      enabled: false
+    vale:
+      enabled: false
+    markdownlint:
+      enabled: false
+    # actionlint already covers the workflows properly; yamllint only adds formatting
+    # opinions about Taskfile.yaml.
+    yamllint:
+      enabled: false

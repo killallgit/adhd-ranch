@@ -15,9 +15,7 @@ use crate::display::monitor::LogicalMonitor;
 use crate::display::{DisplayManager, DisplayManagerState, DisplayService};
 use adhd_ranch_commands::{AgentSessions, CapEvaluator, Commands, Timers};
 use adhd_ranch_domain::{DisplayConfig, OverCapMonitor, RectUpdater, Settings};
-use adhd_ranch_storage::{
-    watch_path, ClaudeSessionStore, FocusStore, FocusWatcher, MarkdownFocusStore,
-};
+use adhd_ranch_storage::{watch_path, FocusStore, FocusWatcher, LiveSessions, MarkdownFocusStore};
 use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 use time::format_description::well_known::Rfc3339;
 
@@ -32,6 +30,8 @@ pub struct DisplayConfigState(pub Arc<Mutex<DisplayConfig>>);
 pub struct SettingsState(pub Arc<Mutex<Settings>>);
 pub struct SettingsPathState(pub std::path::PathBuf);
 pub struct DebugOverlayState(pub Arc<Mutex<bool>>);
+/// Held so the settings workflow can empty it when agents are switched off.
+pub struct LiveSessionsState(pub Arc<LiveSessions>);
 
 pub fn run() {
     let settings_path = paths::settings_file().expect("settings path");
@@ -117,13 +117,31 @@ pub fn run() {
         app.manage(ui_bridge::CommandsState(commands));
         app.manage(ui_bridge::TimersState(Arc::clone(&timers)));
 
-        let sessions_dir = paths::claude_sessions_dir()?;
-        std::fs::create_dir_all(&sessions_dir)?;
-        if settings.agents.enabled {
-            claude_hook::register(&sessions_dir);
+        // Sessions arrive by hook, pushed straight into memory — there is no file to
+        // write, watch or clean up, and nothing survives the app to go stale.
+        let live_sessions = Arc::new(LiveSessions::new());
+        #[cfg(unix)]
+        {
+            let handle = app.handle().clone();
+            let server = adhd_ranch_storage::serve(
+                paths::agent_hook_socket()?,
+                Arc::clone(&live_sessions) as Arc<dyn adhd_ranch_storage::HookEventSink>,
+                Arc::new(move || {
+                    if let Err(e) = handle.emit(AGENT_SESSIONS_CHANGED_EVENT, ()) {
+                        log::error!("agent hooks: emit failed: {e}");
+                    }
+                }),
+            )?;
+            app.manage(HookServerHandle(server));
         }
+        // A startup failure here is worth knowing about but not worth refusing to
+        // launch over: the ranch still runs, it just has no animals to draw.
+        if let Err(e) = claude_hook::reconcile(settings.agents.enabled) {
+            log::error!("{e}");
+        }
+        app.manage(LiveSessionsState(Arc::clone(&live_sessions)));
         app.manage(ui_bridge::AgentSessionsState(Arc::new(AgentSessions::new(
-            Arc::new(ClaudeSessionStore::new(sessions_dir.clone())),
+            Arc::clone(&live_sessions) as Arc<dyn adhd_ranch_storage::AgentSessionStore>,
             Arc::clone(&settings_provider),
         ))));
 
@@ -175,17 +193,9 @@ pub fn run() {
                 ),
             ],
         )?;
-        let agent_sessions_watcher = install_change_handlers(
-            &sessions_dir,
-            vec![emit_event_handler(
-                app.handle().clone(),
-                AGENT_SESSIONS_CHANGED_EVENT,
-            )],
-        )?;
         app.manage(TrayHandle(tray_icon));
         app.manage(WatcherHandles {
             _focuses: focuses_watcher,
-            _agent_sessions: agent_sessions_watcher,
         });
 
         timer_expiry::spawn(timers);
@@ -255,8 +265,13 @@ struct TrayHandle(tauri::tray::TrayIcon<tauri::Wry>);
 #[allow(dead_code)]
 struct WatcherHandles {
     _focuses: FocusWatcher,
-    _agent_sessions: FocusWatcher,
 }
+
+/// Held only so the listener outlives setup; dropping it closes the socket and
+/// removes its file.
+#[cfg(unix)]
+#[allow(dead_code)]
+struct HookServerHandle(adhd_ranch_storage::HookServer);
 
 type ChangeHandler = Box<dyn Fn() + Send + 'static>;
 

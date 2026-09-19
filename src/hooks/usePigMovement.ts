@@ -1,19 +1,24 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   setPigDragActive,
   subscribeDisplaySpace,
   subscribeGatherPigs,
   updatePigRects,
 } from "../api/pig";
+import { animalPen } from "../lib/animals";
 import {
   RANCH_ANIMAL_SIZE,
   RANCH_ANIMAL_SPEED,
   type RanchAnimalDirection,
   type RanchAnimalState,
   advanceRanchAnimal,
+  edgeMargin,
+  restRanchAnimal,
 } from "../lib/ranchAnimalMovement";
+import { type PenLayout, layoutPens, uniquePens } from "../lib/session/pens";
 import type { Animal } from "../types/animal";
-import type { DisplaySpace } from "../types/display";
+import type { DisplaySpace, Rect } from "../types/display";
+import type { Pen } from "../types/generated/Pen";
 import type { PigHitRect } from "../types/pig";
 
 export type { DisplaySpace, PigHitRect };
@@ -24,7 +29,6 @@ export const DRAG_THRESHOLD = 4;
 export const TOSS_VELOCITY_WINDOW_MS = 80;
 
 export const PIG_SPEED = RANCH_ANIMAL_SPEED; // px/s — fast enough to look alive across large spans
-const EDGE_MARGIN = 60; // px from screen edge
 
 const RECT_UPDATE_EVERY = 4; // rAF frames between pig-rect syncs to Rust
 
@@ -62,6 +66,7 @@ export type PigState = RanchAnimalState;
 
 export interface PigMovementResult {
   pigs: PigState[];
+  pens: readonly PenLayout[];
   startDrag: (pigId: string, x: number, y: number) => void;
   moveDrag: (x: number, y: number) => void;
   endDrag: () => { wasDrag: boolean };
@@ -76,19 +81,38 @@ function direction4(vx: number, vy: number): PigDirection {
 interface RosterEntry {
   readonly id: string;
   readonly name: string;
-  readonly expired: boolean;
+  readonly resting: boolean;
+  readonly pen: Pen | null;
 }
 
-function initPig(animal: RosterEntry, displaySpace: DisplaySpace, now: number): PigState {
-  const region = displaySpace.spawnRegion;
+// An animal with a pen roams only that pen; one without — a focus — has the whole ranch.
+function regionsFor(
+  penId: string | null | undefined,
+  penRects: ReadonlyMap<string, Rect>,
+  displaySpace: DisplaySpace,
+): readonly Rect[] {
+  const rect = penId ? penRects.get(penId) : undefined;
+  return rect ? [rect] : displaySpace.movementRegions;
+}
+
+function spawnRegionFor(
+  penId: string | null,
+  penRects: ReadonlyMap<string, Rect>,
+  displaySpace: DisplaySpace,
+): Rect {
+  return (penId ? penRects.get(penId) : undefined) ?? displaySpace.spawnRegion;
+}
+
+function initPig(animal: RosterEntry, region: Rect, now: number): PigState {
+  const margin = edgeMargin(region);
   const angle = Math.random() * 2 * Math.PI;
   const vx = Math.cos(angle) * PIG_SPEED;
   const vy = Math.sin(angle) * PIG_SPEED;
   return {
     id: animal.id,
     name: animal.name,
-    x: region.x + EDGE_MARGIN + Math.random() * Math.max(0, region.w - 2 * EDGE_MARGIN - PIG_SIZE),
-    y: region.y + EDGE_MARGIN + Math.random() * Math.max(0, region.h - 2 * EDGE_MARGIN - PIG_SIZE),
+    x: region.x + margin + Math.random() * Math.max(0, region.w - 2 * margin - PIG_SIZE),
+    y: region.y + margin + Math.random() * Math.max(0, region.h - 2 * margin - PIG_SIZE),
     vx,
     vy,
     frameIndex: 0,
@@ -96,11 +120,6 @@ function initPig(animal: RosterEntry, displaySpace: DisplaySpace, now: number): 
     lastFrameAt: now,
     nextTurnAt: now + 3000 + Math.random() * 5000,
   };
-}
-
-function restExpiredAnimal(animal: PigState): PigState {
-  if (animal.vx === 0 && animal.vy === 0 && animal.direction === "back") return animal;
-  return { ...animal, vx: 0, vy: 0, direction: "back" };
 }
 
 export function buildHitRects(
@@ -175,13 +194,44 @@ export function usePigMovement(
   // every render. Spawning and resting only care about who is on the ranch, so the
   // roster is keyed on that and the rAF loop is left alone in between.
   const rosterKey = animals
-    .map((animal) => `${animal.id}\u0000${animal.name}\u0000${animal.expired}`)
+    .map(
+      (animal) =>
+        `${animal.id}\u0000${animal.name}\u0000${animal.resting}\u0000${animalPen(animal)?.id ?? ""}`,
+    )
     .join("\u0001");
   // biome-ignore lint/correctness/useExhaustiveDependencies: rosterKey is the value identity of animals
   const roster = useMemo<readonly RosterEntry[]>(
-    () => animals.map(({ id, name, expired }) => ({ id, name, expired })),
+    () =>
+      animals.map((animal) => ({
+        id: animal.id,
+        name: animal.name,
+        resting: animal.resting,
+        pen: animalPen(animal),
+      })),
     [rosterKey],
   );
+
+  const pens = useMemo(
+    () => layoutPens(uniquePens(roster.map((entry) => entry.pen)), displaySpace.spawnRegion),
+    [roster, displaySpace],
+  );
+  const penRects = useMemo(
+    () => new Map(pens.map((layout) => [layout.pen.id, layout.rect])),
+    [pens],
+  );
+  const penIdByAnimal = useMemo(
+    () =>
+      new Map(roster.flatMap((entry) => (entry.pen ? [[entry.id, entry.pen.id] as const] : []))),
+    [roster],
+  );
+  const penRectsRef = useRef<ReadonlyMap<string, Rect>>(penRects);
+  const penIdByAnimalRef = useRef<ReadonlyMap<string, string>>(penIdByAnimal);
+  // Written after commit rather than during render: the animation frame must never
+  // be able to read a layout from a render React went on to throw away.
+  useLayoutEffect(() => {
+    penRectsRef.current = penRects;
+    penIdByAnimalRef.current = penIdByAnimal;
+  }, [penRects, penIdByAnimal]);
 
   const setDisplaySpace = useCallback((space: DisplaySpace) => {
     displaySpaceRef.current = space;
@@ -284,13 +334,21 @@ export function usePigMovement(
           if (fallbackIds.has(animal.id)) nextFallbackIds.add(animal.id);
           const named =
             existing.name === animal.name ? existing : { ...existing, name: animal.name };
-          return animal.expired ? restExpiredAnimal(named) : named;
+          return animal.resting
+            ? restRanchAnimal(named, regionsFor(animal.pen?.id, penRects, displaySpace))
+            : named;
         }
 
-        const pig = initPig(animal, displaySpace, now);
-        if (animal.expired) return restExpiredAnimal(pig);
+        const pig = initPig(
+          animal,
+          spawnRegionFor(animal.pen?.id ?? null, penRects, displaySpace),
+          now,
+        );
         if (usingFallback) {
           nextFallbackIds.add(animal.id);
+        }
+        if (animal.resting) {
+          return restRanchAnimal(pig, regionsFor(animal.pen?.id, penRects, displaySpace));
         }
         return pig;
       });
@@ -298,7 +356,7 @@ export function usePigMovement(
       pigsRef.current = next;
       return next;
     });
-  }, [roster, displaySpace]);
+  }, [roster, displaySpace, penRects]);
 
   // Subscribe to gather-pigs / display-space events from Rust.
   // Fall back to a no-op unsubscribe if subscribe rejects so cleanup never throws.
@@ -318,8 +376,8 @@ export function usePigMovement(
 
   // rAF movement loop
   useEffect(() => {
-    const expiredIds = new Set(
-      roster.filter((animal) => animal.expired).map((animal) => animal.id),
+    const restingIds = new Set(
+      roster.filter((animal) => animal.resting).map((animal) => animal.id),
     );
 
     const loop = (now: number) => {
@@ -330,10 +388,19 @@ export function usePigMovement(
       const updated = pigsRef.current.map((p) => {
         // Skip tick for dragged pig — position is driven by pointer events.
         if (p.id === dragIdRef.current) return p;
-        if (expiredIds.has(p.id)) return restExpiredAnimal(p);
+        const regions = regionsFor(
+          penIdByAnimalRef.current.get(p.id),
+          penRectsRef.current,
+          displaySpace,
+        );
+        if (restingIds.has(p.id)) return restRanchAnimal(p, regions);
         return advanceRanchAnimal({
           animal: p,
-          displaySpace,
+          regions: regionsFor(
+            penIdByAnimalRef.current.get(p.id),
+            penRectsRef.current,
+            displaySpace,
+          ),
           dtMs: dt,
           nowMs: now,
           frozen: p.id === selectedIdRef.current,
@@ -356,5 +423,5 @@ export function usePigMovement(
     return () => cancelAnimationFrame(rafRef.current);
   }, [roster]);
 
-  return { pigs, startDrag, moveDrag, endDrag, setDragActive };
+  return { pigs, pens, startDrag, moveDrag, endDrag, setDragActive };
 }

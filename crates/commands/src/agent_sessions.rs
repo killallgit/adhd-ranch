@@ -25,7 +25,7 @@ impl AgentSessions {
 
 #[cfg(test)]
 mod tests {
-    use adhd_ranch_domain::{AgentsConfig, Settings};
+    use adhd_ranch_domain::{AgentsConfig, Pen, SessionActivity, Settings};
 
     use super::*;
 
@@ -41,6 +41,11 @@ mod tests {
         let store = FixedStore(vec![AgentSession {
             id: "session-1".into(),
             name: "adhd-ranch".into(),
+            pen: Pen {
+                id: "/code/adhd-ranch".into(),
+                name: "adhd-ranch".into(),
+            },
+            activity: SessionActivity::Idle,
         }]);
         let settings = Settings {
             agents: AgentsConfig { enabled },

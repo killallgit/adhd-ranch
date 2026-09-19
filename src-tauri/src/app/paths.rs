@@ -34,12 +34,24 @@ pub fn settings_file() -> io::Result<PathBuf> {
     Ok(data_root()?.join("settings.yaml"))
 }
 
-pub fn claude_sessions_dir() -> io::Result<PathBuf> {
-    Ok(data_root()?.join("sessions").join("claude"))
+/// Where the ranch listens for hook firings.
+///
+/// Kept directly under the data root because a Unix socket path is limited to about
+/// a hundred bytes, and nesting spends that budget for nothing.
+pub fn agent_hook_socket() -> io::Result<PathBuf> {
+    Ok(data_root()?.join("agent-hooks.sock"))
 }
 
-pub fn claude_hook_script() -> io::Result<PathBuf> {
-    Ok(data_root()?.join("hooks").join("claude-session.sh"))
+/// The client an agent runs, which ships beside the app's own binary.
+pub fn hook_client_bin() -> io::Result<PathBuf> {
+    let exe = std::env::current_exe()?;
+    let dir = exe.parent().ok_or_else(|| {
+        io::Error::new(
+            io::ErrorKind::NotFound,
+            "executable has no parent directory",
+        )
+    })?;
+    Ok(dir.join("adhd-ranch-hook"))
 }
 
 pub fn claude_settings_file() -> io::Result<PathBuf> {

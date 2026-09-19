@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
+import type { AgentSession } from "../types/agentSession";
 import type { Focus } from "../types/focus";
-import { animalScale, projectAnimals } from "./animals";
+import { animalPen, projectAnimals } from "./animals";
+
+const RANCH_PEN = { id: "/Users/ryan/code/adhd-ranch", name: "adhd-ranch" };
 
 const focus = (overrides: Partial<Focus> & Pick<Focus, "id" | "title">): Focus => ({
   description: "",
@@ -9,105 +12,53 @@ const focus = (overrides: Partial<Focus> & Pick<Focus, "id" | "title">): Focus =
   ...overrides,
 });
 
-describe("animalScale", () => {
-  it("returns 1 for a Focus without a Timer", () => {
-    expect(animalScale(null, null, 0)).toBe(1);
-  });
-
-  it("grows linearly from 1 to 3 over the Timer duration", () => {
-    expect(animalScale(1_000, 120, 1_060_000)).toBe(2);
-  });
-
-  it("clamps to 3 at the Timer duration", () => {
-    expect(animalScale(1_000, 120, 1_120_000)).toBe(3);
-  });
-
-  it("stays at 3 past the Timer duration", () => {
-    expect(animalScale(1_000, 120, 2_000_000)).toBe(3);
-  });
+const session = (overrides: Partial<AgentSession> & Pick<AgentSession, "id">): AgentSession => ({
+  name: "adhd-ranch",
+  pen: RANCH_PEN,
+  activity: "Idle",
+  ...overrides,
 });
 
 describe("projectAnimals", () => {
-  it("projects a Focus as a selectable Animal named after its title", () => {
-    const [animal] = projectAnimals([focus({ id: "a", title: "Customer X bug" })], [], 0);
-
-    expect(animal).toMatchObject({ kind: "focus", id: "a", name: "Customer X bug" });
-  });
-
-  it("gives an Agent Session its own id space and its session name", () => {
-    const [animal] = projectAnimals([], [{ id: "session-1", name: "adhd-ranch" }], 0);
-
-    expect(animal).toMatchObject({ kind: "agent", id: "agent:session-1", name: "adhd-ranch" });
-  });
-
-  it("puts Focus Animals before agent Animals", () => {
+  it("puts Focus Animals before Session Animals", () => {
     const animals = projectAnimals(
       [focus({ id: "a", title: "Customer X bug" })],
-      [{ id: "session-1", name: "adhd-ranch" }],
+      [session({ id: "session-1" })],
       0,
     );
 
     expect(animals.map((animal) => animal.kind)).toEqual(["focus", "agent"]);
   });
 
-  it("marks an Animal expired when its Focus Timer expired", () => {
-    const [animal] = projectAnimals(
-      [
-        focus({
-          id: "a",
-          title: "Customer X bug",
-          timer: { duration_secs: 120, started_at: 1_000, status: "Expired" },
-        }),
-      ],
-      [],
-      0,
-    );
+  it("lets the clock reach a Focus Animal and no Session Animal", () => {
+    const focuses = [
+      focus({
+        id: "a",
+        title: "Customer X bug",
+        timer: { duration_secs: 120, started_at: 1_000, status: "Running" },
+      }),
+    ];
+    const sessions = [session({ id: "session-1" })];
 
-    expect(animal?.expired).toBe(true);
+    const early = projectAnimals(focuses, sessions, 1_060_000);
+    const late = projectAnimals(focuses, sessions, 2_000_000);
+
+    expect(early[0].scale).not.toBe(late[0].scale);
+    expect(early[1]).toEqual(late[1]);
+  });
+});
+
+describe("animalPen", () => {
+  it("gives a Session Animal the Pen of its Session", () => {
+    const pen = { id: "/Users/ryan/code/other-checkout", name: "other-checkout" };
+    const [animal] = projectAnimals([], [session({ id: "session-1", pen })], 0);
+
+    expect(animalPen(animal)).toEqual(pen);
   });
 
-  it("does not mark an Animal expired for an expired Task Timer", () => {
-    const [animal] = projectAnimals(
-      [
-        focus({
-          id: "a",
-          title: "Customer X bug",
-          tasks: [
-            {
-              id: "task-1",
-              text: "Write tests",
-              done: false,
-              timer: { duration_secs: 120, started_at: 1_000, status: "Expired" },
-            },
-          ],
-        }),
-      ],
-      [],
-      0,
-    );
+  it("gives a Focus Animal no Pen", () => {
+    const [animal] = projectAnimals([focus({ id: "a", title: "Customer X bug" })], [], 0);
 
-    expect(animal?.expired).toBe(false);
-  });
-
-  it("scales a Focus Animal by its Timer progress", () => {
-    const [animal] = projectAnimals(
-      [
-        focus({
-          id: "a",
-          title: "Customer X bug",
-          timer: { duration_secs: 120, started_at: 1_000, status: "Running" },
-        }),
-      ],
-      [],
-      1_060_000,
-    );
-
-    expect(animal?.scale).toBe(2);
-  });
-
-  it("never scales an agent Animal", () => {
-    const [animal] = projectAnimals([], [{ id: "session-1", name: "adhd-ranch" }], 9_999_999);
-
-    expect(animal?.scale).toBe(1);
+    expect(animalPen(animal)).toBeNull();
   });
 });

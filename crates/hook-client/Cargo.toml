@@ -1,0 +1,11 @@
+[package]
+name = "adhd-ranch-hook"
+version = "0.0.0"
+edition.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "adhd-ranch-hook"
+path = "src/main.rs"
+
+[dependencies]
