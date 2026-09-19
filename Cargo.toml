@@ -5,6 +5,7 @@ members = [
     "crates/domain",
     "crates/storage",
     "crates/commands",
+    "crates/hook-client",
 ]
 
 [workspace.package]

@@ -1,6 +1,9 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import type { PenLayout } from "../lib/session/pens";
 import type { Animal, FocusAnimal } from "../types/animal";
+import type { Rect } from "../types/display";
+import type { Pen } from "../types/generated/Pen";
 import {
   DRAG_THRESHOLD,
   HITBOX_PADDING,
@@ -47,7 +50,7 @@ const animal = (overrides?: Partial<FocusAnimal>): Animal => {
   const name = overrides?.name ?? "Alpha";
   return {
     kind: "focus",
-    expired: false,
+    resting: false,
     scale: 1,
     ...overrides,
     id,
@@ -56,8 +59,52 @@ const animal = (overrides?: Partial<FocusAnimal>): Animal => {
   };
 };
 
+const pen = (id: string): Pen => ({ id, name: id.split("/").pop() ?? id });
+
+const agentAnimal = (sessionId: string, sessionPen: Pen): Animal => ({
+  kind: "agent",
+  id: `agent:${sessionId}`,
+  name: sessionId,
+  resting: false,
+  scale: 1,
+  session: { id: sessionId, name: sessionId, pen: sessionPen, activity: "Working" },
+});
+
 function makeSamples(points: { x: number; y: number; t: number }[]): PointerSample[] {
   return points;
+}
+
+// Until Rust emits a DisplaySpace the hook measures the document, and jsdom reports a
+// zero-sized one — every pen would collapse onto the same empty cell.
+function stubRanchViewport(width: number, height: number): () => void {
+  const clientWidth = vi
+    .spyOn(document.documentElement, "clientWidth", "get")
+    .mockReturnValue(width);
+  const clientHeight = vi
+    .spyOn(document.documentElement, "clientHeight", "get")
+    .mockReturnValue(height);
+  return () => {
+    clientWidth.mockRestore();
+    clientHeight.mockRestore();
+  };
+}
+
+function overlaps(a: Rect, b: Rect): boolean {
+  return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+}
+
+function holds(rect: Rect, pig: PigState): boolean {
+  return (
+    pig.x >= rect.x &&
+    pig.y >= rect.y &&
+    pig.x + PIG_SIZE <= rect.x + rect.w &&
+    pig.y + PIG_SIZE <= rect.y + rect.h
+  );
+}
+
+function penHolding(pens: readonly PenLayout[], pig: PigState): string | null {
+  const home = pens.find((layout) => holds(layout.rect, pig));
+  return home ? home.pen.id : null;
 }
 
 describe("HITBOX_PADDING", () => {
@@ -214,7 +261,7 @@ describe("usePigMovement", () => {
     cancelRafSpy.mockRestore();
   });
 
-  it("stops expired animals and faces them away", async () => {
+  it("stops resting animals and faces them away", async () => {
     const rafSpy = vi.spyOn(window, "requestAnimationFrame").mockReturnValue(0);
     const cancelRafSpy = vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => {});
     const running = animal();
@@ -230,7 +277,7 @@ describe("usePigMovement", () => {
       y: result.current.pigs[0]?.y,
     };
 
-    rerender({ animals: [{ ...running, expired: true }] });
+    rerender({ animals: [{ ...running, resting: true }] });
 
     await waitFor(() => expect(result.current.pigs[0]?.direction).toBe("back"));
     expect(result.current.pigs[0]).toMatchObject({
@@ -241,6 +288,50 @@ describe("usePigMovement", () => {
     });
 
     unmount();
+    rafSpy.mockRestore();
+    cancelRafSpy.mockRestore();
+  });
+
+  it("gives two pens patches of the ranch that do not overlap", async () => {
+    const rafSpy = vi.spyOn(window, "requestAnimationFrame").mockReturnValue(0);
+    const cancelRafSpy = vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => {});
+    const restoreViewport = stubRanchViewport(1200, 800);
+    const animals: readonly Animal[] = [
+      agentAnimal("session-1", pen("/code/alpha")),
+      agentAnimal("session-2", pen("/code/beta")),
+    ];
+
+    const { result, unmount } = renderHook(() => usePigMovement(animals, null));
+
+    await waitFor(() => expect(result.current.pens).toHaveLength(2));
+    const [first, second] = result.current.pens;
+    expect(overlaps(first.rect, second.rect)).toBe(false);
+
+    unmount();
+    restoreViewport();
+    rafSpy.mockRestore();
+    cancelRafSpy.mockRestore();
+  });
+
+  it("spawns each agent animal inside the pen of its own session", async () => {
+    const rafSpy = vi.spyOn(window, "requestAnimationFrame").mockReturnValue(0);
+    const cancelRafSpy = vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => {});
+    const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0.5);
+    const restoreViewport = stubRanchViewport(1200, 800);
+    const animals: readonly Animal[] = [
+      agentAnimal("session-1", pen("/code/alpha")),
+      agentAnimal("session-2", pen("/code/beta")),
+    ];
+
+    const { result, unmount } = renderHook(() => usePigMovement(animals, null));
+
+    await waitFor(() => expect(result.current.pigs).toHaveLength(2));
+    const homes = result.current.pigs.map((pig) => penHolding(result.current.pens, pig));
+    expect(homes).toEqual(["/code/alpha", "/code/beta"]);
+
+    unmount();
+    restoreViewport();
+    randomSpy.mockRestore();
     rafSpy.mockRestore();
     cancelRafSpy.mockRestore();
   });

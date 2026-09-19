@@ -11,7 +11,7 @@ const focusAnimal = (id: string): Animal => ({
   kind: "focus",
   id,
   name: id,
-  expired: false,
+  resting: false,
   scale: 1,
   focus: { id, title: id, description: "", created_at: "", tasks: [] },
 });
@@ -20,9 +20,14 @@ const agentAnimal = (id: string): Animal => ({
   kind: "agent",
   id: `agent:${id}`,
   name: id,
-  expired: false,
+  resting: false,
   scale: 1,
-  session: { id, name: id },
+  session: {
+    id,
+    name: id,
+    pen: { id: "/Users/ryan/code/adhd-ranch", name: "adhd-ranch" },
+    activity: "Idle",
+  },
 });
 
 describe("useAnimalSelection", () => {

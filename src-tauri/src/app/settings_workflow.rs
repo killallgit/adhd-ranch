@@ -133,8 +133,10 @@ where
 
 // Turning agents off only hides their animals; the Claude hook stays registered
 // so the user's Claude settings are never edited behind their back.
-fn agents_turned_on(previous: &Settings, next: &Settings) -> bool {
-    !previous.agents.enabled && next.agents.enabled
+/// Both directions matter: turning agents off has to take the hooks back out of
+/// Claude Code's settings, not merely stop caring about them.
+fn agents_setting_changed(previous: &Settings, next: &Settings) -> bool {
+    previous.agents.enabled != next.agents.enabled
 }
 
 pub struct FileSettingsPersistence {
@@ -245,10 +247,8 @@ impl SettingsEffects for TauriSettingsEffects {
         previous: &Settings,
         next: &Settings,
     ) -> Result<(), SettingsWorkflowError> {
-        if agents_turned_on(previous, next) {
-            let sessions_dir = super::paths::claude_sessions_dir()
-                .map_err(|e| SettingsWorkflowError::Effect(format!("claude sessions dir: {e}")))?;
-            super::claude_hook::register(&sessions_dir);
+        if agents_setting_changed(previous, next) {
+            super::claude_hook::reconcile(next.agents.enabled);
         }
         self.app
             .emit(AGENT_SESSIONS_CHANGED_EVENT, ())
@@ -284,8 +284,8 @@ mod tests {
     use adhd_ranch_domain::{AgentsConfig, Caps, Settings};
 
     use super::{
-        agents_turned_on, SettingsEffects, SettingsPersistence, SettingsRuntime, SettingsWorkflow,
-        SettingsWorkflowError,
+        agents_setting_changed, SettingsEffects, SettingsPersistence, SettingsRuntime,
+        SettingsWorkflow, SettingsWorkflowError,
     };
 
     struct RecordingPersistence {
@@ -492,18 +492,26 @@ mod tests {
     }
 
     #[test]
-    fn enabling_agents_counts_as_turning_them_on() {
-        assert!(agents_turned_on(
+    fn enabling_agents_reconciles_the_hooks() {
+        assert!(agents_setting_changed(
             &settings_with_agents(false),
             &settings_with_agents(true)
         ));
     }
 
     #[test]
-    fn disabling_agents_does_not_count_as_turning_them_on() {
-        assert!(!agents_turned_on(
+    fn disabling_agents_reconciles_the_hooks() {
+        assert!(agents_setting_changed(
             &settings_with_agents(true),
             &settings_with_agents(false)
+        ));
+    }
+
+    #[test]
+    fn leaving_the_agents_setting_alone_touches_no_hooks() {
+        assert!(!agents_setting_changed(
+            &settings_with_agents(true),
+            &settings_with_agents(true)
         ));
     }
 }

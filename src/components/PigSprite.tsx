@@ -21,7 +21,7 @@ export interface PigSpriteProps {
   readonly frame: number;
   readonly name: string;
   readonly scale?: number;
-  readonly expired?: boolean;
+  readonly resting?: boolean;
   readonly onClick: () => void;
   readonly onDragStart: (x: number, y: number) => void;
   readonly onDragMove: (x: number, y: number) => void;
@@ -36,7 +36,7 @@ export function PigSprite({
   frame,
   name,
   scale = 1,
-  expired = false,
+  resting = false,
   onClick,
   onDragStart,
   onDragMove,
@@ -55,7 +55,7 @@ export function PigSprite({
   return (
     <button
       type="button"
-      className={`pig-sprite${expired ? " pig-sprite--expired" : ""}`}
+      className={`pig-sprite${resting ? " pig-sprite--resting" : ""}`}
       style={{
         left: x,
         top: y + bob,
@@ -111,10 +111,10 @@ export function PigSprite({
           backgroundPosition: `-${col * size}px -${row * size}px`,
           width: size,
           height: size,
-          filter: expired
+          filter: resting
             ? "grayscale(1) saturate(0.15) brightness(1.55) drop-shadow(0 0 8px rgba(210, 240, 255, 0.55))"
             : undefined,
-          opacity: expired ? 0.48 : undefined,
+          opacity: resting ? 0.48 : undefined,
         }}
       />
       <span className="pig-name">{name}</span>
