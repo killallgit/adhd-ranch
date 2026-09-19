@@ -32,7 +32,13 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["app", "dmg"],
+    "externalBin": [
+      "binaries/adhd-ranch-hook"
+    ],
+    "targets": [
+      "app",
+      "dmg"
+    ],
     "category": "Productivity",
     "shortDescription": "Issue tracking for a five-year-old",
     "icon": [
