@@ -9,7 +9,9 @@ pub mod watcher;
 
 #[cfg(unix)]
 pub use agent_hooks::{serve, HookServer};
-pub use agent_hooks::{AgentHooks, ClaudeCodeHooks, ClaudeHookPaths, HookOutcome};
+pub use agent_hooks::{
+    AgentHooks, ClaudeCodeHooks, ClaudeHookPaths, HookHistory, HookJournal, HookOutcome,
+};
 pub use agent_session_store::{AgentSessionStore, HookEventSink, LiveSessions};
 pub use atomic::atomic_write;
 pub use focus_store::{FocusStore, FocusStoreError, MarkdownFocusStore};

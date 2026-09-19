@@ -2,6 +2,7 @@ use std::io;
 use std::path::PathBuf;
 
 use adhd_ranch_domain::agents::claude_code::hooks::{self, HookCommand};
+use adhd_ranch_domain::agents::hooks::HookEdit;
 
 use super::settings_file;
 use super::{AgentHooks, HookOutcome};
@@ -56,6 +57,15 @@ impl AgentHooks for ClaudeCodeHooks {
         settings_file::edit(&self.settings_file, |settings| {
             hooks::uninstall(settings, &self.command())
         })
+    }
+
+    /// Asks the installer whether it would have anything to do, so this can never
+    /// drift from what install and uninstall actually match on.
+    fn installed(&self) -> io::Result<bool> {
+        let Some((_, settings)) = settings_file::read(&self.settings_file)? else {
+            return Ok(false);
+        };
+        Ok(hooks::install(&settings, &self.command()) == HookEdit::Unchanged)
     }
 }
 
@@ -128,6 +138,36 @@ mod tests {
         assert_eq!(hooks.uninstall().unwrap(), HookOutcome::Changed);
 
         assert!(registered_events(&hooks).is_empty());
+    }
+
+    #[test]
+    fn nothing_is_installed_before_anything_is_installed() {
+        let dir = TempDir::new().unwrap();
+
+        assert!(!hooks_for(&dir).installed().unwrap());
+    }
+
+    #[test]
+    fn what_was_installed_reports_as_installed() {
+        let dir = TempDir::new().unwrap();
+        let hooks = hooks_for(&dir);
+        hooks.install().unwrap();
+
+        assert!(hooks.installed().unwrap());
+    }
+
+    #[test]
+    fn hooks_pointing_somewhere_else_do_not_count_as_ours() {
+        let dir = TempDir::new().unwrap();
+        let hooks = hooks_for(&dir);
+        hooks.install().unwrap();
+        let elsewhere = ClaudeCodeHooks {
+            settings_file: hooks.settings_file.clone(),
+            client_bin: "/somewhere/else/adhd-ranch-hook".into(),
+            socket_path: hooks.socket_path.clone(),
+        };
+
+        assert!(!elsewhere.installed().unwrap());
     }
 
     #[test]

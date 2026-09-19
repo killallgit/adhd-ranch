@@ -2,8 +2,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use adhd_ranch_commands::{
-    AgentSessions, CommandError, Commands, CreateFocusInput, CreatedFocus, Timers,
+    AgentDebug, AgentSessions, CommandError, Commands, CreateFocusInput, CreatedFocus, Timers,
 };
+use adhd_ranch_domain::agents::hooks::{HookFiring, HookWiring};
 use adhd_ranch_domain::{AgentSession, Focus, Settings, TimerOwner, TimerPreset};
 
 use tauri::{AppHandle, Emitter, Manager, State, Wry};
@@ -14,6 +15,7 @@ use crate::app::{DebugOverlayState, SettingsPathState, SettingsState};
 
 pub struct CommandsState(pub Arc<Commands>);
 pub struct AgentSessionsState(pub Arc<AgentSessions>);
+pub struct AgentDebugState(pub Arc<AgentDebug>);
 pub struct TimersState(pub Arc<Timers>);
 pub struct PigHitState(pub Arc<dyn RectUpdater>);
 pub struct DragLockState(pub Arc<AtomicBool>);
@@ -21,6 +23,16 @@ pub struct DragLockState(pub Arc<AtomicBool>);
 #[tauri::command]
 pub fn list_agent_sessions(state: State<'_, AgentSessionsState>) -> Vec<AgentSession> {
     state.0.list()
+}
+
+#[tauri::command]
+pub fn list_hook_firings(state: State<'_, AgentDebugState>) -> Vec<HookFiring> {
+    state.0.recent_firings()
+}
+
+#[tauri::command]
+pub fn agent_wiring(state: State<'_, AgentDebugState>) -> HookWiring {
+    state.0.wiring()
 }
 
 #[tauri::command]

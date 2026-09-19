@@ -3,12 +3,14 @@ use std::sync::Arc;
 use adhd_ranch_domain::Settings;
 use adhd_ranch_storage::FocusStore;
 
+pub mod agent_debug;
 pub mod agent_sessions;
 pub mod caps;
 pub mod error;
 pub mod focus;
 pub mod timers;
 
+pub use agent_debug::{AgentDebug, HookPaths};
 pub use agent_sessions::AgentSessions;
 pub use caps::{CapEvaluator, CapNotifier};
 pub use error::CommandError;

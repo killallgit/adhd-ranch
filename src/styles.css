@@ -506,3 +506,114 @@ body,
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
   white-space: nowrap;
 }
+
+/* ── Agent hook debug window ──────────────────────────────── */
+
+.agent-debug-window {
+  height: 100vh;
+  overflow-y: auto;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.agent-debug-lights {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 8px;
+}
+
+.agent-debug-light {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  opacity: 0.85;
+}
+
+.agent-debug-dot-on,
+.agent-debug-dot-off {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.agent-debug-dot-on {
+  background: #4ac97e;
+}
+
+.agent-debug-dot-off {
+  background: #e8635a;
+}
+
+.agent-debug-path {
+  display: flex;
+  gap: 8px;
+  padding: 2px 0;
+  font-size: 10px;
+}
+
+.agent-debug-path-label {
+  flex: 0 0 52px;
+  opacity: 0.4;
+}
+
+.agent-debug-path-value {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: left;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  opacity: 0.75;
+}
+
+.agent-debug-empty {
+  font-size: 11px;
+  opacity: 0.4;
+  margin: 2px 0;
+}
+
+.agent-debug-feed {
+  display: flex;
+  flex-direction: column;
+}
+
+.agent-debug-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.agent-debug-when {
+  flex: 0 0 64px;
+  opacity: 0.5;
+}
+
+.agent-debug-action {
+  flex: 0 0 62px;
+  font-weight: 600;
+}
+
+.agent-debug-pen {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.7;
+}
+
+.agent-debug-kept {
+  flex: 0 0 66px;
+  text-align: right;
+  color: #4ac97e;
+}
+
+.agent-debug-ignored {
+  flex: 0 0 66px;
+  text-align: right;
+  opacity: 0.35;
+}

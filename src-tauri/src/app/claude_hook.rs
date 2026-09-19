@@ -46,7 +46,7 @@ pub fn reconcile(enabled: bool) -> Result<(), String> {
     }
 }
 
-fn hook_paths() -> std::io::Result<ClaudeHookPaths> {
+pub(super) fn hook_paths() -> std::io::Result<ClaudeHookPaths> {
     Ok(ClaudeHookPaths {
         settings_file: paths::claude_settings_file()?,
         client_bin: paths::hook_client_bin()?,
