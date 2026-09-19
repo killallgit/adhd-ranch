@@ -1,3 +1,6 @@
+/// Only the platforms with a socket to listen on; everything it touches in storage
+/// is Unix-only.
+#[cfg(unix)]
 mod agent_hooks;
 pub mod cap_notifier;
 mod claude_hook;
@@ -29,7 +32,9 @@ use cap_notifier::TauriCapNotifier;
 pub const FOCUSES_CHANGED_EVENT: &str = "focuses-changed";
 pub const AGENT_SESSIONS_CHANGED_EVENT: &str = "agent-sessions-changed";
 /// Every firing, not only the ones that changed something — the debug window is
-/// the one place that cares about a hook the ranch heard and ignored.
+/// the one place that cares about a hook the ranch heard and ignored. Nothing emits
+/// it where there is no socket to hear one.
+#[cfg(unix)]
 pub const AGENT_HOOK_FIRED_EVENT: &str = "agent-hook-fired";
 
 pub struct MonitorsState(pub Vec<LogicalMonitor>);
