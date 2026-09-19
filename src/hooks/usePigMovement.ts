@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   setPigDragActive,
   subscribeDisplaySpace,
@@ -219,12 +219,19 @@ export function usePigMovement(
     () => new Map(pens.map((layout) => [layout.pen.id, layout.rect])),
     [pens],
   );
-  const penRectsRef = useRef<ReadonlyMap<string, Rect>>(penRects);
-  penRectsRef.current = penRects;
-  const penIdByAnimalRef = useRef<ReadonlyMap<string, string>>(new Map());
-  penIdByAnimalRef.current = new Map(
-    roster.flatMap((entry) => (entry.pen ? [[entry.id, entry.pen.id] as const] : [])),
+  const penIdByAnimal = useMemo(
+    () =>
+      new Map(roster.flatMap((entry) => (entry.pen ? [[entry.id, entry.pen.id] as const] : []))),
+    [roster],
   );
+  const penRectsRef = useRef<ReadonlyMap<string, Rect>>(penRects);
+  const penIdByAnimalRef = useRef<ReadonlyMap<string, string>>(penIdByAnimal);
+  // Written after commit rather than during render: the animation frame must never
+  // be able to read a layout from a render React went on to throw away.
+  useLayoutEffect(() => {
+    penRectsRef.current = penRects;
+    penIdByAnimalRef.current = penIdByAnimal;
+  }, [penRects, penIdByAnimal]);
 
   const setDisplaySpace = useCallback((space: DisplaySpace) => {
     displaySpaceRef.current = space;

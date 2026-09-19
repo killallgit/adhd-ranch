@@ -7,8 +7,18 @@ use adhd_ranch_domain::agents::claude_code::hooks::{
 use adhd_ranch_domain::agents::hooks::HookAction;
 use adhd_ranch_domain::{AgentSession, SessionActivity};
 
+/// The sessions the ranch would draw right now.
 pub trait AgentSessionStore: Send + Sync {
     fn list(&self) -> Vec<AgentSession>;
+}
+
+/// Where a hook firing goes once it has been read off the wire.
+///
+/// The listener needs nothing more than this, so it depends on this and not on where
+/// sessions actually live.
+pub trait HookEventSink: Send + Sync {
+    /// Apply one firing, reporting whether the ranch now looks any different.
+    fn apply(&self, action: HookAction, payload: &str) -> bool;
 }
 
 /// The sessions agents have told the ranch about, as they last described them.
@@ -27,17 +37,20 @@ impl LiveSessions {
         Self::default()
     }
 
-    /// Apply one hook firing, reporting whether the ranch now looks any different.
+    /// Forget every session.
     ///
-    /// A session the ranch has never heard of is taken at its word rather than
-    /// dropped: hooks installed mid-flight miss the `SessionStart` of everything
-    /// already running, and the first thing such a session says is enough to draw it.
-    pub fn apply(&self, action: HookAction, payload: &str) -> bool {
-        match action {
-            HookAction::End => self.forget(payload),
-            HookAction::Working => self.record(payload, SessionActivity::Working),
-            HookAction::Start | HookAction::Idle => self.record(payload, SessionActivity::Idle),
+    /// For when the ranch stops listening: the hooks are gone, so nothing will ever
+    /// arrive to say these sessions ended, and keeping them would mean switching
+    /// agents back on brings back animals for sessions that are long over.
+    pub fn clear(&self) -> bool {
+        let Ok(mut held) = self.sessions.write() else {
+            return false;
+        };
+        if held.is_empty() {
+            return false;
         }
+        held.clear();
+        true
     }
 
     fn record(&self, payload: &str, activity: SessionActivity) -> bool {
@@ -62,6 +75,19 @@ impl LiveSessions {
             return false;
         };
         held.remove(&id).is_some()
+    }
+}
+
+impl HookEventSink for LiveSessions {
+    /// A session the ranch has never heard of is taken at its word rather than
+    /// dropped: hooks installed mid-flight miss the `SessionStart` of everything
+    /// already running, and the first thing such a session says is enough to draw it.
+    fn apply(&self, action: HookAction, payload: &str) -> bool {
+        match action {
+            HookAction::End => self.forget(payload),
+            HookAction::Working => self.record(payload, SessionActivity::Working),
+            HookAction::Start | HookAction::Idle => self.record(payload, SessionActivity::Idle),
+        }
     }
 }
 
@@ -163,5 +189,22 @@ mod tests {
 
         let pens: Vec<_> = live.list().into_iter().map(|s| s.pen.name).collect();
         assert_eq!(pens, vec!["alpha", "zulu"]);
+    }
+
+    #[test]
+    fn clearing_empties_the_ranch() {
+        let live = LiveSessions::new();
+        live.apply(HookAction::Working, &payload("/code/app"));
+
+        assert!(live.clear());
+
+        assert!(live.list().is_empty());
+    }
+
+    #[test]
+    fn clearing_an_empty_ranch_changes_nothing() {
+        let live = LiveSessions::new();
+
+        assert!(!live.clear());
     }
 }

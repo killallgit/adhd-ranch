@@ -12,7 +12,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use adhd_ranch_domain::SessionActivity;
-use adhd_ranch_storage::{serve, AgentSessionStore, HookServer, LiveSessions};
+use adhd_ranch_storage::{serve, AgentSessionStore, HookEventSink, HookServer, LiveSessions};
 use tempfile::TempDir;
 
 const SESSION: &str = "9d93be36-54bb-4eec-bd25-e53b21402288";
@@ -56,7 +56,7 @@ impl Ranch {
         let (tx, changes): (Sender<()>, Receiver<()>) = channel();
         let server = serve(
             socket.clone(),
-            Arc::clone(&sessions),
+            Arc::clone(&sessions) as Arc<dyn HookEventSink>,
             Arc::new(move || {
                 let _ = tx.send(());
             }),
@@ -186,7 +186,7 @@ fn the_socket_is_removed_when_the_ranch_stops() {
     {
         let _server = serve(
             socket.clone(),
-            Arc::new(LiveSessions::new()),
+            Arc::new(LiveSessions::new()) as Arc<dyn HookEventSink>,
             Arc::new(|| {}),
         )
         .unwrap();
@@ -206,7 +206,7 @@ fn a_socket_left_by_a_crash_is_reclaimed() {
 
     let server = serve(
         socket.clone(),
-        Arc::new(LiveSessions::new()),
+        Arc::new(LiveSessions::new()) as Arc<dyn HookEventSink>,
         Arc::new(|| {}),
     );
 

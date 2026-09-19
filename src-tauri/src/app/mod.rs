@@ -30,6 +30,8 @@ pub struct DisplayConfigState(pub Arc<Mutex<DisplayConfig>>);
 pub struct SettingsState(pub Arc<Mutex<Settings>>);
 pub struct SettingsPathState(pub std::path::PathBuf);
 pub struct DebugOverlayState(pub Arc<Mutex<bool>>);
+/// Held so the settings workflow can empty it when agents are switched off.
+pub struct LiveSessionsState(pub Arc<LiveSessions>);
 
 pub fn run() {
     let settings_path = paths::settings_file().expect("settings path");
@@ -123,7 +125,7 @@ pub fn run() {
             let handle = app.handle().clone();
             let server = adhd_ranch_storage::serve(
                 paths::agent_hook_socket()?,
-                Arc::clone(&live_sessions),
+                Arc::clone(&live_sessions) as Arc<dyn adhd_ranch_storage::HookEventSink>,
                 Arc::new(move || {
                     if let Err(e) = handle.emit(AGENT_SESSIONS_CHANGED_EVENT, ()) {
                         log::error!("agent hooks: emit failed: {e}");
@@ -132,7 +134,12 @@ pub fn run() {
             )?;
             app.manage(HookServerHandle(server));
         }
-        claude_hook::reconcile(settings.agents.enabled);
+        // A startup failure here is worth knowing about but not worth refusing to
+        // launch over: the ranch still runs, it just has no animals to draw.
+        if let Err(e) = claude_hook::reconcile(settings.agents.enabled) {
+            log::error!("{e}");
+        }
+        app.manage(LiveSessionsState(Arc::clone(&live_sessions)));
         app.manage(ui_bridge::AgentSessionsState(Arc::new(AgentSessions::new(
             Arc::clone(&live_sessions) as Arc<dyn adhd_ranch_storage::AgentSessionStore>,
             Arc::clone(&settings_provider),

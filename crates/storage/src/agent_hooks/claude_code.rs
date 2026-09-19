@@ -2,7 +2,6 @@ use std::io;
 use std::path::PathBuf;
 
 use adhd_ranch_domain::agents::claude_code::hooks::{self, HookCommand};
-use adhd_ranch_domain::agents::hooks::HookEdit;
 
 use super::settings_file;
 use super::{AgentHooks, HookOutcome};
@@ -40,17 +39,6 @@ impl ClaudeCodeHooks {
             socket_path: &self.socket_path,
         }
     }
-
-    fn apply(&self, edit: HookEdit) -> io::Result<HookOutcome> {
-        match edit {
-            HookEdit::Unchanged => Ok(HookOutcome::AlreadyDone),
-            HookEdit::Unsupported => Ok(HookOutcome::SettingsNotUnderstood),
-            HookEdit::Updated(updated) => {
-                settings_file::write(&self.settings_file, &updated)?;
-                Ok(HookOutcome::Changed)
-            }
-        }
-    }
 }
 
 impl AgentHooks for ClaudeCodeHooks {
@@ -59,17 +47,15 @@ impl AgentHooks for ClaudeCodeHooks {
     }
 
     fn install(&self) -> io::Result<HookOutcome> {
-        let Some(settings) = settings_file::read(&self.settings_file)? else {
-            return Ok(HookOutcome::SettingsNotUnderstood);
-        };
-        self.apply(hooks::install(&settings, &self.command()))
+        settings_file::edit(&self.settings_file, |settings| {
+            hooks::install(settings, &self.command())
+        })
     }
 
     fn uninstall(&self) -> io::Result<HookOutcome> {
-        let Some(settings) = settings_file::read(&self.settings_file)? else {
-            return Ok(HookOutcome::SettingsNotUnderstood);
-        };
-        self.apply(hooks::uninstall(&settings, &self.command()))
+        settings_file::edit(&self.settings_file, |settings| {
+            hooks::uninstall(settings, &self.command())
+        })
     }
 }
 

@@ -131,8 +131,6 @@ where
     }
 }
 
-// Turning agents off only hides their animals; the Claude hook stays registered
-// so the user's Claude settings are never edited behind their back.
 /// Both directions matter: turning agents off has to take the hooks back out of
 /// Claude Code's settings, not merely stop caring about them.
 fn agents_setting_changed(previous: &Settings, next: &Settings) -> bool {
@@ -194,6 +192,17 @@ impl TauriSettingsEffects {
     }
 }
 
+impl TauriSettingsEffects {
+    /// The hooks are about to be removed, so nothing will ever arrive to say the
+    /// sessions the ranch is holding have ended. Anything kept would come back as an
+    /// animal for a long-finished session the next time agents are switched on.
+    fn forget_live_sessions(&self) {
+        if let Some(sessions) = self.app.try_state::<super::LiveSessionsState>() {
+            sessions.0.clear();
+        }
+    }
+}
+
 impl SettingsEffects for TauriSettingsEffects {
     fn apply_widget(&self, settings: &Settings) -> Result<(), SettingsWorkflowError> {
         let monitors_count = self
@@ -247,12 +256,22 @@ impl SettingsEffects for TauriSettingsEffects {
         previous: &Settings,
         next: &Settings,
     ) -> Result<(), SettingsWorkflowError> {
-        if agents_setting_changed(previous, next) {
-            super::claude_hook::reconcile(next.agents.enabled);
-        }
+        let reconciled = if agents_setting_changed(previous, next) {
+            if !next.agents.enabled {
+                self.forget_live_sessions();
+            }
+            super::claude_hook::reconcile(next.agents.enabled)
+        } else {
+            Ok(())
+        };
+        // The overlay hears either way: what it is drawing has changed even when the
+        // hooks could not be brought into line.
         self.app
             .emit(AGENT_SESSIONS_CHANGED_EVENT, ())
-            .map_err(|e| SettingsWorkflowError::Effect(format!("emit agent-sessions-changed: {e}")))
+            .map_err(|e| {
+                SettingsWorkflowError::Effect(format!("emit agent-sessions-changed: {e}"))
+            })?;
+        reconciled.map_err(SettingsWorkflowError::Effect)
     }
 
     fn refresh_runtime_consumers(&self, _settings: &Settings) -> Result<(), SettingsWorkflowError> {

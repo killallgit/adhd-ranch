@@ -18,7 +18,7 @@ use std::{fs, io};
 
 use adhd_ranch_domain::agents::hooks::HookAction;
 
-use crate::agent_session_store::LiveSessions;
+use crate::agent_session_store::HookEventSink;
 
 /// A client that connects and then says nothing must not hold up the ones behind it.
 const READ_TIMEOUT: Duration = Duration::from_millis(250);
@@ -49,7 +49,7 @@ pub struct HookServer {
 
 pub fn serve(
     socket_path: PathBuf,
-    sessions: Arc<LiveSessions>,
+    sessions: Arc<dyn HookEventSink>,
     on_change: OnChange,
 ) -> io::Result<HookServer> {
     if let Some(parent) = socket_path.parent() {
@@ -67,7 +67,7 @@ pub fn serve(
             while running.load(Ordering::SeqCst) {
                 match listener.accept() {
                     Ok((stream, _)) => {
-                        if handle(stream, &sessions) {
+                        if handle(stream, sessions.as_ref()) {
                             on_change();
                         }
                     }
@@ -103,7 +103,7 @@ fn bind(socket_path: &Path) -> io::Result<UnixListener> {
     }
 }
 
-fn handle(mut stream: UnixStream, sessions: &LiveSessions) -> bool {
+fn handle(mut stream: UnixStream, sessions: &dyn HookEventSink) -> bool {
     // Accepted from a non-blocking listener, so it may have inherited that; the read
     // below wants to wait for the client, bounded by its own timeout.
     let _ = stream.set_nonblocking(false);
