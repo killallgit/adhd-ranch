@@ -36,6 +36,8 @@ Do not invoke yourself for a single bounded change. One agent, or the main sessi
 2. **Cut the work.** Prefer units that can be verified alone. If two units must edit the same file, they are one unit — concurrent agents editing one file clobber each other.
 3. **Brief each unit.** See the contract below.
 4. **Dispatch.** Send independent units in a single message so they run concurrently. Background them so the human can interject; only set `run_in_background: false` when your very next step depends on that one result and nothing else can usefully proceed. Pass `model` per call — mechanical edits do not need the model that planned them.
+
+   Never spawn another orchestrator. Subagents can nest, so a coordinator that delegates to a coordinator is possible and pointless: it spends the spawn-depth and concurrency budget on coordination and leaves less of it for the work. Delegate to agents that implement, review, or explore.
 5. **Verify.** Re-run `task check`. Read the actual diff. Confirm the Completion promise holds.
 6. **Correct in place.** Use `SendMessage` to the same agent by name, so it keeps its context. A fresh `Agent` call restarts from zero and usually repeats the mistake.
 7. **Report.**
@@ -57,12 +59,12 @@ Never write "follow the project conventions." Name them.
 From `CLAUDE.md` and `issues/README.md`. Delegated work that violates these is not done, however confidently it is reported.
 
 - **Shipping a PR follows the `ship-pr` skill** — issue linked and archived, local gate green, rebased on the real base, PR opened, at least one review, findings resolved, squash-merge, issue close confirmed. Invoke it rather than re-deriving the steps; it carries the CodeRabbit rate-limit fallback this repo hits often and the `Closes #N` keyword without which a linked issue silently stays open.
-- **`task check` is the gate** — lint, typecheck, tests, ts-rs drift. Green before any PR. Run `task check:windows` too when a change touches `#[cfg(unix)]` or platform-gated symbols; it is the only local way to catch that break.
+- **`task check` is the gate** — lint, typecheck, tests, ts-rs drift. Green before any PR. Run `task check:windows` too whenever the diff touches `src-tauri/**`, `crates/**`, `package.json`, `package-lock.json`, `Cargo.toml` or `Cargo.lock` — the paths that trigger the `windows` workflow. Do not narrow that to changes where you spotted a `#[cfg(unix)]`; not spotting one is the failure mode.
 - **Layer boundaries.** `crates/domain` is pure — no I/O, no Tauri, no async runtime. `storage` adapts disk and watchers. `commands` holds use cases. `src-tauri/src/{ui_bridge,display,app}` is the host. React `components/` are view-only — no `fetch`, no direct I/O.
 - **No global mutable state.** No `static mut`, no `lazy_static!`/`OnceCell` for shared mutable state, no module-level `let mut`. A `global`-style variable is always a bug here; flag it and have it fixed.
 - **Program to interfaces** — traits at Rust module boundaries, `interface`/`type` at TypeScript ones. Never depend on a concrete class across modules.
 - **Issue queue.** Lowest-numbered open issue whose Blocked-by entries are all merged. Never pick from `issues/done/` or `issues/icebox/`.
-- **Branches.** `<type>/<slug>` where type is `feat`, `chore`, `fix`, `spike`, or `hotfix`. Rebase onto `main`, never merge `main` in.
+- **Branches.** `<type>/<slug>` where type is `feat`, `chore`, `fix`, `spike`, or `hotfix`. Rebase onto the branch's actual base — read it, never assume `main`, because rebasing a stacked branch onto `main` drags in commits it never meant to carry. Rebase; never merge the base in.
 - **PRs.** Title `[<slug>]: <issue title>`. Body links the issue file and quotes the Completion promise verbatim. No co-author attribution. Squash-merge.
 - **Diff size.** Small enough for a human to review in fifteen minutes. If a brief cannot meet that, the unit was cut too coarse.
 - **Comments explain why, never what.** Agents that narrate their own code are producing noise; send it back.

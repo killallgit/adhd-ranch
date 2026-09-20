@@ -125,6 +125,8 @@ gh pr view <N> --json comments --jq '[.comments[] | select(.body | contains("rat
 
 Incremental review is off too. Pushing fixes does **not** get them re-reviewed — if a change after the first review is worth a second look, request one explicitly.
 
+CodeRabbit reads `.coderabbit.yaml` from the **base** branch, not the PR. A PR that changes `auto_review` is still governed by whatever is on `main`, so it may review itself automatically. Check for an in-progress review before requesting one; asking on top of a running review spends two from the quota.
+
 ### The local reviewer
 
 A separate agent, fresh context, **never the agent that wrote the code**. An author reviewing their own diff re-reads their intentions instead of the code, and will not see what they failed to consider.
@@ -144,7 +146,15 @@ Post its findings as a PR comment, so the review is on the record rather than on
 
 Each finding ends as **fixed** or **rebutted**. Nothing is left hanging.
 
-Fixes are code work: hand them to the implementing agent, not to the reviewer and not to the orchestrator. Then re-run Gate 2 and Gate 3.
+Fixes are code work: hand them to the implementing agent, not to the reviewer and not to the orchestrator. Then re-run Gate 2 and Gate 3, and **push** — Gate 7 reads the *remote* head, so a fix that only exists locally is a fix that does not get merged:
+
+```bash
+git push --force-with-lease
+git rev-parse HEAD
+gh pr view <N> --json headRefOid --jq .headRefOid
+```
+
+Those two SHAs must match before Gate 7. If they differ, the PR still points at the unfixed commit.
 
 A rebuttal has to say why the finding is *wrong* — the reviewer misread the code, the case it describes cannot occur, the rule it cites does not apply here. "Stylistic", "pre-existing", or "I disagree" is not a rebuttal. "Out of scope" only counts when the concern is real but belongs to another slice, and then it needs an issue file, not a dismissal.
 
