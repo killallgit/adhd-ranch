@@ -1,21 +1,13 @@
+//! Claude Code's hooks where the client they name has a socket to deliver to.
+
 use std::io;
 use std::path::PathBuf;
 
 use adhd_ranch_domain::agents::claude_code::hooks::{self, HookCommand};
 use adhd_ranch_domain::agents::hooks::HookEdit;
 
-use super::settings_file;
-use super::{AgentHooks, HookOutcome};
-
-pub struct ClaudeHookPaths {
-    /// Claude Code's own settings file, which it shares with every other tool the
-    /// user has pointed at it.
-    pub settings_file: PathBuf,
-    /// The client Claude runs, which ships beside the app.
-    pub client_bin: PathBuf,
-    /// Where the running ranch is listening.
-    pub socket_path: PathBuf,
-}
+use super::{ClaudeHookPaths, AGENT};
+use crate::agent_hooks::{settings_file, AgentHooks, HookOutcome};
 
 pub struct ClaudeCodeHooks {
     settings_file: PathBuf,
@@ -44,7 +36,7 @@ impl ClaudeCodeHooks {
 
 impl AgentHooks for ClaudeCodeHooks {
     fn agent(&self) -> &'static str {
-        "Claude Code"
+        AGENT
     }
 
     fn install(&self) -> io::Result<HookOutcome> {

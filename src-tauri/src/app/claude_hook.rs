@@ -13,12 +13,6 @@ use super::paths;
 /// request that can fail, and calling it done when the hooks are not installed
 /// leaves the user waiting for animals that will never arrive.
 pub fn reconcile(enabled: bool) -> Result<(), String> {
-    // The client delivers over a Unix socket, which Windows has no equivalent of here.
-    if cfg!(windows) {
-        log::info!("claude hook: not supported on Windows");
-        return Ok(());
-    }
-
     let hooks = ClaudeCodeHooks::new(
         hook_paths().map_err(|e| format!("claude hook: cannot resolve paths: {e}"))?,
     );

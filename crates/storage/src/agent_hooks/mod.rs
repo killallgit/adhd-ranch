@@ -8,6 +8,11 @@
 pub mod claude_code;
 pub mod journal;
 pub mod server;
+// Editing an agent's settings file is what an implementation does when it has a
+// socket to point that agent at; where there is none, no implementation is compiled
+// and this has no caller. A missing consumer is a broken build, not a silent
+// behaviour change, so the two predicates cannot drift apart unnoticed.
+#[cfg(unix)]
 mod settings_file;
 
 use std::io;
