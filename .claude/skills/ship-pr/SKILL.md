@@ -151,10 +151,10 @@ Fixes are code work: hand them to the implementing agent, not to the reviewer an
 ```bash
 git push --force-with-lease
 git rev-parse HEAD
-gh pr view <N> --json headRefOid --jq .headRefOid
+gh api repos/<owner>/<repo>/pulls/<N> --jq .head.sha
 ```
 
-Those two SHAs must match before Gate 7. If they differ, the PR still points at the unfixed commit.
+Those two SHAs must match before Gate 7. If they differ, the PR still points at the unfixed commit. Read the head with `gh api`, not `gh pr view --json headRefOid` — that one serves a cached value and can report the pre-push SHA for a while after a successful push, which looks exactly like a failed push.
 
 A rebuttal has to say why the finding is *wrong* — the reviewer misread the code, the case it describes cannot occur, the rule it cites does not apply here. "Stylistic", "pre-existing", or "I disagree" is not a rebuttal. "Out of scope" only counts when the concern is real but belongs to another slice, and then it needs an issue file, not a dismissal.
 
