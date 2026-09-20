@@ -6,6 +6,7 @@
 //! and be able to undo everything it did.
 
 pub mod claude_code;
+pub mod journal;
 #[cfg(unix)]
 pub mod server;
 mod settings_file;
@@ -13,6 +14,7 @@ mod settings_file;
 use std::io;
 
 pub use claude_code::{ClaudeCodeHooks, ClaudeHookPaths};
+pub use journal::{HookHistory, HookJournal};
 #[cfg(unix)]
 pub use server::{serve, HookServer};
 
@@ -42,4 +44,10 @@ pub trait AgentHooks {
     /// Remove the entries this version installs, matched exactly and never guessed
     /// at. Nothing else has to be undone: the hooks left nothing behind.
     fn uninstall(&self) -> io::Result<HookOutcome>;
+
+    /// Whether the configuration already names this exact client and socket.
+    ///
+    /// Asked by the debug window, where "no hook has ever fired" is otherwise
+    /// indistinguishable from "no agent is running".
+    fn installed(&self) -> io::Result<bool>;
 }

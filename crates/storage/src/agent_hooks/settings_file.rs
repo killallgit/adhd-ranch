@@ -45,7 +45,7 @@ pub fn edit(path: &Path, change: impl Fn(&Value) -> HookEdit) -> io::Result<Hook
 ///
 /// `Ok(None)` means the file exists but is not JSON we can reason about; the caller
 /// must then leave it alone rather than replace it with something we invented.
-fn read(path: &Path) -> io::Result<Option<(String, Value)>> {
+pub(super) fn read(path: &Path) -> io::Result<Option<(String, Value)>> {
     match fs::read_to_string(path) {
         Ok(raw) => Ok(serde_json::from_str(&raw).ok().map(|value| (raw, value))),
         Err(error) if error.kind() == io::ErrorKind::NotFound => {

@@ -1,3 +1,7 @@
+/// Only the platforms with a socket to listen on; everything it touches in storage
+/// is Unix-only.
+#[cfg(unix)]
+mod agent_hooks;
 pub mod cap_notifier;
 mod claude_hook;
 pub mod menu;
@@ -13,9 +17,12 @@ use std::time::Duration;
 
 use crate::display::monitor::LogicalMonitor;
 use crate::display::{DisplayManager, DisplayManagerState, DisplayService};
-use adhd_ranch_commands::{AgentSessions, CapEvaluator, Commands, Timers};
+use adhd_ranch_commands::{AgentDebug, AgentSessions, CapEvaluator, Commands, HookPaths, Timers};
 use adhd_ranch_domain::{DisplayConfig, OverCapMonitor, RectUpdater, Settings};
-use adhd_ranch_storage::{watch_path, FocusStore, FocusWatcher, LiveSessions, MarkdownFocusStore};
+use adhd_ranch_storage::{
+    watch_path, ClaudeCodeHooks, FocusStore, FocusWatcher, HookEventSink, HookHistory, HookJournal,
+    LiveSessions, MarkdownFocusStore,
+};
 use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 use time::format_description::well_known::Rfc3339;
 
@@ -24,6 +31,11 @@ use cap_notifier::TauriCapNotifier;
 
 pub const FOCUSES_CHANGED_EVENT: &str = "focuses-changed";
 pub const AGENT_SESSIONS_CHANGED_EVENT: &str = "agent-sessions-changed";
+/// Every firing, not only the ones that changed something — the debug window is
+/// the one place that cares about a hook the ranch heard and ignored. Nothing emits
+/// it where there is no socket to hear one.
+#[cfg(unix)]
+pub const AGENT_HOOK_FIRED_EVENT: &str = "agent-hook-fired";
 
 pub struct MonitorsState(pub Vec<LogicalMonitor>);
 pub struct DisplayConfigState(pub Arc<Mutex<DisplayConfig>>);
@@ -38,11 +50,22 @@ pub fn run() {
     let settings = load_settings(&settings_path);
 
     let mut builder = tauri::Builder::default()
-        .plugin(tauri_plugin_log::Builder::new().build())
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .level(log::LevelFilter::Info)
+                // Windowing internals log every keystroke and redraw at TRACE,
+                // which buries everything the ranch itself has to say.
+                .level_for("tao", log::LevelFilter::Warn)
+                .level_for("wry", log::LevelFilter::Warn)
+                .level_for("tauri_runtime_wry", log::LevelFilter::Warn)
+                .build(),
+        )
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             ui_bridge::list_agent_sessions,
+            ui_bridge::list_hook_firings,
+            ui_bridge::agent_wiring,
             ui_bridge::list_focuses,
             ui_bridge::create_focus,
             ui_bridge::duplicate_focus,
@@ -120,17 +143,18 @@ pub fn run() {
         // Sessions arrive by hook, pushed straight into memory — there is no file to
         // write, watch or clean up, and nothing survives the app to go stale.
         let live_sessions = Arc::new(LiveSessions::new());
+        // Wrapped on every platform, not only where the socket exists, so the debug
+        // window has the same shape everywhere and simply shows nothing arriving.
+        let journal = Arc::new(HookJournal::new(
+            Arc::clone(&live_sessions) as Arc<dyn HookEventSink>,
+            Arc::new(now_rfc3339),
+        ));
         #[cfg(unix)]
         {
-            let handle = app.handle().clone();
-            let server = adhd_ranch_storage::serve(
+            let server = agent_hooks::serve(
+                app.handle(),
                 paths::agent_hook_socket()?,
-                Arc::clone(&live_sessions) as Arc<dyn adhd_ranch_storage::HookEventSink>,
-                Arc::new(move || {
-                    if let Err(e) = handle.emit(AGENT_SESSIONS_CHANGED_EVENT, ()) {
-                        log::error!("agent hooks: emit failed: {e}");
-                    }
-                }),
+                Arc::clone(&journal) as Arc<dyn HookEventSink>,
             )?;
             app.manage(HookServerHandle(server));
         }
@@ -143,6 +167,24 @@ pub fn run() {
         app.manage(ui_bridge::AgentSessionsState(Arc::new(AgentSessions::new(
             Arc::clone(&live_sessions) as Arc<dyn adhd_ranch_storage::AgentSessionStore>,
             Arc::clone(&settings_provider),
+        ))));
+
+        let claude_paths = claude_hook::hook_paths()?;
+        let hook_paths = HookPaths {
+            settings_file: claude_paths.settings_file.to_string_lossy().into_owned(),
+            client_bin: claude_paths.client_bin.to_string_lossy().into_owned(),
+            socket_path: claude_paths.socket_path.to_string_lossy().into_owned(),
+        };
+        log::info!(
+            "agent hooks: client={} agent settings={}",
+            hook_paths.client_bin,
+            hook_paths.settings_file
+        );
+        app.manage(ui_bridge::AgentDebugState(Arc::new(AgentDebug::new(
+            Arc::new(ClaudeCodeHooks::new(claude_paths)),
+            Arc::clone(&journal) as Arc<dyn HookHistory>,
+            Arc::clone(&settings_provider),
+            hook_paths,
         ))));
 
         // Enumerate connected monitors and store for tray + overlay management.
@@ -249,6 +291,36 @@ pub fn open_settings_window<R: tauri::Runtime>(app: &AppHandle<R>) {
             let _ = win.show();
         }
         Err(e) => log::error!("open_settings_window: {e}"),
+    }
+}
+
+/// A separate window rather than a panel on the overlay: the overlay is
+/// click-through and has no room, and this has to be readable while the ranch is
+/// doing the thing being debugged.
+pub fn open_agent_debug_window<R: tauri::Runtime>(app: &AppHandle<R>) {
+    if let Some(win) = app.get_webview_window("agent-debug") {
+        if win.is_visible().unwrap_or(false) {
+            let _ = win.set_focus();
+            return;
+        }
+        let _ = win.destroy();
+    }
+    match WebviewWindowBuilder::new(
+        app,
+        "agent-debug",
+        WebviewUrl::App("agent-debug.html".into()),
+    )
+    .title("Agent Hooks")
+    .inner_size(520.0, 620.0)
+    .min_inner_size(420.0, 320.0)
+    .decorations(true)
+    .always_on_top(true)
+    .build()
+    {
+        Ok(win) => {
+            let _ = win.show();
+        }
+        Err(e) => log::error!("open_agent_debug_window: {e}"),
     }
 }
 

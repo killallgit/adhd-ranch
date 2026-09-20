@@ -1,6 +1,6 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
-  "entry": ["src/new-focus.tsx!", "src/settings.tsx!", "scripts/check-*.mjs"],
+  "entry": ["src/agent-debug.tsx!", "src/new-focus.tsx!", "src/settings.tsx!", "scripts/check-*.mjs"],
   "project": ["src/**/*.{ts,tsx}!", "!src/**/fixture*.{ts,tsx}!", "scripts/**/*.mjs"],
   "ignore": ["src/types/generated/**"]
 }

@@ -8,6 +8,7 @@ pub const SHOW_RANCH_ID: &str = "show-ranch";
 pub const CLOSE_WINDOW_ID: &str = "close-window";
 pub const SHOW_DEBUG_OVERLAY_ID: &str = "show-debug-overlay";
 pub const OPEN_PREFS_ID: &str = "open-preferences";
+pub const OPEN_AGENT_DEBUG_ID: &str = "open-agent-debug";
 const MAIN_WINDOW: &str = "overlay-0";
 
 pub fn build<R: Runtime>(handle: &AppHandle<R>) -> tauri::Result<Menu<R>> {
@@ -48,13 +49,21 @@ pub fn build<R: Runtime>(handle: &AppHandle<R>) -> tauri::Result<Menu<R>> {
     {
         let debug_overlay =
             CheckMenuItemBuilder::with_id(SHOW_DEBUG_OVERLAY_ID, "Show Debug Overlay")
-                .checked(true)
+                // Starts off, matching both DebugOverlayState and the webview. A tick
+                // here that nothing else agreed with made the first click a no-op.
+                .checked(false)
                 .build(handle)?;
         window_sub = window_sub.item(&debug_overlay).separator();
     }
 
     let window_submenu = window_sub
         .item(&MenuItemBuilder::with_id(SHOW_RANCH_ID, "Show Ranch").build(handle)?)
+        .separator()
+        .item(
+            &MenuItemBuilder::with_id(OPEN_AGENT_DEBUG_ID, "Agent Hooks…")
+                .accelerator("CmdOrCtrl+Shift+A")
+                .build(handle)?,
+        )
         .build()?;
 
     Menu::with_items(
@@ -79,6 +88,9 @@ pub fn handle_event<R: Runtime>(app: &AppHandle<R>, event: MenuEvent) {
         SHOW_DEBUG_OVERLAY_ID => toggle_debug_overlay(app),
         OPEN_PREFS_ID => {
             super::open_settings_window(app);
+        }
+        OPEN_AGENT_DEBUG_ID => {
+            super::open_agent_debug_window(app);
         }
         _ => {}
     }

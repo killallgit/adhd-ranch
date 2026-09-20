@@ -18,6 +18,7 @@ export default defineConfig({
         main: resolve(__dirname, "index.html"),
         newFocus: resolve(__dirname, "new-focus.html"),
         settings: resolve(__dirname, "settings.html"),
+        agentDebug: resolve(__dirname, "agent-debug.html"),
       },
     },
   },
