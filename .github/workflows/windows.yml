@@ -1,11 +1,12 @@
-name: windows-build-smoke
+name: windows
 
 on:
   workflow_dispatch:
   pull_request:
     paths:
-      - ".github/workflows/windows-build-smoke.yml"
+      - ".github/workflows/windows.yml"
       - "src-tauri/**"
+      - "crates/**"
       - "package.json"
       - "package-lock.json"
       - "Cargo.toml"
@@ -15,8 +16,45 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  # A pull request only needs to know the tree still compiles for Windows — the
+  # runner is Windows, so an ordinary check covers it. Bundling an installer is
+  # release work, and release.yml runs that same command on a tag.
+  check:
+    name: Type check
+    if: github.event_name == 'pull_request'
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-bin: false
+          key: check
+
+      - name: Install frontend deps
+        run: npm ci --no-audit --no-fund
+
+      # generate_context! resolves frontendDist while compiling, so the bundle
+      # has to be on disk before the check runs.
+      - name: Build frontend
+        run: npm run build
+
+      - name: Type check
+        run: cargo check --workspace --all-targets
+
+  # Kept on demand for a pre-release dry run of the Windows half of release.yml.
+  bundle:
     name: ${{ matrix.label }}
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
