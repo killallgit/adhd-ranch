@@ -1,6 +1,6 @@
 ---
 name: ship-pr
-description: Take a finished branch all the way to merged. Identifies and links the issue, runs the local gate, rebases onto the branch's real base, opens the PR, obtains a review (CodeRabbit, or a fresh-context local reviewer when CodeRabbit is rate-limited), drives every finding to resolution, squash-merges, and confirms the issue closed. Use when a branch is done and needs to become a merged PR, when asked to "ship it", "open the PR", "get this merged", or when a PR is open but stalled with no review on it.
+description: Take a finished branch all the way to merged. Identifies and links the issue, runs the local gate, rebases onto the branch's real base, opens the PR, obtains a review (CodeRabbit, or a fresh-context local reviewer when CodeRabbit is rate-limited), drives every finding to resolution, then stops at a merge-ready verdict (merging and confirming the issue closed when the human authorizes it in that run). Use when a branch is done and needs to become a merged PR, when asked to "ship it", "open the PR", "get this merged", or when a PR is open but stalled with no review on it.
 user-invocable: true
 argument-hint: "[branch or PR number] — defaults to the current branch"
 ---
@@ -100,24 +100,28 @@ gh pr create --base <base> --title "[<slug>]: <title>" --body "<body>"
 
 Every PR gets a review. An agent never decides on its own to skip one. Only an explicit human instruction in this run skips it, and then the reason goes in the PR body so the record shows it was a decision rather than an omission.
 
-CodeRabbit reviews this repo automatically. Give it about three minutes, then check whether it actually landed:
+CodeRabbit does **not** review this repo automatically — `auto_review.enabled` is off in `.coderabbit.yaml`, deliberately, so the limited OSS quota goes to reviews we actually asked for. Nothing arrives unless you ask. Ask once, after the PR is up:
+
+```bash
+gh pr comment <N> --body "@coderabbitai review"
+```
+
+Wait about three minutes, then check whether a review actually landed:
 
 ```bash
 gh pr view <N> --json reviews --jq '[.reviews[] | select(.author.login=="coderabbitai")] | length'
 ```
 
-`1` or more means a real review. `0` means no review yet — find out which case you are in:
+`1` or more means a real review. `0` means it did not review — find out why:
 
 ```bash
 gh pr view <N> --json comments --jq '[.comments[] | select(.body | contains("rate limited by coderabbit.ai"))] | length'
 ```
 
-- **Non-zero: rate-limited.** CodeRabbit still posts a summary when it is rate-limited, so a summary comment is not evidence of a review. Do not wait for the quota to reset — this repo hits the limit often. Go to the local reviewer.
-- **Zero, and no review:** it may simply not have fired. Trigger it once and wait again:
-  ```bash
-  gh pr comment <N> --body "@coderabbitai review"
-  ```
-  Still nothing after a second wait: go to the local reviewer.
+- **Non-zero: rate-limited.** CodeRabbit still posts a summary when it is rate-limited, so a summary comment is not evidence of a review. Do not wait for the quota to reset and do not re-request in a loop — that burns the quota without producing a review. Go to the local reviewer.
+- **Zero, and still no review:** give it one more wait, then go to the local reviewer.
+
+Incremental review is off too. Pushing fixes does **not** get them re-reviewed — if a change after the first review is worth a second look, request one explicitly.
 
 ### The local reviewer
 
@@ -152,11 +156,15 @@ Confirm CI is actually green on the pushed head:
 gh pr checks <N>
 ```
 
-Then, once Gates 1–6 all hold:
+Then, once Gates 1–6 all hold, **stop and report**. Give the human the verdict, the review outcome, any rebuttals you made, and the command:
 
 ```bash
 gh pr merge <N> --squash --delete-branch
 ```
+
+Merge it yourself only when the human authorized it in this run — "ship it", "merge it", "all the way". A standing preference from an earlier session is not authorization for this PR.
+
+The reason for the gate: when CodeRabbit is rate-limited, the review is written by a local agent, and the findings are resolved or rebutted by agents too. Merging automatically closes that loop with no human anywhere in it — code written, reviewed, argued with, and landed on `main` by the same system. The gate costs one command and is the only place a person sees the judgment calls before they are permanent.
 
 Squash-merge, one issue to one commit on `main`.
 

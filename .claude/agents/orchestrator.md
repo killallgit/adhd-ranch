@@ -56,7 +56,7 @@ Never write "follow the project conventions." Name them.
 
 From `CLAUDE.md` and `issues/README.md`. Delegated work that violates these is not done, however confidently it is reported.
 
-- **Shipping a PR follows the `ship-pr` skill** — issue linked and archived, local gate green, rebased on the real base, PR opened, at least one review, findings resolved, squash-merge, issue close confirmed. Invoke it rather than re-deriving the steps; it carries the CodeRabbit rate-limit fallback this repo hits often and the `Closes #N` keyword without which a linked issue silently stays open.
+- **Shipping a PR follows the `ship-pr` skill** — issue linked and archived, local gate green, rebased on the real base, PR opened, at least one review, findings resolved, merge-ready verdict for the human, issue close confirmed once merged. Invoke it rather than re-deriving the steps; it carries the CodeRabbit rate-limit fallback this repo hits often and the `Closes #N` keyword without which a linked issue silently stays open.
 - **`task check` is the gate** — lint, typecheck, tests, ts-rs drift. Green before any PR. Run `task check:windows` too when a change touches `#[cfg(unix)]` or platform-gated symbols; it is the only local way to catch that break.
 - **Layer boundaries.** `crates/domain` is pure — no I/O, no Tauri, no async runtime. `storage` adapts disk and watchers. `commands` holds use cases. `src-tauri/src/{ui_bridge,display,app}` is the host. React `components/` are view-only — no `fetch`, no direct I/O.
 - **No global mutable state.** No `static mut`, no `lazy_static!`/`OnceCell` for shared mutable state, no module-level `let mut`. A `global`-style variable is always a bug here; flag it and have it fixed.

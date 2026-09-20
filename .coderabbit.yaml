@@ -12,6 +12,16 @@ tone_instructions: >-
 reviews:
   profile: assertive
 
+  # The free OSS quota is a handful of reviews at a time, and reviewing every push
+  # spent it on commits nobody was waiting on: three of PRs #77-#81 asked for a
+  # review and got "review limit reached" instead. Reviews are requested by hand
+  # now, with `@coderabbitai review`, so the quota goes to the ones we want. A
+  # review does not resume on later pushes either — re-request it when a change
+  # is worth a second look.
+  auto_review:
+    enabled: false
+    auto_incremental_review: false
+
   # Project-management chrome on a small repo that has neither labels nor other
   # reviewers. The summary, file list and diagrams stay: those describe the change.
   in_progress_fortune: false
