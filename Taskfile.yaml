@@ -69,7 +69,7 @@ tasks:
     deps: [build:web]
     cmds:
       - cargo fmt --all -- --check
-      - cargo clippy -p adhd-ranch-domain -p adhd-ranch-storage -p adhd-ranch-commands --all-targets -- -D warnings
+      - cargo clippy -p adhd-ranch-domain -p adhd-ranch-storage -p adhd-ranch-commands -p adhd-ranch-hook --all-targets -- -D warnings
       - cargo clippy -p adhd-ranch --all-targets -- -D warnings
       - task: lint:rust:release
 
@@ -77,6 +77,12 @@ tasks:
     desc: clippy the Tauri host with debug_assertions off
     deps: [build:web]
     cmds:
+      # Host-only because the host is the only place the two profiles compile
+      # different code: src-tauri gates tray items, the dev menu and a ui_bridge
+      # branch on debug_assertions, and the debug pass never sees the release
+      # side. No crate under crates/ has a debug_assertions gate, so a release
+      # pass over them would re-lint identical code. Add the crate here the day
+      # one grows a profile-gated branch; it costs seconds, not minutes.
       - cargo clippy --release -p adhd-ranch --all-targets -- -D warnings
 
   lint:web:
