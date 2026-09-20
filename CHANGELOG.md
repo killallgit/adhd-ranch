@@ -4,16 +4,32 @@ All notable changes to adhd-ranch. Follows [Keep a Changelog](https://keepachang
 
 ---
 
-## [Unreleased]
+## [0.1.4] — 2026-09-20
+
+### Added
+
+- A running Claude Code session is drawn on the ranch as an animal, in a pen named for the project directory it is working in — moving while the session works, resting when it is waiting on its human. Fed by Claude Code hooks over a Unix socket rather than a polled marker file, so there is nothing to go stale when a session dies without cleaning up. Install touches exactly one file, Claude's `settings.json`, and uninstall removes only the commands this version wrote (PR #75).
+  - **Off by default.** Turn it on from the tray menu, "Agents as Animals", or set `agents:\n  enabled: true` in `settings.yaml`. There is no control for it in Preferences.
+  - Unix only. On Windows the app runs and the hook client still ships, but nothing installs hooks and no session appears.
+- Agent Hooks window, from the Window menu or `Cmd+Shift+A`: whether hooks are installed, where the socket, client and agent settings live, the sessions the ranch is holding, and a live feed of firings. Every part of the hook path fails silently by design, so this is the only way to tell "no agent is running" from "nothing is reaching the ranch". Backed by `HookJournal`, a bounded 200-entry `HookEventSink` decorator that keeps parsed fields and never raw payloads (PR #76).
+- `pens.max_size` in `settings.yaml` and in Preferences caps how large a pen may be drawn, clamped to 160–960 whichever way it is set. Without it a single session's pen was the whole ranch (PR #78).
+- `settings-changed` event, so the overlay picks up a settings change without a restart (PR #78).
+- `task check:windows` type-checks the workspace for a Windows target from a macOS or Linux host — the only local way to catch a `#[cfg(unix)]` symbol used without a gate. `build.rs` gained `ADHD_RANCH_SKIP_SIDECAR=1`, which writes an inert placeholder rather than shelling out to rustc, and is ignored unless the target OS differs from the host's (PR #77).
+- `task lint:rust:release` clippies the Tauri host with `debug_assertions` off, so the release branch of every `#[cfg(debug_assertions)]` is linted rather than only the debug one. It immediately found two unlinted warnings in `menu.rs` and `ui_bridge`, fixed in the same change (PR #79).
 
 ### Changed
 
 - One `Timers` module owns starting, clearing, reviving and expiring a Timer, keyed by Timer Owner. Storage exposes a single `write_timer`, and IPC collapses to `start_timer(owner, preset)` and `clear_timer(owner)` (054).
 - `projectAnimals` turns Focuses and Agent Sessions into one Animal list, and selection is derived from it. The Rust `Animal` is now `AgentSession` (055).
+- `crates/storage` picks a Unix or inert hook server by target behind one API, so the platform decision no longer lands on every caller and the host has no hook-server `cfg` left. Both report which one is live at `info` (PR #77).
+- Windows CI runs `cargo check` on `windows-latest` for a pull request instead of a full NSIS bundle, and the bundle matrix moved to `workflow_dispatch`. Adds the missing `crates/**` path filter, without which a pull request touching only `crates/storage` triggered no Windows build at all. Trade-off: the NSIS bundle step, and `aarch64` entirely, are no longer proven per pull request (PR #77).
+- A pen is drawn as a posts-and-rails fence rather than a plain bordered box (PR #78).
+- `tao`, `wry` and `tauri_runtime_wry` log at WARN and above; the app log was ~90% `tao` TRACE (PR #76).
 
 ### Fixed
 
 - Deleting the selected Focus no longer leaves the overlay swallowing every click, and a Focus created later with the same title no longer reopens its card on its own (055).
+- No number row in Preferences could be selected and retyped. The field committed only values already inside its range, so clearing it — which parses to NaN — was discarded and the old value snapped back. Only the spinner arrows worked (PR #78).
 
 ## [0.1.3] — 2026-09-14
 
