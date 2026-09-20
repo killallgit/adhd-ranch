@@ -165,7 +165,11 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           cache-bin: false
-          key: release-${{ matrix.runner }}-${{ matrix.rust-targets }}
+          # Not matrix.rust-targets: the macOS entry names two triples separated by a
+          # comma, which rust-cache rejects as a cache key. It logs the rejection and
+          # renders green, so that job has been cold-building every release. The four
+          # runners are already distinct.
+          key: release-${{ matrix.runner }}
 
       - name: Install frontend deps
         run: npm ci --no-audit --no-fund
@@ -174,6 +178,33 @@ jobs:
         shell: bash
         run: |
           printf '{"version":"%s"}\n' "${{ needs.prepare.outputs.version }}" > release-version.json
+
+      # `tauri build --target universal-apple-darwin` compiles the host once per arch,
+      # so `build.rs` only ever sees `aarch64-` or `x86_64-apple-darwin` and names the
+      # sidecar for that one. The bundler then asks for a `-universal-apple-darwin`
+      # sidecar that nothing produced. The build script cannot know both arches are
+      # wanted — cargo never hands it that triple — so the job asking for a universal
+      # app is the one that has to make it.
+      - name: Build the universal sidecar
+        if: contains(matrix.args, 'universal-apple-darwin')
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p src-tauri/binaries
+          for arch in aarch64 x86_64; do
+            rustc --edition 2021 -O \
+              --target "${arch}-apple-darwin" \
+              -o "src-tauri/binaries/adhd-ranch-hook-${arch}-apple-darwin" \
+              crates/hook-client/src/main.rs
+          done
+          lipo -create \
+            src-tauri/binaries/adhd-ranch-hook-aarch64-apple-darwin \
+            src-tauri/binaries/adhd-ranch-hook-x86_64-apple-darwin \
+            -output src-tauri/binaries/adhd-ranch-hook-universal-apple-darwin
+          # -info prints and exits 0 whatever it finds, so it reports rather than checks.
+          for arch in arm64 x86_64; do
+            lipo src-tauri/binaries/adhd-ranch-hook-universal-apple-darwin -verify_arch "$arch"
+          done
 
       - name: Build and upload release package
         id: tauri
