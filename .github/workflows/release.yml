@@ -175,6 +175,30 @@ jobs:
         run: |
           printf '{"version":"%s"}\n' "${{ needs.prepare.outputs.version }}" > release-version.json
 
+      # `tauri build --target universal-apple-darwin` compiles the host once per arch,
+      # so `build.rs` only ever sees `aarch64-` or `x86_64-apple-darwin` and names the
+      # sidecar for that one. The bundler then asks for a `-universal-apple-darwin`
+      # sidecar that nothing produced. The build script cannot know both arches are
+      # wanted — cargo never hands it that triple — so the job asking for a universal
+      # app is the one that has to make it.
+      - name: Build the universal sidecar
+        if: contains(matrix.args, 'universal-apple-darwin')
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p src-tauri/binaries
+          for arch in aarch64 x86_64; do
+            rustc --edition 2021 -O \
+              --target "${arch}-apple-darwin" \
+              -o "src-tauri/binaries/adhd-ranch-hook-${arch}-apple-darwin" \
+              crates/hook-client/src/main.rs
+          done
+          lipo -create \
+            src-tauri/binaries/adhd-ranch-hook-aarch64-apple-darwin \
+            src-tauri/binaries/adhd-ranch-hook-x86_64-apple-darwin \
+            -output src-tauri/binaries/adhd-ranch-hook-universal-apple-darwin
+          lipo -info src-tauri/binaries/adhd-ranch-hook-universal-apple-darwin
+
       - name: Build and upload release package
         id: tauri
         uses: tauri-apps/tauri-action@v0.6.2
