@@ -28,7 +28,7 @@ The existing Tauri action remains a good fit. Its first-party documentation supp
 There are two different GitHub storage types:
 
 - `.github/workflows/release.yml` sends installers and `SHA256SUMS.txt` directly to a GitHub Release. These are **release assets**, not Actions workflow artifacts. `tauri-action` only creates Actions artifacts when `uploadWorkflowArtifacts` is enabled, and this workflow does not enable it. [Tauri action configuration](https://github.com/tauri-apps/tauri-action#usage)
-- `.github/workflows/windows-build-smoke.yml` uses `actions/upload-artifact`, so its two matrix outputs are **Actions workflow artifacts**.
+- `.github/workflows/windows.yml` uses `actions/upload-artifact` in its `bundle` job, which only runs on `workflow_dispatch`, so its two matrix outputs are **Actions workflow artifacts**.
 
 The cleanup is a no-op while no more than two published releases have uploaded assets. Publishing a third release removes the uploaded assets from the oldest release.
 

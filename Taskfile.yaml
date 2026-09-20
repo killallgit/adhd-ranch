@@ -132,6 +132,23 @@ tasks:
       - task: test
       - task: gen-types:check
 
+  check:windows:
+    desc: Type-check the workspace for Windows from a macOS or Linux host — the cfg(unix) errors CI catches late
+    deps: [build:web]
+    vars:
+      TARGET: '{{.TARGET | default "x86_64-pc-windows-msvc"}}'
+    cmds:
+      # tauri-build compiles a Windows resource even for a check, and llvm-rc is its
+      # only cross-OS resource compiler. Homebrew keeps llvm keg-only, so it is on
+      # disk far more often than it is on PATH.
+      - |
+        rc=$(command -v llvm-rc || ls -1 "$(brew --prefix 2>/dev/null)"/opt/llvm*/bin/llvm-rc 2>/dev/null | head -1)
+        if [ -z "$rc" ]; then
+          echo "llvm-rc not found. Run: brew install llvm" >&2
+          exit 1
+        fi
+        ADHD_RANCH_SKIP_SIDECAR=1 RC="$rc" cargo check --workspace --all-targets --target '{{.TARGET}}'
+
   build:web:
     desc: Build frontend bundle
     deps: [install]

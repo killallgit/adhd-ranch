@@ -7,10 +7,9 @@ pub mod settings_writer;
 pub mod timer_store;
 pub mod watcher;
 
-#[cfg(unix)]
-pub use agent_hooks::{serve, HookServer};
 pub use agent_hooks::{
-    AgentHooks, ClaudeCodeHooks, ClaudeHookPaths, HookHistory, HookJournal, HookOutcome,
+    serve, AgentHooks, ClaudeCodeHooks, ClaudeHookPaths, HookHistory, HookJournal, HookOutcome,
+    HookServer,
 };
 pub use agent_session_store::{AgentSessionStore, HookEventSink, LiveSessions};
 pub use atomic::atomic_write;

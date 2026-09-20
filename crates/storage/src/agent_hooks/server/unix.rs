@@ -18,6 +18,7 @@ use std::{fs, io};
 
 use adhd_ranch_domain::agents::hooks::HookAction;
 
+use super::OnChange;
 use crate::agent_session_store::HookEventSink;
 
 /// A client that connects and then says nothing must not hold up the ones behind it.
@@ -38,9 +39,6 @@ const ACCEPT_POLL: Duration = Duration::from_millis(25);
 /// so it is the file mode that does the work.
 const SOCKET_MODE: u32 = 0o600;
 
-/// Called whenever a firing actually changed what the ranch would draw.
-pub type OnChange = Arc<dyn Fn() + Send + Sync>;
-
 pub struct HookServer {
     socket_path: PathBuf,
     running: Arc<AtomicBool>,
@@ -59,6 +57,7 @@ pub fn serve(
     fs::set_permissions(&socket_path, fs::Permissions::from_mode(SOCKET_MODE))?;
 
     listener.set_nonblocking(true)?;
+    log::info!("agent hooks: listening on {}", socket_path.display());
 
     let running = Arc::new(AtomicBool::new(true));
     let accepting = std::thread::spawn({

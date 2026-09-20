@@ -18,7 +18,6 @@ pub fn serve(
     socket_path: PathBuf,
     recording: Arc<dyn HookEventSink>,
 ) -> std::io::Result<HookServer> {
-    log::info!("agent hooks: listening on {}", socket_path.display());
     adhd_ranch_storage::serve(
         socket_path,
         Arc::new(Announcing {
