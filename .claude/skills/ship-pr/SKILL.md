@@ -1,6 +1,6 @@
 ---
 name: ship-pr
-description: Take a finished branch all the way to merged. Identifies and links the issue, runs the local gate, rebases onto the branch's real base, opens the PR, obtains a review (CodeRabbit, or a fresh-context local reviewer when CodeRabbit is rate-limited), drives every finding to resolution, then stops at a merge-ready verdict (merging and confirming the issue closed when the human authorizes it in that run). Use when a branch is done and needs to become a merged PR, when asked to "ship it", "open the PR", "get this merged", or when a PR is open but stalled with no review on it.
+description: Take a finished branch all the way to merged. Identifies and links the issue, runs the local gate, rebases onto the branch's real base, opens the PR, obtains a review (CodeRabbit, or a fresh-context local reviewer when CodeRabbit is rate-limited), drives every finding to resolution, squash-merges, and confirms the issue closed. Use when a branch is done and needs to become a merged PR, when asked to "ship it", "open the PR", "get this merged", or when a PR is open but stalled with no review on it.
 user-invocable: true
 argument-hint: "[branch or PR number] — defaults to the current branch"
 ---
@@ -33,6 +33,8 @@ git mv issues/NNN-slug.md issues/done/NNN-slug.md
 ```
 
 and drops its line from the priority queue in `issues/README.md`. This is code work — if you are orchestrating rather than implementing, delegate it; do not edit it yourself.
+
+**For a file-only issue, the `git mv` to `done/` is the close.** Most issues here have no GitHub issue, and that is the intended state, not a gap to fill. Do not open a GitHub issue so that `Closes #N` has something to point at — a stub that restates the file gives you two records that drift, and the file is the one holding the Completion promise. Archiving it in the merge commit closes it as definitively as GitHub would.
 
 If there is no issue at all, say so in the PR body in one line and carry on. An unlinked PR is allowed; an untracked one is not.
 
@@ -156,17 +158,15 @@ Confirm CI is actually green on the pushed head:
 gh pr checks <N>
 ```
 
-Then, once Gates 1–6 all hold, **stop and report**. Give the human the verdict, the review outcome, any rebuttals you made, and the command:
+Then, once Gates 1–6 all hold:
 
 ```bash
 gh pr merge <N> --squash --delete-branch
 ```
 
-Merge it yourself only when the human authorized it in this run — "ship it", "merge it", "all the way". A standing preference from an earlier session is not authorization for this PR.
-
-The reason for the gate: when CodeRabbit is rate-limited, the review is written by a local agent, and the findings are resolved or rebutted by agents too. Merging automatically closes that loop with no human anywhere in it — code written, reviewed, argued with, and landed on `main` by the same system. The gate costs one command and is the only place a person sees the judgment calls before they are permanent.
-
 Squash-merge, one issue to one commit on `main`.
+
+Nothing waits for a human here, so the PR thread is the whole record. A reader coming back to this merge should be able to see which review ran, what it found, and what was argued away — Gate 6 is what makes that true.
 
 Then verify the close actually happened rather than assuming it:
 
