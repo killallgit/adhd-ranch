@@ -234,6 +234,8 @@ describe("computeTossVelocity", () => {
   });
 });
 
+const MAX_PEN_SIZE = 320;
+
 describe("usePigMovement", () => {
   it("refreshes an existing animal label when its name changes", async () => {
     const rafSpy = vi.spyOn(window, "requestAnimationFrame").mockReturnValue(0);
@@ -241,7 +243,7 @@ describe("usePigMovement", () => {
     const original = animal({ name: "Original name" });
 
     const { result, rerender, unmount } = renderHook(
-      ({ animals }: { animals: readonly Animal[] }) => usePigMovement(animals, null),
+      ({ animals }: { animals: readonly Animal[] }) => usePigMovement(animals, null, MAX_PEN_SIZE),
       { initialProps: { animals: [original] } },
     );
 
@@ -267,7 +269,7 @@ describe("usePigMovement", () => {
     const running = animal();
 
     const { result, rerender, unmount } = renderHook(
-      ({ animals }: { animals: readonly Animal[] }) => usePigMovement(animals, null),
+      ({ animals }: { animals: readonly Animal[] }) => usePigMovement(animals, null, MAX_PEN_SIZE),
       { initialProps: { animals: [running] } },
     );
 
@@ -301,11 +303,45 @@ describe("usePigMovement", () => {
       agentAnimal("session-2", pen("/code/beta")),
     ];
 
-    const { result, unmount } = renderHook(() => usePigMovement(animals, null));
+    const { result, unmount } = renderHook(() => usePigMovement(animals, null, MAX_PEN_SIZE));
 
     await waitFor(() => expect(result.current.pens).toHaveLength(2));
     const [first, second] = result.current.pens;
     expect(overlaps(first.rect, second.rect)).toBe(false);
+
+    unmount();
+    restoreViewport();
+    rafSpy.mockRestore();
+    cancelRafSpy.mockRestore();
+  });
+
+  it("pens nothing until the settings say how large a pen may be", async () => {
+    const rafSpy = vi.spyOn(window, "requestAnimationFrame").mockReturnValue(0);
+    const cancelRafSpy = vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => {});
+    const restoreViewport = stubRanchViewport(1200, 800);
+    const animals: readonly Animal[] = [agentAnimal("session-1", pen("/code/alpha"))];
+
+    const { result, unmount } = renderHook(() => usePigMovement(animals, null, null));
+
+    await waitFor(() => expect(result.current.pigs).toHaveLength(1));
+    expect(result.current.pens).toEqual([]);
+
+    unmount();
+    restoreViewport();
+    rafSpy.mockRestore();
+    cancelRafSpy.mockRestore();
+  });
+
+  it("keeps a pen down to the size the settings allow", async () => {
+    const rafSpy = vi.spyOn(window, "requestAnimationFrame").mockReturnValue(0);
+    const cancelRafSpy = vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => {});
+    const restoreViewport = stubRanchViewport(1200, 800);
+    const animals: readonly Animal[] = [agentAnimal("session-1", pen("/code/alpha"))];
+
+    const { result, unmount } = renderHook(() => usePigMovement(animals, null, 240));
+
+    await waitFor(() => expect(result.current.pens).toHaveLength(1));
+    expect(result.current.pens[0].rect).toMatchObject({ w: 240, h: 240 });
 
     unmount();
     restoreViewport();
@@ -323,7 +359,7 @@ describe("usePigMovement", () => {
       agentAnimal("session-2", pen("/code/beta")),
     ];
 
-    const { result, unmount } = renderHook(() => usePigMovement(animals, null));
+    const { result, unmount } = renderHook(() => usePigMovement(animals, null, MAX_PEN_SIZE));
 
     await waitFor(() => expect(result.current.pigs).toHaveLength(2));
     const homes = result.current.pigs.map((pig) => penHolding(result.current.pens, pig));

@@ -1,4 +1,6 @@
 import type React from "react";
+import { useState } from "react";
+import { PEN_SIZE_RANGE } from "../lib/session/pens";
 import type { MonitorInfo } from "../types/monitor";
 import type { Settings } from "../types/settings";
 
@@ -49,6 +51,13 @@ interface NumberRowProps {
 }
 
 function NumberRow({ label, value, min, max, onChange }: NumberRowProps) {
+  // Committing only in-range values makes a field with a three-digit `min` impossible
+  // to type into: "4" on the way to "480" is below 160, so it was discarded and the
+  // field snapped back. The draft holds whatever is typed, and leaving the field
+  // commits the nearest legal value — the same correction a hand-edited settings.yaml
+  // gets from `PenConfig::clamped`.
+  const [draft, setDraft] = useState<string | null>(null);
+
   return (
     <label className="settings-row">
       <span className="settings-row-label">{label}</span>
@@ -57,10 +66,17 @@ function NumberRow({ label, value, min, max, onChange }: NumberRowProps) {
         className="settings-number"
         min={min}
         max={max}
-        value={value}
+        value={draft ?? value}
         onChange={(e) => {
+          setDraft(e.target.value);
           const v = Number.parseInt(e.target.value, 10);
           if (!Number.isNaN(v) && v >= min && v <= max) onChange(v);
+        }}
+        onBlur={() => {
+          if (draft === null) return;
+          const v = Number.parseInt(draft, 10);
+          setDraft(null);
+          if (!Number.isNaN(v)) onChange(Math.min(Math.max(v, min), max));
         }}
       />
     </label>
@@ -125,6 +141,17 @@ export function SettingsWindow({
               onChange={(v) =>
                 onUpdate({ ...settings, widget: { ...settings.widget, confirm_delete: v } })
               }
+            />
+          </section>
+
+          <section className="settings-section">
+            <h2 className="settings-section-title">Pens</h2>
+            <NumberRow
+              label="Max pen size"
+              value={settings.pens.max_size}
+              min={PEN_SIZE_RANGE.min}
+              max={PEN_SIZE_RANGE.max}
+              onChange={(v) => onUpdate({ ...settings, pens: { max_size: v } })}
             />
           </section>
 

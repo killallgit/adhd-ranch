@@ -5,7 +5,9 @@ use tauri::{AppHandle, Emitter, Manager, Wry};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
-use super::{DisplayConfigState, MonitorsState, AGENT_SESSIONS_CHANGED_EVENT};
+use super::{
+    DisplayConfigState, MonitorsState, AGENT_SESSIONS_CHANGED_EVENT, SETTINGS_CHANGED_EVENT,
+};
 
 pub trait SettingsPersistence: Send + Sync {
     fn persist(&self, settings: &Settings) -> Result<(), SettingsWorkflowError>;
@@ -275,7 +277,9 @@ impl SettingsEffects for TauriSettingsEffects {
     }
 
     fn refresh_runtime_consumers(&self, _settings: &Settings) -> Result<(), SettingsWorkflowError> {
-        Ok(())
+        self.app
+            .emit(SETTINGS_CHANGED_EVENT, ())
+            .map_err(|e| SettingsWorkflowError::Effect(format!("emit settings-changed: {e}")))
     }
 
     fn rebuild_tray(&self) -> Result<(), SettingsWorkflowError> {

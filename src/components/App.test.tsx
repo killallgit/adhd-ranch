@@ -5,6 +5,7 @@ import { act } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { createFixtureAgentSessionReader } from "../api/fixtureAgentSessionReader";
 import { createFixtureFocusReader } from "../api/fixtureFocusReader";
+import { createFixtureSettingsReader } from "../api/fixtureSettingsReader";
 import type { FocusWriter } from "../api/focusWriter";
 import type { AgentSession } from "../types/agentSession";
 import type { Animal } from "../types/animal";
@@ -32,10 +33,17 @@ vi.mock(import("../hooks/usePigMovement"), async (importOriginal) => {
   const { layoutPens, uniquePens } = await import("../lib/session/pens");
   return {
     ...actual,
-    usePigMovement: (animals: readonly Animal[], selectedId: string | null) => {
+    usePigMovement: (
+      animals: readonly Animal[],
+      selectedId: string | null,
+      maxPenSize: number | null,
+    ) => {
       movement.selectedId = selectedId;
       return {
-        pens: layoutPens(uniquePens(animals.map(animalPen)), PEN_AREA),
+        pens:
+          maxPenSize === null
+            ? []
+            : layoutPens(uniquePens(animals.map(animalPen)), PEN_AREA, maxPenSize),
         pigs: animals.map((animal) => ({
           id: animal.id,
           name: animal.name,
@@ -58,6 +66,7 @@ vi.mock(import("../hooks/usePigMovement"), async (importOriginal) => {
 });
 
 const noAgents = createFixtureAgentSessionReader([]);
+const defaultSettings = createFixtureSettingsReader();
 
 function session(
   name: string,
@@ -101,6 +110,7 @@ describe("App overlay", () => {
         focusWriter={noopFocusWriter()}
         onWriteFailure={() => {}}
         agentSessionReader={noAgents}
+        settingsReader={defaultSettings}
       />,
     );
     expect(document.querySelector(".overlay-root")).toBeInTheDocument();
@@ -114,6 +124,7 @@ describe("App overlay", () => {
         focusWriter={noopFocusWriter()}
         onWriteFailure={() => {}}
         agentSessionReader={noAgents}
+        settingsReader={defaultSettings}
       />,
     );
     await waitFor(() => {
@@ -130,6 +141,7 @@ describe("App overlay", () => {
         focusWriter={writer}
         onWriteFailure={() => {}}
         agentSessionReader={noAgents}
+        settingsReader={defaultSettings}
       />,
     );
 
@@ -153,6 +165,7 @@ describe("App overlay", () => {
         focusWriter={noopFocusWriter()}
         onWriteFailure={() => {}}
         agentSessionReader={noAgents}
+        settingsReader={defaultSettings}
       />,
     );
 
@@ -182,6 +195,7 @@ describe("App overlay", () => {
           focusWriter={noopFocusWriter()}
           onWriteFailure={() => {}}
           agentSessionReader={noAgents}
+          settingsReader={defaultSettings}
         />,
       );
 
@@ -208,6 +222,7 @@ describe("App overlay", () => {
         focusWriter={noopFocusWriter()}
         onWriteFailure={() => {}}
         agentSessionReader={noAgents}
+        settingsReader={defaultSettings}
       />,
     );
 
@@ -243,6 +258,7 @@ describe("App overlay", () => {
         focusWriter={noopFocusWriter()}
         onWriteFailure={() => {}}
         agentSessionReader={noAgents}
+        settingsReader={defaultSettings}
       />,
     );
 
@@ -263,6 +279,7 @@ describe("App overlay", () => {
         focusWriter={noopFocusWriter()}
         onWriteFailure={() => {}}
         agentSessionReader={noAgents}
+        settingsReader={defaultSettings}
       />,
     );
 
@@ -281,6 +298,7 @@ describe("App overlay", () => {
         focusWriter={noopFocusWriter()}
         onWriteFailure={() => {}}
         agentSessionReader={createFixtureAgentSessionReader([session("feature-abc", "adhd-ranch")])}
+        settingsReader={defaultSettings}
       />,
     );
 
@@ -300,6 +318,7 @@ describe("App overlay", () => {
           session("main", "adhd-ranch"),
           session("spike", "other-repo"),
         ])}
+        settingsReader={defaultSettings}
       />,
     );
 
@@ -318,16 +337,17 @@ describe("App overlay", () => {
           session("feature-abc", "adhd-ranch"),
           session("spike", "other-repo"),
         ])}
+        settingsReader={defaultSettings}
       />,
     );
 
     await screen.findByText("adhd-ranch");
-    const borders = [...document.querySelectorAll<HTMLElement>(".pen-box")].map(
-      (pen) => pen.style.borderColor,
+    const hues = [...document.querySelectorAll<HTMLElement>(".pen-box")].map((pen) =>
+      pen.style.getPropertyValue("--pen-hue"),
     );
 
-    expect(borders[0]).not.toBe("");
-    expect(borders[0]).not.toBe(borders[1]);
+    expect(hues[0]).not.toBe("");
+    expect(hues[0]).not.toBe(hues[1]);
   });
 
   it("draws a pen's border around the cell its animals roam", async () => {
@@ -337,13 +357,33 @@ describe("App overlay", () => {
         focusWriter={noopFocusWriter()}
         onWriteFailure={() => {}}
         agentSessionReader={createFixtureAgentSessionReader([session("feature-abc", "adhd-ranch")])}
+        settingsReader={defaultSettings}
       />,
     );
 
     await screen.findByText("feature-abc");
     const pen = document.querySelector(".pen-box");
 
-    expect(pen).toHaveStyle({ left: "8px", top: "8px", width: "984px", height: "784px" });
+    expect(pen).toHaveStyle({ left: "340px", top: "240px", width: "320px", height: "320px" });
+  });
+
+  it("draws a pen no larger than the settings allow", async () => {
+    render(
+      <App
+        focusReader={createFixtureFocusReader([])}
+        focusWriter={noopFocusWriter()}
+        onWriteFailure={() => {}}
+        agentSessionReader={createFixtureAgentSessionReader([session("feature-abc", "adhd-ranch")])}
+        settingsReader={createFixtureSettingsReader({ pens: { max_size: 200 } })}
+      />,
+    );
+
+    await waitFor(() =>
+      expect(document.querySelector(".pen-box")).toHaveStyle({
+        width: "200px",
+        height: "200px",
+      }),
+    );
   });
 
   it("rests a session between turns as a ghost", async () => {
@@ -353,6 +393,7 @@ describe("App overlay", () => {
         focusWriter={noopFocusWriter()}
         onWriteFailure={() => {}}
         agentSessionReader={createFixtureAgentSessionReader([session("feature-abc", "adhd-ranch")])}
+        settingsReader={defaultSettings}
       />,
     );
 
@@ -372,6 +413,7 @@ describe("App overlay", () => {
           agentSessionReader={createFixtureAgentSessionReader([
             session("feature-abc", "adhd-ranch", "Working"),
           ])}
+          settingsReader={defaultSettings}
         />,
       );
 
@@ -392,6 +434,7 @@ describe("App overlay", () => {
         focusWriter={noopFocusWriter()}
         onWriteFailure={() => {}}
         agentSessionReader={noAgents}
+        settingsReader={defaultSettings}
       />,
     );
 
@@ -404,6 +447,7 @@ describe("App overlay", () => {
         focusWriter={noopFocusWriter()}
         onWriteFailure={() => {}}
         agentSessionReader={noAgents}
+        settingsReader={defaultSettings}
       />,
     );
 
@@ -418,6 +462,7 @@ describe("App overlay", () => {
         focusWriter={noopFocusWriter()}
         onWriteFailure={() => {}}
         agentSessionReader={createFixtureAgentSessionReader([session("feature-abc", "adhd-ranch")])}
+        settingsReader={defaultSettings}
       />,
     );
 

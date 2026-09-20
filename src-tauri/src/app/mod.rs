@@ -28,6 +28,9 @@ use cap_notifier::TauriCapNotifier;
 
 pub const FOCUSES_CHANGED_EVENT: &str = "focuses-changed";
 pub const AGENT_SESSIONS_CHANGED_EVENT: &str = "agent-sessions-changed";
+/// The overlay draws from settings it cannot see change any other way; without
+/// this a resized pen only takes effect on the next launch.
+pub const SETTINGS_CHANGED_EVENT: &str = "settings-changed";
 /// Every firing, not only the ones that changed something — the debug window is
 /// the one place that cares about a hook the ranch heard and ignored. Nothing emits
 /// it where there is no socket to hear one.
