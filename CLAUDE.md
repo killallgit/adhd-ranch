@@ -64,7 +64,7 @@ Pick the right well-known pattern for the job. Prefer named patterns (Repository
 ## Taskfile
 
 - `task check` is the gate: lint + typecheck + tests. Must be green before opening a PR.
-- `task check:windows` type-checks the workspace for a Windows target from any OS — the only local way to catch a `#[cfg(unix)]` symbol used without a gate, which otherwise surfaces in the `windows` workflow minutes after a push. Needs `rustup target add x86_64-pc-windows-msvc` and `brew install llvm`.
+- `task check:windows` type-checks the workspace for a Windows target from a macOS or Linux host — the only local way to catch a `#[cfg(unix)]` symbol used without a gate, which otherwise surfaces in the `windows` workflow minutes after a push. Needs `rustup target add x86_64-pc-windows-msvc` and `brew install llvm`.
 - `task lint` includes `task lint:unused`, which fails on unused code:
   - `lint:unused:web` (knip): unused files, exports, and npm dependencies. A file only imported by tests counts as unused; name test-only helpers `fixture*.ts`.
   - `lint:unused:rust` (cargo-shear): unused Cargo dependencies and `.rs` files outside the module tree. Install once with `cargo install --locked cargo-shear`.

@@ -19,6 +19,6 @@ pub fn serve(
     _sessions: Arc<dyn HookEventSink>,
     _on_change: OnChange,
 ) -> io::Result<HookServer> {
-    log::debug!("agent hooks: no hook socket on this platform");
+    log::info!("agent hooks: no hook socket on this platform");
     Ok(HookServer)
 }

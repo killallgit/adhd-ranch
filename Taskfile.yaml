@@ -133,7 +133,7 @@ tasks:
       - task: gen-types:check
 
   check:windows:
-    desc: Type-check the workspace for Windows from any OS — the cfg(unix) errors CI catches late
+    desc: Type-check the workspace for Windows from a macOS or Linux host — the cfg(unix) errors CI catches late
     deps: [build:web]
     vars:
       TARGET: '{{.TARGET | default "x86_64-pc-windows-msvc"}}'
