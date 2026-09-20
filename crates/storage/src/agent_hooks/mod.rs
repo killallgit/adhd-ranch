@@ -7,7 +7,6 @@
 
 pub mod claude_code;
 pub mod journal;
-#[cfg(unix)]
 pub mod server;
 mod settings_file;
 
@@ -15,7 +14,6 @@ use std::io;
 
 pub use claude_code::{ClaudeCodeHooks, ClaudeHookPaths};
 pub use journal::{HookHistory, HookJournal};
-#[cfg(unix)]
 pub use server::{serve, HookServer};
 
 /// What an install or uninstall did.

@@ -1,6 +1,3 @@
-/// Only the platforms with a socket to listen on; everything it touches in storage
-/// is Unix-only.
-#[cfg(unix)]
 mod agent_hooks;
 pub mod cap_notifier;
 mod claude_hook;
@@ -34,7 +31,6 @@ pub const AGENT_SESSIONS_CHANGED_EVENT: &str = "agent-sessions-changed";
 /// Every firing, not only the ones that changed something — the debug window is
 /// the one place that cares about a hook the ranch heard and ignored. Nothing emits
 /// it where there is no socket to hear one.
-#[cfg(unix)]
 pub const AGENT_HOOK_FIRED_EVENT: &str = "agent-hook-fired";
 
 pub struct MonitorsState(pub Vec<LogicalMonitor>);
@@ -149,15 +145,12 @@ pub fn run() {
             Arc::clone(&live_sessions) as Arc<dyn HookEventSink>,
             Arc::new(now_rfc3339),
         ));
-        #[cfg(unix)]
-        {
-            let server = agent_hooks::serve(
-                app.handle(),
-                paths::agent_hook_socket()?,
-                Arc::clone(&journal) as Arc<dyn HookEventSink>,
-            )?;
-            app.manage(HookServerHandle(server));
-        }
+        let server = agent_hooks::serve(
+            app.handle(),
+            paths::agent_hook_socket()?,
+            Arc::clone(&journal) as Arc<dyn HookEventSink>,
+        )?;
+        app.manage(HookServerHandle(server));
         // A startup failure here is worth knowing about but not worth refusing to
         // launch over: the ranch still runs, it just has no animals to draw.
         if let Err(e) = claude_hook::reconcile(settings.agents.enabled) {
@@ -339,9 +332,7 @@ struct WatcherHandles {
     _focuses: FocusWatcher,
 }
 
-/// Held only so the listener outlives setup; dropping it closes the socket and
-/// removes its file.
-#[cfg(unix)]
+/// Held only so the listener outlives setup; dropping it shuts the listener down.
 #[allow(dead_code)]
 struct HookServerHandle(adhd_ranch_storage::HookServer);
 
