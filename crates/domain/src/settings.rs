@@ -6,7 +6,8 @@ pub const DEFAULT_MAX_FOCUSES: usize = 5;
 pub const DEFAULT_MAX_TASKS_PER_FOCUS: usize = 7;
 
 pub const DEFAULT_MAX_PEN_SIZE: u32 = 320;
-/// Below this an animal has nowhere left to walk once its edge margin is taken out.
+/// The smallest pen the settings will accept. A crowded ranch can still divide its
+/// grid below this — the floor is on what may be asked for, not on what gets drawn.
 pub const MIN_PEN_SIZE: u32 = 160;
 /// Above this a lone pen is the whole ranch again, which is what the cap exists to stop.
 pub const MAX_PEN_SIZE: u32 = 960;
@@ -53,11 +54,26 @@ pub struct AgentsConfig {
 }
 
 /// How large a pen is allowed to grow, whatever the ranch has room for.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "export-ts", derive(ts_rs::TS))]
 #[cfg_attr(feature = "export-ts", ts(export))]
 pub struct PenConfig {
     pub max_size: u32,
+}
+
+/// Deserialize by hand so the clamp has one home. `update_settings` hands a `Settings`
+/// straight from IPC to the workflow, which persists it verbatim — a derived impl would
+/// let a `max_size` of 0 reach settings.yaml and draw every pen with no room in it,
+/// until the next launch parsed the file and silently rewrote it.
+impl<'de> Deserialize<'de> for PenConfig {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        struct Wire {
+            max_size: u32,
+        }
+
+        Ok(Self::clamped(Wire::deserialize(deserializer)?.max_size))
+    }
 }
 
 impl Default for PenConfig {
@@ -69,8 +85,9 @@ impl Default for PenConfig {
 }
 
 impl PenConfig {
-    /// The only way in from a hand-edited file, so a nonsense number becomes the
-    /// nearest usable one rather than a ranch with no room to walk in it.
+    /// Every way in lands here — a hand-edited file through `parse_yaml`, and IPC
+    /// through `Deserialize`. A nonsense number becomes the nearest usable one rather
+    /// than a ranch with no room to walk in it.
     pub fn clamped(max_size: u32) -> Self {
         Self {
             max_size: max_size.clamp(MIN_PEN_SIZE, MAX_PEN_SIZE),
@@ -388,6 +405,17 @@ mod tests {
         let s: Settings = serde_json::from_value(serde_json::Value::Object(object)).unwrap();
 
         assert_eq!(s.pens.max_size, DEFAULT_MAX_PEN_SIZE);
+    }
+
+    #[test]
+    fn a_pen_size_over_ipc_is_clamped_like_a_hand_edited_one() {
+        let below: PenConfig =
+            serde_json::from_value(serde_json::json!({ "max_size": 0 })).unwrap();
+        let above: PenConfig =
+            serde_json::from_value(serde_json::json!({ "max_size": 99_999 })).unwrap();
+
+        assert_eq!(below.max_size, MIN_PEN_SIZE);
+        assert_eq!(above.max_size, MAX_PEN_SIZE);
     }
 
     #[test]
