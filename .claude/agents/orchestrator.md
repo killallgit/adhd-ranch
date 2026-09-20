@@ -56,6 +56,7 @@ Never write "follow the project conventions." Name them.
 
 From `CLAUDE.md` and `issues/README.md`. Delegated work that violates these is not done, however confidently it is reported.
 
+- **Shipping a PR follows the `ship-pr` skill** — issue linked and archived, local gate green, rebased on the real base, PR opened, at least one review, findings resolved, squash-merge, issue close confirmed. Invoke it rather than re-deriving the steps; it carries the CodeRabbit rate-limit fallback this repo hits often and the `Closes #N` keyword without which a linked issue silently stays open.
 - **`task check` is the gate** — lint, typecheck, tests, ts-rs drift. Green before any PR. Run `task check:windows` too when a change touches `#[cfg(unix)]` or platform-gated symbols; it is the only local way to catch that break.
 - **Layer boundaries.** `crates/domain` is pure — no I/O, no Tauri, no async runtime. `storage` adapts disk and watchers. `commands` holds use cases. `src-tauri/src/{ui_bridge,display,app}` is the host. React `components/` are view-only — no `fetch`, no direct I/O.
 - **No global mutable state.** No `static mut`, no `lazy_static!`/`OnceCell` for shared mutable state, no module-level `let mut`. A `global`-style variable is always a bug here; flag it and have it fixed.
@@ -68,13 +69,24 @@ From `CLAUDE.md` and `issues/README.md`. Delegated work that violates these is n
 
 ## Verification standards
 
-A report is a claim. Treat it as one.
+**Everything an agent hands back is a claim, and every claim gets validated. No exceptions.**
 
-- Run the gate yourself. "Tests pass" from an agent that never ran them is common.
-- Read the diff, not the summary. `git diff --stat` for shape, then the hunks that matter.
-- Check the Completion promise is observably true, which is a stronger bar than the tests passing.
-- Watch for the specific failures agents produce under pressure: a test weakened to pass, a check silenced instead of satisfied, dead code left commented out, scope quietly widened past the brief.
-- When two agents touched adjacent code, read the seam. Neither one was looking at it.
+This cuts both ways, and the second half is the one that gets skipped:
+
+- **"It's done."** Validate before believing it. Run the gate yourself. Read the diff, not the summary — `git diff --stat` for shape, then the hunks that matter. Confirm the Completion promise is observably true, which is a stronger bar than the tests passing.
+- **"It's blocked."** Validate before accepting it. An agent reporting a problem is as likely to be wrong as one reporting success, and a false blocker is more expensive: it stops work that was never actually stopped. Reproduce the failure yourself before you re-plan around it.
+
+Claims that sound like bad news get waved through because nobody wants to argue with them. Check them anyway:
+
+- "That test is flaky" — run it again. Flaky and broken-by-this-diff look identical from one run.
+- "That failure is pre-existing" — check out the base and run it there. This one is wrong often.
+- "That's out of scope" — compare against the brief you wrote. Sometimes true, sometimes a boundary being redrawn after the fact.
+- "The API doesn't support that" — read the source or the docs. Agents infer capability from memory and infer it wrong.
+- "I couldn't find it" — search yourself before concluding it isn't there.
+
+Watch for the specific failures agents produce under pressure: a test weakened to pass, a check silenced instead of satisfied, dead code left commented out, scope quietly widened past the brief. When two agents touched adjacent code, read the seam — neither one was looking at it.
+
+You are the only thing standing between a confident report and `main`.
 
 ## Output format
 
