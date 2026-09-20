@@ -1,6 +1,7 @@
+#[cfg(debug_assertions)]
+use tauri::menu::CheckMenuItemBuilder;
 use tauri::menu::{
-    CheckMenuItemBuilder, Menu, MenuEvent, MenuItemBuilder, MenuItemKind, PredefinedMenuItem,
-    SubmenuBuilder,
+    Menu, MenuEvent, MenuItemBuilder, MenuItemKind, PredefinedMenuItem, SubmenuBuilder,
 };
 use tauri::{AppHandle, Manager, Runtime};
 
@@ -43,18 +44,18 @@ pub fn build<R: Runtime>(handle: &AppHandle<R>) -> tauri::Result<Menu<R>> {
         .item(&PredefinedMenuItem::select_all(handle, None)?)
         .build()?;
 
-    let mut window_sub = SubmenuBuilder::new(handle, "Window");
+    let window_sub = SubmenuBuilder::new(handle, "Window");
 
     #[cfg(debug_assertions)]
-    {
+    let window_sub = {
         let debug_overlay =
             CheckMenuItemBuilder::with_id(SHOW_DEBUG_OVERLAY_ID, "Show Debug Overlay")
                 // Starts off, matching both DebugOverlayState and the webview. A tick
                 // here that nothing else agreed with made the first click a no-op.
                 .checked(false)
                 .build(handle)?;
-        window_sub = window_sub.item(&debug_overlay).separator();
-    }
+        window_sub.item(&debug_overlay).separator()
+    };
 
     let window_submenu = window_sub
         .item(&MenuItemBuilder::with_id(SHOW_RANCH_ID, "Show Ranch").build(handle)?)

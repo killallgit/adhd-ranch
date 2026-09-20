@@ -244,11 +244,15 @@ pub fn toggle_devtools(app: AppHandle<Wry>) {
     }
 }
 
+#[cfg(debug_assertions)]
 #[tauri::command]
 pub fn get_devtools_open(app: AppHandle<Wry>) -> bool {
-    #[cfg(debug_assertions)]
-    if let Some(win) = app.get_webview_window("overlay-0") {
-        return win.is_devtools_open();
-    }
+    app.get_webview_window("overlay-0")
+        .is_some_and(|win| win.is_devtools_open())
+}
+
+#[cfg(not(debug_assertions))]
+#[tauri::command]
+pub fn get_devtools_open() -> bool {
     false
 }

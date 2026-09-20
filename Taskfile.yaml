@@ -8,6 +8,7 @@ tasks:
 
   install:
     desc: Install frontend deps
+    run: once
     cmds:
       - npm install --no-audit --no-fund
 
@@ -70,6 +71,13 @@ tasks:
       - cargo fmt --all -- --check
       - cargo clippy -p adhd-ranch-domain -p adhd-ranch-storage -p adhd-ranch-commands --all-targets -- -D warnings
       - cargo clippy -p adhd-ranch --all-targets -- -D warnings
+      - task: lint:rust:release
+
+  lint:rust:release:
+    desc: clippy the Tauri host with debug_assertions off
+    deps: [build:web]
+    cmds:
+      - cargo clippy --release -p adhd-ranch --all-targets -- -D warnings
 
   lint:web:
     desc: Biome lint frontend
@@ -151,6 +159,7 @@ tasks:
 
   build:web:
     desc: Build frontend bundle
+    run: once
     deps: [install]
     cmds:
       - npm run build
