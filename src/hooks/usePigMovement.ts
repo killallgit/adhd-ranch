@@ -32,6 +32,8 @@ export const PIG_SPEED = RANCH_ANIMAL_SPEED; // px/s — fast enough to look ali
 
 const RECT_UPDATE_EVERY = 4; // rAF frames between pig-rect syncs to Rust
 
+const NO_PENS: readonly PenLayout[] = [];
+
 export interface PointerSample {
   x: number;
   y: number;
@@ -163,6 +165,8 @@ function defaultDisplaySpace(): DisplaySpace {
 export function usePigMovement(
   animals: readonly Animal[],
   selectedId: string | null,
+  /** `null` until the settings arrive; see the pen layout below. */
+  maxPenSize: number | null,
 ): PigMovementResult {
   const [pigs, setPigs] = useState<PigState[]>([]);
   const pigsRef = useRef<PigState[]>([]);
@@ -211,9 +215,18 @@ export function usePigMovement(
     [rosterKey],
   );
 
+  // No honest size to draw a pen at until the settings arrive, so until then nothing
+  // is penned and every animal has the run of the ranch.
   const pens = useMemo(
-    () => layoutPens(uniquePens(roster.map((entry) => entry.pen)), displaySpace.spawnRegion),
-    [roster, displaySpace],
+    () =>
+      maxPenSize === null
+        ? NO_PENS
+        : layoutPens(
+            uniquePens(roster.map((entry) => entry.pen)),
+            displaySpace.spawnRegion,
+            maxPenSize,
+          ),
+    [roster, displaySpace, maxPenSize],
   );
   const penRects = useMemo(
     () => new Map(pens.map((layout) => [layout.pen.id, layout.rect])),

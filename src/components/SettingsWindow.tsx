@@ -1,4 +1,5 @@
 import type React from "react";
+import { PEN_SIZE_RANGE } from "../lib/session/pens";
 import type { MonitorInfo } from "../types/monitor";
 import type { Settings } from "../types/settings";
 
@@ -125,6 +126,17 @@ export function SettingsWindow({
               onChange={(v) =>
                 onUpdate({ ...settings, widget: { ...settings.widget, confirm_delete: v } })
               }
+            />
+          </section>
+
+          <section className="settings-section">
+            <h2 className="settings-section-title">Pens</h2>
+            <NumberRow
+              label="Max pen size"
+              value={settings.pens.max_size}
+              min={PEN_SIZE_RANGE.min}
+              max={PEN_SIZE_RANGE.max}
+              onChange={(v) => onUpdate({ ...settings, pens: { max_size: v } })}
             />
           </section>
 

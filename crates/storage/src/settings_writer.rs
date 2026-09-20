@@ -12,7 +12,8 @@ pub fn write_settings(path: &Path, settings: &Settings) -> io::Result<()> {
 #[cfg(test)]
 mod tests {
     use adhd_ranch_domain::{
-        AgentsConfig, Caps, DisplayConfig, NotificationSettings, TimerExpiredSource, Widget,
+        AgentsConfig, Caps, DisplayConfig, NotificationSettings, PenConfig, TimerExpiredSource,
+        Widget,
     };
     use tempfile::TempDir;
 
@@ -36,6 +37,7 @@ mod tests {
             },
             displays: DisplayConfig::default(),
             agents: AgentsConfig { enabled: true },
+            pens: PenConfig { max_size: 480 },
         };
         write_settings(&path, &settings).unwrap();
         let raw = std::fs::read_to_string(&path).unwrap();
@@ -62,6 +64,7 @@ mod tests {
                 enabled_indices: vec![0, 2],
             },
             agents: AgentsConfig::default(),
+            pens: PenConfig { max_size: 480 },
         };
         write_settings(&path, &original).unwrap();
 
@@ -77,5 +80,6 @@ mod tests {
         assert!(final_settings.notifications.is_enabled(&TimerExpiredSource));
         assert!(final_settings.widget.always_on_top);
         assert_eq!(final_settings.displays.enabled_indices, vec![0, 2]);
+        assert_eq!(final_settings.pens.max_size, 480);
     }
 }

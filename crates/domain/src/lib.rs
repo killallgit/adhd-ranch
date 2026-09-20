@@ -27,7 +27,7 @@ pub use notification::{
 pub use parse::{parse_focus_md, ParseError};
 pub use pig_rect::{PigRect, RectUpdater};
 pub use session::{pen_for_cwd, AgentSession, Pen, SessionActivity};
-pub use settings::{AgentsConfig, Caps, DisplayConfig, Settings, Widget};
+pub use settings::{AgentsConfig, Caps, DisplayConfig, PenConfig, Settings, Widget};
 pub use slug::slugify;
 pub use timer::{timer_remaining_secs, FocusTimer, TimerOwner, TimerPreset, TimerStatus};
 pub use timer_ticker::{tick, TimerTransition, TimerTransitionTarget};

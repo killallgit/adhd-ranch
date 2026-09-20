@@ -490,14 +490,52 @@ body,
 .pen-box {
   position: absolute;
   pointer-events: none;
-  border: 2px solid;
-  border-radius: 8px;
+  --pen-rail: hsl(var(--pen-hue), 70%, 50%);
+  --pen-post: hsl(var(--pen-hue), 82%, 66%);
+  border: 2px solid var(--pen-rail);
+  background-color: hsla(var(--pen-hue), 85%, 60%, 0.07);
+  /* The overlay is transparent, so a fence has to read against whatever the desktop
+     happens to be showing through it. */
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+}
+
+/* The second rail. One line of posts on its own reads as a dotted box; two rails
+   running through them is what makes it a fence. */
+.pen-box::before {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border: 2px solid var(--pen-rail);
+}
+
+/* Posts, repeated at a fixed spacing rather than sliced from a border image, so a
+   post is the same size in a small pen as in a large one. The first four layers are
+   the corner posts, which a repeat starting from one edge would only land on by
+   luck. */
+.pen-box::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  background-image: linear-gradient(var(--pen-post), var(--pen-post)),
+    linear-gradient(var(--pen-post), var(--pen-post)),
+    linear-gradient(var(--pen-post), var(--pen-post)),
+    linear-gradient(var(--pen-post), var(--pen-post)),
+    repeating-linear-gradient(90deg, var(--pen-post) 0 5px, transparent 5px 46px),
+    repeating-linear-gradient(90deg, var(--pen-post) 0 5px, transparent 5px 46px),
+    repeating-linear-gradient(180deg, var(--pen-post) 0 5px, transparent 5px 46px),
+    repeating-linear-gradient(180deg, var(--pen-post) 0 5px, transparent 5px 46px);
+  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, repeat-x, repeat-x, repeat-y,
+    repeat-y;
+  background-size: 9px 11px, 9px 11px, 9px 11px, 9px 11px, 100% 11px, 100% 11px, 11px 100%, 11px
+    100%;
+  background-position: 0 0, 100% 0, 0 100%, 100% 100%, 0 0, 0 100%, 0 0, 100% 0;
 }
 
 .pen-box-label {
   position: absolute;
-  top: 4px;
-  left: 8px;
+  top: 14px;
+  left: 14px;
+  color: hsl(var(--pen-hue), 90%, 74%);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: 11px;
   font-weight: 700;

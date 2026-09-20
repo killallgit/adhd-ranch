@@ -11,6 +11,7 @@ import { usePolledReader } from "../hooks/usePolledReader";
 import { useViewport } from "../hooks/useViewport";
 import type { AgentSession } from "../types/agentSession";
 import type { Focus } from "../types/focus";
+import type { Settings } from "../types/settings";
 import type { TimerPreset } from "../types/timer";
 import { AnimalDetail } from "./AnimalDetail";
 import { PenBox } from "./PenBox";
@@ -21,12 +22,19 @@ export interface AppProps {
   readonly focusWriter: FocusWriter;
   readonly onWriteFailure: ReportWriteFailure;
   readonly agentSessionReader: PolledReader<readonly AgentSession[]>;
+  readonly settingsReader: PolledReader<Settings>;
 }
 
 const EMPTY_FOCUSES: readonly Focus[] = [];
 const EMPTY_SESSIONS: readonly AgentSession[] = [];
 
-export function App({ focusReader, focusWriter, onWriteFailure, agentSessionReader }: AppProps) {
+export function App({
+  focusReader,
+  focusWriter,
+  onWriteFailure,
+  agentSessionReader,
+  settingsReader,
+}: AppProps) {
   const focusController = useFocusController(focusWriter, onWriteFailure);
   const focusState = usePolledReader(focusReader);
   const readerFocuses = focusState.status === "ready" ? focusState.value : EMPTY_FOCUSES;
@@ -43,9 +51,11 @@ export function App({ focusReader, focusWriter, onWriteFailure, agentSessionRead
   const { selected, select, close } = useAnimalSelection(animals);
   const selectedFocus = selected?.focus ?? null;
   const confirmDelete = useConfirmDelete();
+  const settingsState = usePolledReader(settingsReader);
   const { pigs, pens, startDrag, moveDrag, endDrag, setDragActive } = usePigMovement(
     animals,
     selected?.id ?? null,
+    settingsState.status === "ready" ? settingsState.value.pens.max_size : null,
   );
   const { screenW, screenH } = useViewport();
   const { visible: showDebug, topOffset: debugTopOffset } = useDebugOverlay();
