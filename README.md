@@ -44,10 +44,14 @@ notifications:
   focuses_over_cap: true
   tasks_over_cap: true
 widget:
-  always_on_top: true
+  always_on_top: false
   confirm_delete: true
 displays:
   enabled: 0
+agents:
+  enabled: false
+pens:
+  max_size: 320
 ```
 
 `displays.enabled` is a comma-separated list of monitor indices. Missing keys fall back to defaults. Settings changed through Preferences are persisted and applied immediately; manual edits to `settings.yaml` are picked up on app restart.
@@ -103,6 +107,7 @@ crates/
   domain/            pure types and logic — no I/O
   storage/           markdown focus store, settings writer, atomic writes, file watcher
   commands/          use cases and workflows called by the Tauri host
+  hook-client/       adhd-ranch-hook binary that Claude Code's hooks invoke
 docs/                ADRs, research notes
 scripts/             unused-code checks (IPC boundary, CSS)
 issues/              vertical-slice issue files

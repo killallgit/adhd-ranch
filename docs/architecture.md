@@ -86,8 +86,9 @@ Display spanning uses a Rust-emitted DisplaySpace model so monitor geometry poli
 Single Tauri v2 desktop app written in Rust (core + frontend webview). macOS is the primary target; the release workflow also builds unsigned Windows and Linux packages. Surfaces:
 
 1. **Transparent overlay window** — spans the enabled displays, always-on-top, no decorations. Renders pixel pig sprites via React. Click-through for non-pig areas via a Rust polling thread (Tauri `cursor_position()` every 16ms) that toggles `window.set_ignore_cursor_events`.
-2. **Tray menu** — Gather Pigs, "+ New Focus", one submenu per Focus (with Delete), an Expired submenu, Settings…, and Quit (plus Open Overlay DevTools in debug builds). The tray icon turns red when over-cap.
+2. **Tray menu** — Gather Pigs, "Agents as Animals", "+ New Focus", one submenu per Focus (with Delete), an Expired submenu, Settings…, and Quit (plus Open Overlay DevTools in debug builds). The tray icon turns red when over-cap.
 3. **New Focus and Preferences windows** — small webviews opened from the tray or app menu.
+4. **Agent Hooks window** — an always-on-top webview opened from Window → "Agent Hooks…"; shows the agent hook wiring, the live Agent Sessions, and recent hook firings.
 
 Responsibilities owned by the app:
 
@@ -115,13 +116,22 @@ App enforces caps at write time. When a write would exceed a cap, it succeeds bu
 
 ## Agents as Animals
 
-An opt-in overlay mode that adds one pig per running Claude Code session alongside the Focus pigs. It is off by default and controlled by `agents.enabled` in `settings.yaml`.
+An opt-in overlay mode that draws one Animal per running Claude Code session alongside the Focus pigs. It is off by default and controlled by `agents.enabled` in `settings.yaml`.
 
-- **Toggle.** The tray's "Agents as Animals" check item flips `agents.enabled` through the settings workflow (persist, commit, effects, tray rebuild). The workflow's agents effect runs only when the value changes.
-- **Hook install.** When agents are enabled at startup, or turned on from the tray, the app writes `~/.adhd-ranch/hooks/claude-session.sh` and adds `SessionStart` / `SessionEnd` command hooks for it to `~/.claude/settings.json` (or `$CLAUDE_CONFIG_DIR/settings.json`). Registration is idempotent: it matches on the exact command, keeps the settings file's key order and permissions, writes through a symlink, and leaves unparseable settings untouched. Turning agents off never removes the hook; it only hides agent pigs.
-- **Session files.** On `SessionStart` the script writes the hook payload to `~/.adhd-ranch/sessions/claude/<session_id>.json`; on `SessionEnd` it deletes that file. Session ids that aren't letters, digits, and dashes are ignored.
-- **Projection.** A watcher on the sessions directory emits `agent-sessions-changed`; the overlay calls `list_agent_sessions`, which reads the session files (one Agent Session per file, named after its working directory) and returns an empty list while `agents.enabled` is false. Toggling also emits `agent-sessions-changed` so pigs appear or vanish immediately.
-- **Overlay.** `projectAnimals` turns Focuses and Agent Sessions into one Animal list: agent Animals take `agent:<session_id>` ids, are never selectable, and have no detail card. Selection is derived from that list, so an Animal that disappears closes its card and narrows the overlay's hit rect in the same render. Sessions that crash without `SessionEnd` leave their file behind until it is deleted.
+- **Toggle.** The tray's "Agents as Animals" check item flips `agents.enabled` through the settings workflow (persist, commit, effects, tray rebuild). The agents effect reconciles the hooks only when the value changed, and emits `agent-sessions-changed` either way — what the overlay draws has changed even when the hooks could not be brought into line.
+- **Hook install.** Enabling agents at startup, or from the tray, registers command hooks in `~/.claude/settings.json` (or `$CLAUDE_CONFIG_DIR/settings.json`). Each entry runs `adhd-ranch-hook` — a compiled client bundled beside the app's own executable, not a shell script — with the socket path and one verb: `'<client>' '<socket>' working`. Both paths are settled at install time and written verbatim, so the client carries no configuration and reads nothing to find the app.
+- **Events.** Five, in `crates/domain/src/agents/claude_code/hooks/events.rs`: `SessionStart` → start, `UserPromptSubmit` → working, `Stop` → idle, `StopFailure` → idle, `SessionEnd` → end. No `PreToolUse`/`PostToolUse` and no subagent events: they fire on every tool call in every session and report a state the turn is already in. `StopFailure` is registered because a turn cut short by an API error never reaches `Stop`, and the session would otherwise stay working for as long as it lives.
+- **Settings file.** The file belongs to Claude Code and to whatever else the user has pointed at it. Install is idempotent, keeps key order and permissions, writes through a symlink, and re-reads immediately before the rename so a concurrent write is retried rather than clobbered (three attempts, then an error). A missing file is created. JSON the app cannot parse is left exactly as found and reported as `SettingsNotUnderstood`; it is never replaced with something the app invented.
+- **Hook uninstall.** Turning agents off uninstalls the entries and clears the in-memory sessions. An entry is the app's own only if its command matches one of this version's commands character for character; groups emptied that way are dropped, and anything else stays as found. Leaving the entries behind would keep firing the client on every session on the machine with nothing listening for it.
+- **Socket.** `~/.adhd-ranch/agent-hooks.sock`, mode 0600 — the file mode is the whole authorisation story. A socket left behind by a crash makes the address look taken; nobody answering on it means debris, so it is removed and rebound. Accept is polled every 25ms rather than blocked on, so shutdown never depends on the socket file still being there, and dropping the server removes it.
+- **Client contract.** The client runs inside someone's turn, so every failure path exits 0 and says nothing: no app listening, no socket, unreadable stdin — all silent. It is dependency-free because it is spawned several times per turn. One frame per connection: the verb on its own line, then the agent's JSON verbatim, since the app is the only reader. 250ms write timeout, 1MiB payload ceiling, and a 5s timeout on the installed entry as a ceiling on damage.
+- **Sessions.** State lives in memory in `LiveSessions`; nothing about a session is written to disk. A session exists only as long as the process running it, so there is nothing worth surviving a restart, and anything persisted would have to be reconciled against reality on the way back up. A session the app has never heard of is taken at its word, so hooks installed mid-flight still draw what is already running. A payload without a `session_id` or a `cwd` is not the app's to draw.
+- **Pens.** One Pen per repository checkout, taken from the session's `cwd`. A `.claude/worktrees/<name>` tail folds back to the checkout it branched from, so two worktrees of one repo share a Pen (`crates/domain/src/session/pen.rs`). Sessions are listed ordered by pen then session id, so animals keep a stable order as sessions come and go.
+- **Delivery.** A push, not a watcher: the listener applies the firing in memory and calls back, and the callback emits `agent-sessions-changed`. The overlay re-invokes `list_agent_sessions`, which returns an empty list while `agents.enabled` is false. Nothing is on disk to watch, to go stale, or to clean up when the hooks are removed.
+- **Journal.** `HookJournal` decorates the sink and keeps the last 200 firings — what arrived, and whether the app looked any different for it. The payload itself is deliberately not retained: `UserPromptSubmit` carries the text the user just typed, and a debug window is exactly the wrong place for it to resurface.
+- **Agent Hooks window.** Window → "Agent Hooks…" opens an always-on-top webview showing the wiring (agents enabled, hooks installed, and the socket, client and settings paths), the live sessions, and every firing including the ones that changed nothing. Every part of the hook path fails silently by design, so this is the one place that tells silence apart from breakage.
+- **Overlay.** `projectAnimals` concatenates Focus Animals and Session Animals into one list. Session Animals take `agent:<session_id>` ids, are never selectable and have no detail card, take no clock, and rest while the session is idle. They roam only their Pen; a Focus Animal has the run of the DisplaySpace. Selection is derived from that list, so an Animal that disappears closes its card and narrows the overlay's hit rect in the same render.
+- **Windows.** No Unix socket there, so nothing is installed and nothing listens. Inert implementations keep the platform out of every caller rather than leaving a command in a settings file that could only ever fail.
 
 ## Configuration
 
@@ -137,12 +147,14 @@ notifications:
   focuses_over_cap: true
   tasks_over_cap: true
 widget:
-  always_on_top: true
+  always_on_top: false
   confirm_delete: true
 displays:
   enabled: 0
 agents:
   enabled: false
+pens:
+  max_size: 320
 ```
 
 Settings changed through the app are persisted and applied immediately. Manual file edits are picked up on app restart.
