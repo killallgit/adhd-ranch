@@ -318,7 +318,7 @@ thing that closes it is the private-layout census this ADR declines to buy.
 4. [x] Issue 062: stop deriving `client_bin` from `current_exe()`, and reclaim the
        orphaned entry sets already in `~/.claude/settings.json`. Independent of the frame
        work, and the only item here with a visible bug attached.
-5. [ ] Add **Hook Firing** and **Session Activity** to CONTEXT.md's **Agents** section; the
+5. [x] Add **Hook Firing** and **Session Activity** to CONTEXT.md's **Agents** section; the
        glossary names neither, and ADR-0001 showed what an unnamed concept turns into.
 6. [ ] Confirm against a live payload that `prompt_id` and `hook_event_name` arrive as the
        research doc records, before slice 1 designs around them. Carried as 059's first

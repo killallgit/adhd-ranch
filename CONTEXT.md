@@ -83,6 +83,14 @@ _Avoid_: provider, vendor, client
 One run of a coding agent in a Harness, together with the worktree and repo it runs in, identified by that Harness's session id. Shown as an Animal when Agents as Animals is on. The user never creates one; the app sees it through the Harness. Codex also calls this a thread.
 _Avoid_: Session (alone), agent (for the run)
 
+**Session Activity**:
+Whether an Agent Session is mid-turn: Working from the moment a prompt is submitted until the turn ends, Idle otherwise. There is no clock in this and no expiry — unlike a Timer, an Activity never runs down, and a Session can be Working for a second or an hour. It is what an Agent Session maps into a Motion.
+_Avoid_: status, state, busy, running
+
+**Hook Firing**:
+One report from a Harness that something happened in an Agent Session: which event, which Session, and what the ranch made of it. Firings arrive unasked — the ranch never polls a Harness, and never reads a Session's transcript to find out what it said. A Firing the ranch could not read, or that changed nothing, is still a Firing, and the Agent Hooks window shows it either way.
+_Avoid_: hook event, hook call, message, notification
+
 **Pen**:
 The area of the ranch holding every Animal from one repository checkout. One Pen per checkout; worktrees share the Pen of the checkout they branched from. Pens exist only for Agent Sessions — a Focus Animal has the run of the DisplaySpace — and the movement layer is handed regions, never Pens.
 _Avoid_: pasture, paddock, group
