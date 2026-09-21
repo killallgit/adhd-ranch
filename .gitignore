@@ -1,10 +1,14 @@
 # agent worktrees and per-user overrides; the shared .claude/settings.json is tracked
+# ~/.gitignore_global hides .serena; re-include it so each worktree carries its own
+# project.yml and --project-from-cwd stops there instead of walking up to the main checkout.
+# .serena/.gitignore still excludes cache/ and project.local.yml.
+!.serena/
+!.serena/project.yml
 .claude/settings.local.json
 .claude/worktrees/
 tmp
 ___*
 emdash
-.serena
 .devbox
 
 # rust
