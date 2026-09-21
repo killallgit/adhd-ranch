@@ -14,6 +14,10 @@ These are not required before 031. Pick one when we choose to spend a slice on i
 - [051](051-ranch-animal-vocabulary-seam.md) — Animal vocabulary for the movement layer (blocked by 057, per ADR-0001)
 - [057](057-animal-render-contract.md) — Animal as a render contract (ADR-0001; unblocks 051 and 058)
 - [058](058-selection-belongs-to-focus.md) — Selection belongs to the Focus half (blocked by 057)
+- [059](059-self-describing-hook-frame.md) — A hook frame that describes a state at a time (ADR-0002; unblocks 060 and 061)
+- [060](060-session-staleness-sweep.md) — A session that stops speaking stops working (blocked by 059)
+- [061](061-hook-change-events.md) — The change event carries the change (blocked by 059)
+- [062](062-stable-hook-client-path.md) — One hook client path, and reclaim the orphans (ADR-0002; independent of 059-061, and it fixes a live bug)
 
 Completed issue files live in `issues/done/`. Do not pick up files from `issues/done/` or `issues/icebox/`.
 

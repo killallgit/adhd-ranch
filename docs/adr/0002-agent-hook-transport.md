@@ -309,17 +309,18 @@ thing that closes it is the private-layout census this ADR declines to buy.
 
 ## Action Items
 
-1. [ ] New issue 059: versioned frame carrying stamp and `hook_event_name`; store resolves
+1. [x] Issue 059: versioned frame carrying stamp and `hook_event_name`; store resolves
        by stamp; journal records the source event, not just the verb.
-2. [ ] New issue 060: keep `transcript_path` per session; slow sweep downgrades a `Working`
+2. [x] Issue 060: keep `transcript_path` per session; slow sweep downgrades a `Working`
        session whose transcript has been still past a threshold.
-3. [ ] New issue 061: `apply` returns `SessionChange`; `agent-sessions-changed` carries it;
+3. [x] Issue 061: `apply` returns `SessionChange`; `agent-sessions-changed` carries it;
        the frontend applies changes instead of refetching the list.
-4. [ ] New issue 062: stop deriving `client_bin` from `current_exe()`, and reclaim the
+4. [x] Issue 062: stop deriving `client_bin` from `current_exe()`, and reclaim the
        orphaned entry sets already in `~/.claude/settings.json`. Independent of the frame
        work, and the only item here with a visible bug attached.
 5. [ ] Add **Hook Firing** and **Session Activity** to CONTEXT.md's **Agents** section; the
        glossary names neither, and ADR-0001 showed what an unnamed concept turns into.
 6. [ ] Confirm against a live payload that `prompt_id` and `hook_event_name` arrive as the
-       research doc records, before slice 1 designs around them.
+       research doc records, before slice 1 designs around them. Carried as 059's first
+       acceptance criterion.
 7. [ ] Revisit the cold-start census after slice 2 ships.
