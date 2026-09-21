@@ -5,7 +5,8 @@ use adhd_ranch_commands::{
     AgentDebug, AgentSessions, CommandError, Commands, CreateFocusInput, CreatedFocus, Timers,
 };
 use adhd_ranch_domain::agents::hooks::{HookFiring, HookWiring};
-use adhd_ranch_domain::{AgentSession, Focus, Settings, TimerOwner, TimerPreset};
+use adhd_ranch_domain::session::AgentSession;
+use adhd_ranch_domain::{Focus, Settings, TimerOwner, TimerPreset};
 
 use tauri::{AppHandle, Emitter, Manager, State, Wry};
 

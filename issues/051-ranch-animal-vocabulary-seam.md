@@ -1,53 +1,87 @@
-# 051 — Animal vocabulary for shared movement code
+# 051 — Animal vocabulary for the movement layer
 
 ## Parent PRD
 
-PRD.md §FR3 (Pig UI) and the post-030 decision that timer-growth behavior is animal-neutral even though the only concrete animal today is a pig.
+PRD.md §FR3 (Pig UI), the post-030 decision that timer-growth behavior is animal-neutral, and
+ADR-0001, which settles **Animal** as a render-layer word.
 
 ## What to build
 
-Prepare the frontend and shared type names for future Species without changing user-visible behavior.
+Give the movement layer one vocabulary — Animal — without changing user-visible behavior.
 
-Today several modules use `Pig` names for two different things:
+### Why this issue changed
 
-- concrete pig assets or components, such as `PigSprite` and the pig sprite sheet
-- animal-neutral overlay behavior, such as movement state, hit rectangles, and drag/toss
+The original 051 proposed these renames while CONTEXT.md still defined **Animal** as *"either a
+Focus or an Agent Session."* Under that definition the renames would have stamped a domain union
+across the one layer that is genuinely shared, teaching every future reader that the movement
+layer traffics in domain objects.
 
-The concrete pig names are fine while pigs are the only rendered Animal. The shared behavior should speak in **Animal** terms so a second Species can be added without a broad naming scramble.
+ADR-0001 fixes the definition rather than the rename. **Animal** now means the sprite the ranch
+draws and moves; Focus and Agent Session each project their own. Under that definition these
+renames are not merely safe, they are the point: `useAnimalMovement` moving Animals is exactly
+what that layer does.
 
-`CONTEXT.md` names the general concept **Animal** and says to avoid `RanchAnimal`, so this issue no longer proposes a `RanchAnimal` prefix. The projection half of the original issue — turning Focuses and Agent Sessions into Animals — moved to 055 and is not repeated here.
+Two things follow. The `Pig*` renames are unchanged from the original issue. But the scope was
+too small — the movement layer carries **three** vocabularies today, not two.
+
+### The third vocabulary
+
+`lib/ranchAnimalMovement.ts` already speaks `RanchAnimalState`, `RanchAnimalDirection`,
+`RanchAnimalInput`, `advanceRanchAnimal` and `restRanchAnimal`, while `hooks/usePigMovement.ts`
+speaks `PigState`, `PigDirection` and `PigHitRect`, and both handle projected `Animal`s. CONTEXT.md
+has listed `RanchAnimal` as a term to avoid the whole time. The original issue did not mention it.
 
 ### Target shape
 
-- Keep `PigSprite` while pigs are the only rendered Animal; the detail surface is already `AnimalDetail`.
-- Rename the shared movement surface to Animal vocabulary: `PIG_SIZE`, `PIG_SPEED`, `PigState`, `PigDirection`, `PigHitRect`, `usePigMovement`, and the `api/pig.ts` client.
-- Existing Tauri command names are either intentionally retained for compatibility or migrated with wrappers.
-- Do not change storage format, Focus ids, tray labels, or user-visible copy in this slice.
+- Rename the `Pig*` surface: `PIG_SIZE`, `PIG_SPEED`, `PigState`, `PigDirection`, `PigHitRect`,
+  `usePigMovement`, `types/pig.ts` and the `api/pig.ts` client.
+- Rename the `RanchAnimal*` surface: `RanchAnimalState`, `RanchAnimalDirection`,
+  `RanchAnimalInput`, `advanceRanchAnimal`, `restRanchAnimal`, `lib/ranchAnimalMovement.ts`.
+- Keep `PigSprite` and the pig sprite sheet. Those are the concrete Species asset and stay
+  pig-specific until a second Species exists.
+- The movement layer must name no domain type. After 057 it takes Animals and regions; this
+  slice keeps it that way.
+- Existing Tauri command names are either intentionally retained for compatibility or migrated
+  with wrappers.
+- Do not change storage format, Focus ids, tray labels, or user-visible copy.
 
 ### Out of scope
 
 - Adding a second Species.
-- Animal selection UI (055).
+- The render contract and the deletion of the `Animal` union (057).
+- Moving selection into the Focus half (058).
 - Replacing the current pig sprite sheet.
 - Rewriting historical issue files that correctly described pig-only behavior at the time.
 
 ## Completion promise
 
-Shared overlay behavior uses Animal vocabulary, while concrete pig asset/component names remain pig-specific until a second Species exists.
+The movement layer speaks one vocabulary and names no domain type, while the concrete pig asset
+stays pig-specific until a second Species exists.
 
 ## Acceptance criteria
 
-- [ ] Shared movement state and types carry Animal names, with no pig-specific names left in animal-neutral code
-- [ ] Shared hit-test helpers use Animal names or explicit compatibility aliases
-- [ ] Current pig rendering, detail behavior, drag/toss, timer growth, and tray behavior are unchanged
-- [ ] Existing public Tauri command names are either intentionally retained for compatibility or migrated with compatibility wrappers
-- [ ] Tests cover the renamed shared helpers or aliases
+- [ ] Movement state, direction, hit-rect and input types carry Animal names; no `Pig*` and no
+      `RanchAnimal*` names remain in animal-neutral code
+- [ ] No file in the movement layer imports or names `Focus`, `AgentSession`, `Timer` or `Pen`
+- [ ] `PigSprite` and the sprite sheet keep their pig-specific names
+- [ ] Current pig rendering, detail behavior, drag/toss, timer growth and tray behavior are
+      unchanged
+- [ ] Existing public Tauri command names are either intentionally retained for compatibility or
+      migrated with compatibility wrappers
+- [ ] Tests cover the renamed helpers or aliases
 - [ ] `task check` green
 
 ## Blocked by
 
-055, which removes `PigSubject` and the scale map this issue would otherwise have to rename.
+057 — the render contract from ADR-0001 action item 3, not yet filed.
+
+Renaming first would churn the same files twice: 057 changes what the movement layer *takes*,
+this changes what it is *called*. The original "blocked by 055" is resolved — 055 shipped and
+`PigSubject` is gone.
 
 ## User stories addressed
 
-- "When we add more Species later, shared ranch behavior already speaks in Animal terms instead of assuming every Focus is forever represented by a pig."
+- "When we add a second Species, the movement layer already speaks in Animal terms instead of
+  assuming every Animal is forever a pig."
+- "When I read the movement layer, nothing in it tells me whether a Focus or an agent put that
+  Animal there."

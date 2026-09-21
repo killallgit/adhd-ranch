@@ -1,8 +1,8 @@
 # PRD — adhd-ranch
 
-**Status:** Living document — describes the app on `main` (latest release v0.1.2)
+**Status:** Living document — describes the app on `main` (latest release v0.1.4)
 **Owner:** ryan
-**Last updated:** 2026-09-14
+**Last updated:** 2026-09-20
 
 ---
 
@@ -38,7 +38,7 @@ Solo developer (initially: the author) who:
 
 ## Non-goals
 
-- Any agent, slash command, network API, or other external writer.
+- Slash commands, a network API, or any external writer of Focus data. The Claude Code integration is inbound and read-only over a local Unix socket; the user is still the only author of Focuses and Tasks.
 - Notification hook forwarding.
 - Auto-completion of Tasks or auto-merge of Focuses.
 - Platform parity. macOS is the primary target; Windows and Linux packages are built but are not a design driver.
@@ -85,6 +85,7 @@ Each Focus is a directory under `~/.adhd-ranch/focuses/<slug>/` containing `focu
 - Tray icon in the menu bar.
 - Native menu with:
   - "Gather Pigs" — pulls every pig back onto the primary display.
+  - "Agents as Animals" — check item toggling `agents.enabled` (off by default).
   - "+ New Focus" → opens a small webview window for title, description, and optional timer.
   - One submenu per Focus with "Delete…" (confirms when `widget.confirm_delete` is on).
   - Expired submenu listing expired Focuses; clicking one opens its detail card.
@@ -113,10 +114,14 @@ notifications:
   focuses_over_cap: true
   tasks_over_cap: true
 widget:
-  always_on_top: true
+  always_on_top: false
   confirm_delete: true
 displays:
   enabled: 0
+agents:
+  enabled: false
+pens:
+  max_size: 320
 ```
 
 Edited from the Preferences window (General, Widget, Displays, Notifications). Changes made there are persisted and applied without a restart (050). Manual file edits are picked up on app restart.
@@ -139,7 +144,7 @@ Timer presets available at Focus creation and in `AnimalDetail` clock dropdowns:
 
 ## Out of scope
 
-- Agent integrations of any kind.
+- Harnesses other than Claude Code, the only one whose Agent Sessions the ranch reads.
 - Menu bar Focus detail for non-expired Focuses (clicking a Focus in the menu → highlight pig, open detail).
 - Notification-hook forwarding.
 - External aggregators: Jira, GitHub, Linear.
@@ -164,5 +169,6 @@ Timer presets available at Focus creation and in `AnimalDetail` clock dropdowns:
 7. **Phase 5 — Architecture deepening (done):** IPC layer (033), domain invariants (034), store tests (035), ts-rs types (036), reader/writer collapse (037–041), domain timer ticker (044), focus document module (048), settings update workflow (050).
 8. **Phase 6 — Distribution (done):** Focus duplication, first-launch example Focus, Windows data paths (#66); manual cross-platform release workflow (#72).
 9. **Baseline cleanup (done):** removed the unused Proposal queue, decision log, localhost HTTP API, and orphaned frontend components.
-10. **Open:** notification source registry (031), Timers module (054), Animal vocabulary for shared movement code (051).
-11. **Icebox:** all-monitors default on first launch (021), wrangle pig / wrangle all (022).
+10. **Phase 7 — Agents as Animals (done):** Claude Code sessions drawn as Animals, fed by hooks over a local Unix socket, off by default (#75), Agent Hooks window and bounded hook journal (#76), Unix/inert hook server split and `task check:windows` (#77), pen size cap and fence rendering (#78), release-mode Rust lint (#79), one Animal list over Focuses and Agent Sessions (055).
+11. **Open:** notification source registry (031), Animal vocabulary for the movement layer (051).
+12. **Icebox:** all-monitors default on first launch (021), wrangle pig / wrangle all (022).
