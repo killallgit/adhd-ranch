@@ -4,6 +4,9 @@
 # .serena/.gitignore still excludes cache/ and project.local.yml.
 !.serena/
 !.serena/project.yml
+# ~/.gitignore_global has a bare `worktree*` pattern that matches any FILE
+# starting with "worktree", not just worktree dirs. Agent definitions are tracked.
+!.claude/agents/*.md
 .claude/settings.local.json
 .claude/worktrees/
 tmp
