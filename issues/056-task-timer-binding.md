@@ -32,7 +32,7 @@ A Task Timer stays attached to the Task the user attached it to, across hand edi
 
 ## Blocked by
 
-054
+None. The original "blocked by 054" is resolved — 054 shipped and Task Timers still bind by position, which is exactly the drift this issue exists to fix.
 
 ## User stories addressed
 
