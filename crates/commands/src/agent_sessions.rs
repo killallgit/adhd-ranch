@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use adhd_ranch_domain::AgentSession;
+use adhd_ranch_domain::session::AgentSession;
 use adhd_ranch_storage::AgentSessionStore;
 
 use crate::SettingsProvider;
@@ -25,7 +25,8 @@ impl AgentSessions {
 
 #[cfg(test)]
 mod tests {
-    use adhd_ranch_domain::{AgentsConfig, Pen, SessionActivity, Settings};
+    use adhd_ranch_domain::session::{Pen, SessionActivity};
+    use adhd_ranch_domain::{AgentsConfig, Settings};
 
     use super::*;
 

@@ -11,7 +11,7 @@ use adhd_ranch_domain::agents::claude_code::hooks::{
     agent_session_from_payload, session_id_from_payload,
 };
 use adhd_ranch_domain::agents::hooks::{HookAction, HookFiring};
-use adhd_ranch_domain::SessionActivity;
+use adhd_ranch_domain::session::SessionActivity;
 
 use crate::agent_session_store::HookEventSink;
 

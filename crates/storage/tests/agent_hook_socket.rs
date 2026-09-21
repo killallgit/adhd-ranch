@@ -11,7 +11,7 @@ use std::sync::mpsc::{channel, Receiver, RecvTimeoutError, Sender};
 use std::sync::Arc;
 use std::time::Duration;
 
-use adhd_ranch_domain::SessionActivity;
+use adhd_ranch_domain::session::SessionActivity;
 use adhd_ranch_storage::{serve, AgentSessionStore, HookEventSink, HookServer, LiveSessions};
 use tempfile::TempDir;
 
