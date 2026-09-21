@@ -72,3 +72,9 @@ Pick the right well-known pattern for the job. Prefer named patterns (Repository
   - `lint:css`: CSS classes no source file references.
 - Not covered: `pub` Rust items in `crates/*` that no other crate calls. rustc's `dead_code` lint skips `pub` items. When removing a feature, delete its crate-level code by hand. Keep `src-tauri` modules private (`mod`, not `pub mod`) so rustc can flag dead host code.
 - Always prefer `task <target>` over the underlying tool — owners wire env and ordering into the task.
+
+## Serena
+
+- Serena activates its project from the working directory at server startup. `activate_project` is disabled in the `claude-code` context — don't call it, and nothing needs it.
+- Agents running under worktree isolation must not use Serena at all. One server is started per session and rooted at the session's directory, so from a worktree its tools resolve against the parent checkout and give no sign of doing so. Use the built-in file tools there, or the `worktree-coder` agent, which blocks Serena outright.
+- Background and rationale: `docs/research/serena-multi-agent.md`.
