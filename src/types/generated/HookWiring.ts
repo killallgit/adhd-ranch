@@ -9,8 +9,9 @@
  */
 export type HookWiring = { agent: string, settings_file: string, client_bin: string, socket_path: string, 
 /**
- * Whether Claude lists the ADHD Ranch plugin as enabled. Hook delivery is
- * confirmed separately by observing a firing.
+ * Whether Claude lists a user-scoped ADHD Ranch plugin as enabled and its
+ * installed files match the hook contract. Delivery is confirmed separately
+ * by observing a firing.
  */
 installed: boolean, 
 /**

@@ -1,8 +1,7 @@
-//! Claude owns plugin registration. Ranch only places the local transport client
-//! and reads plugin status; neither action edits Claude's settings.
+//! Ranch places its local transport client; Claude's plugin lifecycle lives in
+//! `claude_plugin`. Neither module edits Claude's hook settings directly.
 
 use std::io;
-use std::process::Command;
 
 #[cfg(unix)]
 use std::fs;
@@ -10,50 +9,7 @@ use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 
-use serde::Deserialize;
-
 use super::paths;
-
-const PLUGIN_ID: &str = "adhd-ranch-hooks@adhd-ranch";
-
-#[derive(Deserialize)]
-struct ListedPlugin {
-    id: String,
-    enabled: bool,
-}
-
-pub fn plugin_enabled() -> io::Result<bool> {
-    let output = match Command::new("claude")
-        .args(["plugin", "list", "--json"])
-        .output()
-    {
-        Ok(output) => output,
-        Err(error) if error.kind() == io::ErrorKind::NotFound => {
-            // Finder-launched macOS apps often lack ~/.local/bin in PATH, where
-            // Claude's native installer places the CLI.
-            let home = std::env::var_os("HOME").ok_or(error)?;
-            Command::new(PathBuf::from(home).join(".local/bin/claude"))
-                .args(["plugin", "list", "--json"])
-                .output()?
-        }
-        Err(error) => return Err(error),
-    };
-    if !output.status.success() {
-        return Err(io::Error::other(format!(
-            "claude plugin list exited with {}",
-            output.status
-        )));
-    }
-    plugin_enabled_from(&output.stdout)
-}
-
-fn plugin_enabled_from(raw: &[u8]) -> io::Result<bool> {
-    let listed: Vec<ListedPlugin> = serde_json::from_slice(raw)
-        .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
-    Ok(listed
-        .iter()
-        .any(|plugin| plugin.id == PLUGIN_ID && plugin.enabled))
-}
 
 /// Make the bundled binary available at a path that survives an app upgrade.
 /// Copy to a sibling first so a failed update leaves the working client intact.
@@ -121,19 +77,5 @@ mod tests {
 
         assert!(place_client_from(&bundled, &installed).is_err());
         assert_eq!(fs::read(&installed).unwrap(), b"working");
-    }
-
-    #[test]
-    fn plugin_status_requires_the_matching_enabled_plugin() {
-        assert!(!plugin_enabled_from(b"[]").unwrap());
-        assert!(
-            !plugin_enabled_from(br#"[{"id":"adhd-ranch-hooks@adhd-ranch","enabled":false}]"#)
-                .unwrap()
-        );
-        assert!(plugin_enabled_from(
-            br#"[{"id":"other@adhd-ranch","enabled":true},{"id":"adhd-ranch-hooks@adhd-ranch","enabled":true}]"#
-        )
-        .unwrap());
-        assert!(plugin_enabled_from(b"{}").is_err());
     }
 }

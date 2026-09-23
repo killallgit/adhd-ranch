@@ -508,11 +508,21 @@ body,
   color: #c4c5cf;
 }
 
+.install-hooks-steps {
+  margin: 0 0 14px;
+  padding-left: 20px;
+}
+
+.install-hooks-steps li + li {
+  margin-top: 10px;
+}
+
 .install-hooks-command {
   border: 1px solid #545bd0;
   border-radius: 7px;
   background: #252742;
-  padding: 12px 14px;
+  margin-top: 5px;
+  padding: 10px 12px;
   user-select: text;
 }
 
@@ -528,7 +538,7 @@ body,
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-top: 14px;
+  margin: 14px 0 4px;
 }
 
 .install-hooks-actions button {
@@ -544,13 +554,27 @@ body,
   outline-offset: 2px;
 }
 
-.install-hooks-copy {
+.install-hooks-install {
   background: #636ae8;
   color: #fff;
 }
 
-.install-hooks-copy:hover {
+.install-hooks-install:hover {
   background: #767cf0;
+}
+
+.install-hooks-install:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.install-hooks-copy {
+  background: #2e2e35;
+  color: #f5f5f7;
+}
+
+.install-hooks-copy:hover {
+  background: #3a3a44;
 }
 
 .install-hooks-done {
@@ -568,6 +592,18 @@ body,
   margin: 5px 0 2px;
   font-size: 11px;
   color: #b2b6ff;
+}
+
+.install-hooks-dialog .install-hooks-install-message {
+  display: block;
+  min-height: 17px;
+  margin: 5px 0 12px;
+  font-size: 12px;
+  color: #b2b6ff;
+}
+
+.install-hooks-dialog .install-hooks-install-message[role="alert"] {
+  color: #ff9b9b;
 }
 
 .install-hooks-dialog .install-hooks-note {

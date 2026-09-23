@@ -44,7 +44,7 @@ describe("AgentDebugWindow", () => {
   it("does not claim the hooks are missing while the wiring is still being read", () => {
     render(<AgentDebugWindow wiring={loading} sessions={NO_SESSIONS} firings={NO_FIRINGS} />);
 
-    expect(screen.queryByText(/plugin enabled/)).toBeNull();
+    expect(screen.queryByText(/hooks verified/)).toBeNull();
   });
 
   it("shows a failed wiring read rather than hiding the section", () => {

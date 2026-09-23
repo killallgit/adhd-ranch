@@ -1,6 +1,7 @@
 mod agent_hooks;
 pub mod cap_notifier;
 mod claude_hook;
+mod claude_plugin;
 pub mod menu;
 pub mod paths;
 pub mod seed;
@@ -62,6 +63,7 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
+            claude_plugin::install_claude_hooks,
             ui_bridge::list_agent_sessions,
             ui_bridge::list_hook_firings,
             ui_bridge::agent_wiring,
@@ -181,7 +183,7 @@ pub fn run() {
             hook_paths.settings_file
         );
         app.manage(ui_bridge::AgentDebugState(Arc::new(AgentDebug::new(
-            Arc::new(claude_hook::plugin_enabled),
+            Arc::new(claude_plugin::plugin_enabled),
             Arc::clone(&journal) as Arc<dyn HookHistory>,
             Arc::clone(&settings_provider),
             hook_paths,
@@ -324,8 +326,8 @@ pub fn open_agent_debug_window<R: tauri::Runtime>(app: &AppHandle<R>) {
     }
 }
 
-/// Small instruction window: the user runs the command in Claude Code. Ranch
-/// never calls Claude's install command on their behalf.
+/// Small installer window: the user explicitly chooses installation or copies
+/// the equivalent commands for a fresh shell.
 pub fn open_install_hooks_window<R: tauri::Runtime>(app: &AppHandle<R>) {
     if let Some(win) = app.get_webview_window("install-hooks") {
         let _ = win.show();
@@ -338,8 +340,8 @@ pub fn open_install_hooks_window<R: tauri::Runtime>(app: &AppHandle<R>) {
         WebviewUrl::App("install-hooks.html".into()),
     )
     .title("Install Claude Hooks")
-    .inner_size(520.0, 310.0)
-    .min_inner_size(420.0, 280.0)
+    .inner_size(520.0, 440.0)
+    .min_inner_size(420.0, 380.0)
     .decorations(true)
     .resizable(true)
     .always_on_top(true)

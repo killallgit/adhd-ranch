@@ -59,7 +59,7 @@ function Wiring({ state }: { readonly state: PolledState<HookWiring> }) {
         <>
           <div className="agent-debug-lights">
             <Light on={wiring.enabled} label="agents enabled" />
-            <Light on={wiring.installed} label="plugin enabled" />
+            <Light on={wiring.installed} label="hooks verified" />
           </div>
           <PathRow label="socket" value={wiring.socket_path} />
           <PathRow label="client" value={wiring.client_bin} />

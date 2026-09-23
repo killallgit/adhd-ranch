@@ -1,6 +1,6 @@
 {
   "name": "adhd-ranch-hooks",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Send Claude Code session activity to ADHD Ranch",
   "author": {
     "name": "killallgit"
