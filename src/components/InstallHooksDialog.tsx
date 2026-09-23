@@ -32,11 +32,13 @@ export function InstallHooksDialog({ copyCommand, install, close }: InstallHooks
     try {
       await install();
       setInstallState("installed");
-      setInstallMessage("Hooks are installed for your user. Reload Claude Code to activate them.");
+      setInstallMessage(
+        "Hooks are installed and verified for your user. Reload Claude Code to activate them.",
+      );
     } catch (error) {
       setInstallState("error");
       setInstallMessage(
-        `Install failed: ${error instanceof Error ? error.message : String(error)}. You can use the shell commands below.`,
+        `Install or verification failed: ${error instanceof Error ? error.message : String(error)}. The shell commands below cover a first-time install.`,
       );
     }
   }
@@ -44,7 +46,10 @@ export function InstallHooksDialog({ copyCommand, install, close }: InstallHooks
   return (
     <main className="install-hooks-dialog">
       <h1>Install hooks</h1>
-      <p>Connect Claude Code sessions to ADHD Ranch across all your projects.</p>
+      <p>
+        Connect Claude Code sessions to ADHD Ranch across all your projects. Install also checks all
+        five hooks and repairs an incomplete plugin.
+      </p>
       <div className="install-hooks-actions">
         <button
           type="button"

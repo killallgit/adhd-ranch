@@ -24,9 +24,10 @@ tasks:
       - task: dev
 
   test:rust:
-    desc: Run Rust unit tests (workspace minus the Tauri host, which is slow to compile)
+    desc: Run Rust unit tests, including the host's hook-package validator
     cmds:
       - cargo test -p adhd-ranch-domain -p adhd-ranch-storage -p adhd-ranch-commands --all-targets
+      - cargo test -p adhd-ranch --lib
 
   gen-types:
     desc: Regenerate src/types/generated/*.ts from Rust domain via ts-rs
