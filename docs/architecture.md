@@ -98,7 +98,7 @@ Responsibilities owned by the app:
 - Enforce caps + emit overload alerts (`tauri-plugin-notification`).
 - Poll mouse position in a background thread; maintain shared pig bounding boxes; toggle click-through.
 
-No network API or Ranch CLI. The UI reaches Rust only through Tauri IPC; only the explicit Install Hooks action invokes Claude's CLI. Rust core is the single implementation of read/write/cap logic.
+No network API or Ranch CLI. The UI reaches Rust only through Tauri IPC. Rust invokes Claude's CLI to read plugin status; only the explicit Install Hooks action uses it to change plugins. Rust core is the single implementation of read/write/cap logic.
 
 ## Writers
 

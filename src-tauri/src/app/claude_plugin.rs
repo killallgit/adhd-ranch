@@ -31,6 +31,7 @@ struct ListedPlugin {
 struct ListedMarketplace {
     name: String,
     repo: Option<String>,
+    url: Option<String>,
     #[serde(rename = "installLocation")]
     install_location: Option<PathBuf>,
 }
@@ -74,21 +75,47 @@ fn marketplace_location(raw: &[u8]) -> io::Result<Option<PathBuf>> {
         .iter()
         .find(|marketplace| marketplace.name == MARKETPLACE_NAME)
     {
-        Some(marketplace) if marketplace.repo.as_deref() == Some(MARKETPLACE_SOURCE) => marketplace
-            .install_location
-            .clone()
-            .map(Some)
-            .ok_or_else(|| {
-                io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    "Claude did not report the Ranch marketplace location",
-                )
-            }),
-        Some(_) => Err(io::Error::new(
-            io::ErrorKind::AlreadyExists,
-            "Claude has an adhd-ranch marketplace from a different source",
-        )),
+        Some(marketplace) => {
+            if !matches_ranch_marketplace_source(marketplace)? {
+                return Err(io::Error::new(
+                    io::ErrorKind::AlreadyExists,
+                    "Claude has an adhd-ranch marketplace from a different source",
+                ));
+            }
+            marketplace
+                .install_location
+                .clone()
+                .map(Some)
+                .ok_or_else(|| {
+                    io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "Claude did not report the Ranch marketplace location",
+                    )
+                })
+        }
         None => Ok(None),
+    }
+}
+
+fn matches_ranch_marketplace_source(marketplace: &ListedMarketplace) -> io::Result<bool> {
+    if let Some(repo) = marketplace.repo.as_deref() {
+        return Ok(repo == MARKETPLACE_SOURCE);
+    }
+    match marketplace.url.as_deref() {
+        Some(
+            "https://github.com/killallgit/adhd-ranch.git"
+            | "https://github.com/killallgit/adhd-ranch"
+            | "ssh://git@github.com/killallgit/adhd-ranch.git"
+            | "ssh://git@github.com/killallgit/adhd-ranch",
+        ) => Ok(true),
+        Some(url) => Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("Claude has an adhd-ranch marketplace with an unsupported source URL: {url}"),
+        )),
+        None => Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "Claude has an adhd-ranch marketplace with an unsupported source",
+        )),
     }
 }
 
@@ -295,6 +322,34 @@ mod tests {
 
     fn source_path() -> PathBuf {
         PathBuf::from("/marketplace/plugins/adhd-ranch-hooks")
+    }
+
+    #[test]
+    fn existing_marketplace_added_by_git_url_is_recognized() {
+        for url in [
+            "https://github.com/killallgit/adhd-ranch.git",
+            "https://github.com/killallgit/adhd-ranch",
+        ] {
+            let listing = serde_json::to_vec(&serde_json::json!([{
+                "name": MARKETPLACE_NAME,
+                "source": "git",
+                "url": url,
+                "installLocation": "/marketplace"
+            }]))
+            .unwrap();
+            assert_eq!(
+                marketplace_location(&listing).unwrap(),
+                Some(PathBuf::from("/marketplace"))
+            );
+        }
+    }
+
+    #[test]
+    fn unsupported_marketplace_source_is_reported_as_unsupported() {
+        let listing = br#"[{"name":"adhd-ranch","source":"git","url":"https://example.com/adhd-ranch.git","installLocation":"/marketplace"}]"#;
+        let error = marketplace_location(listing).unwrap_err();
+        assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("unsupported"));
     }
 
     #[test]
