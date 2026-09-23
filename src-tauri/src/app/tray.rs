@@ -259,7 +259,7 @@ fn toggle_agents(app: AppHandle<Wry>) {
     } else if !current.agents.enabled {
         // The user enables the Ranch projection; Claude plugin installation is
         // still their choice and is never performed by this toggle.
-        match super::claude_hook::plugin_enabled() {
+        match super::claude_plugin::plugin_enabled() {
             Ok(true) => {}
             Ok(false) => {
                 let handle = app.clone();

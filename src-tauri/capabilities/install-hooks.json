@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "install-hooks",
+  "description": "Allow the Install Hooks window to close itself",
+  "windows": ["install-hooks"],
+  "permissions": ["core:window:allow-close"]
+}

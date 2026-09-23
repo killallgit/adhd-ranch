@@ -87,7 +87,7 @@ Single Tauri v2 desktop app written in Rust (core + frontend webview). macOS is 
 
 1. **Transparent overlay window** — spans the enabled displays, always-on-top, no decorations. Renders pixel pig sprites via React. Click-through for non-pig areas via a Rust polling thread (Tauri `cursor_position()` every 16ms) that toggles `window.set_ignore_cursor_events`.
 2. **Tray menu** — Gather Pigs, "Agents as Animals", "Install Hooks…", "+ New Focus", one submenu per Focus (with Delete), an Expired submenu, Settings…, and Quit (plus Open Overlay DevTools in debug builds). The tray icon turns red when over-cap.
-3. **New Focus, Preferences, and Install Hooks windows** — small webviews opened from the tray or app menu. Install Hooks shows a copyable Claude plugin command; it does not run the command.
+3. **New Focus, Preferences, and Install Hooks windows** — small webviews opened from the tray or app menu. Install Hooks has an explicit user-scoped install button and copyable shell commands as a fallback.
 4. **Agent Hooks window** — an always-on-top webview opened from Window → "Agent Hooks…"; shows the agent hook wiring, the live Agent Sessions, and recent hook firings.
 
 Responsibilities owned by the app:
@@ -98,7 +98,7 @@ Responsibilities owned by the app:
 - Enforce caps + emit overload alerts (`tauri-plugin-notification`).
 - Poll mouse position in a background thread; maintain shared pig bounding boxes; toggle click-through.
 
-No network API, no separate CLI, no shell scripts. The UI reaches Rust only through Tauri IPC. Rust core is the single implementation of read/write/cap logic.
+No network API or Ranch CLI. The UI reaches Rust only through Tauri IPC; only the explicit Install Hooks action invokes Claude's CLI. Rust core is the single implementation of read/write/cap logic.
 
 ## Writers
 
@@ -119,7 +119,7 @@ App enforces caps at write time. When a write would exceed a cap, it succeeds bu
 An opt-in overlay mode that draws one Animal per running Claude Code session alongside the Focus pigs. It is off by default and controlled by `agents.enabled` in `settings.yaml`.
 
 - **Toggle.** The tray's "Agents as Animals" check item flips `agents.enabled` through the settings workflow (persist, commit, effects, tray rebuild). Turning it off clears live sessions and ignores subsequent Hook Firings; the Claude plugin remains installed. Turning it on opens the Install Hooks dialog when `claude plugin list --json` reports the plugin missing. A failed status read is logged rather than treated as proof of absence.
-- **Hook install.** Claude Code owns the user-installed `adhd-ranch-hooks@adhd-ranch` plugin. Ranch never registers or removes Claude settings hooks on startup or toggle. The marketplace lives in this repository at `.claude-plugin/marketplace.json`; the plugin lives under `plugins/adhd-ranch-hooks/`. The tray's "Install Hooks…" dialog gives the user `/plugin install adhd-ranch-hooks --marketplace killallgit/adhd-ranch` to run in Claude Code at User scope. Plugin `hooks/hooks.json` runs a wrapper under `${CLAUDE_PLUGIN_ROOT}`; the wrapper finds Ranch's data root and invokes the stable local client there.
+- **Hook install.** Claude Code owns the user-scoped `adhd-ranch-hooks@adhd-ranch` plugin. Ranch never registers or removes direct Claude settings hooks on startup or toggle. The marketplace lives in this repository at `.claude-plugin/marketplace.json`; the plugin lives under `plugins/adhd-ranch-hooks/`. The tray's "Install Hooks…" dialog lets the user explicitly install through Claude's CLI: add `killallgit/adhd-ranch` if missing, install or enable the plugin at user scope, then verify it is enabled. The separate `claude_plugin` module owns that lifecycle; the dialog also shows the equivalent fresh-shell commands. Existing Claude sessions need `/reload-plugins` or a restart. Plugin `hooks/hooks.json` runs a wrapper under `${CLAUDE_PLUGIN_ROOT}`; the wrapper finds Ranch's data root and invokes the stable local client there.
 - **Events.** Five, in `crates/domain/src/agents/claude_code/hooks/events.rs`: `SessionStart` → start, `UserPromptSubmit` → working, `Stop` → idle, `StopFailure` → idle, `SessionEnd` → end. No `PreToolUse`/`PostToolUse` and no subagent events: they fire on every tool call in every session and report a state the turn is already in. `StopFailure` is registered because a turn cut short by an API error never reaches `Stop`, and the session would otherwise stay working for as long as it lives.
 - **Stable client.** At startup Ranch copies its bundled `adhd-ranch-hook` to `adhd-ranch-hook` under the data root. It compares content, not timestamps, and replaces via a same-directory temporary file and rename. Failed placement leaves the previous client intact. The plugin wrapper names only this stable path and the socket, not an app bundle or checkout. Ranch does not write Claude's settings file.
 - **Socket.** `~/.adhd-ranch/agent-hooks.sock`, mode 0600 — the file mode is the whole authorisation story. A socket left behind by a crash makes the address look taken; nobody answering on it means debris, so it is removed and rebound. Accept is polled every 25ms rather than blocked on, so shutdown never depends on the socket file still being there, and dropping the server removes it.
