@@ -7,6 +7,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use adhd_ranch_commands::SettingsProvider;
 use adhd_ranch_domain::agents::hooks::HookAction;
 use adhd_ranch_storage::{HookEventSink, HookServer};
 use tauri::{AppHandle, Emitter};
@@ -17,11 +18,13 @@ pub fn serve(
     app: &AppHandle,
     socket_path: PathBuf,
     recording: Arc<dyn HookEventSink>,
+    settings: SettingsProvider,
 ) -> std::io::Result<HookServer> {
     adhd_ranch_storage::serve(
         socket_path,
         Arc::new(Announcing {
             recording,
+            settings,
             app: app.clone(),
         }),
         {
@@ -31,16 +34,19 @@ pub fn serve(
     )
 }
 
-/// Tells the debug window about every firing, including the ones that changed
-/// nothing. "The ranch heard you and ignored you" is exactly the answer needed when
-/// an animal will not move, and the overlay's own event never carries it.
+/// Applies and announces firings only while Agents as Animals is on. The plugin
+/// remains installed when off, but Ranch keeps no hidden sessions in that state.
 struct Announcing {
     recording: Arc<dyn HookEventSink>,
+    settings: SettingsProvider,
     app: AppHandle,
 }
 
 impl HookEventSink for Announcing {
     fn apply(&self, action: HookAction, payload: &str) -> bool {
+        if !self.settings.get().agents.enabled {
+            return false;
+        }
         let changed = self.recording.apply(action, payload);
         emit(&self.app, AGENT_HOOK_FIRED_EVENT);
         changed

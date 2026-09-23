@@ -3,6 +3,7 @@
 //! directly; this is the only thing that proves the wire between them.
 #![cfg(unix)]
 
+use std::fs;
 use std::io::Write;
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
@@ -36,6 +37,11 @@ fn client_bin() -> PathBuf {
         bin.display()
     );
     bin
+}
+
+fn plugin_wrapper() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../plugins/adhd-ranch-hooks/scripts/send-hook")
 }
 
 struct Ranch {
@@ -104,6 +110,31 @@ fn a_session_starting_appears_on_the_ranch() {
     assert_eq!(sessions.len(), 1);
     assert_eq!(sessions[0].id, SESSION);
     assert_eq!(sessions[0].pen.name, "adhd-ranch");
+}
+
+#[test]
+fn the_plugin_wrapper_delivers_to_the_stable_client_path() {
+    let ranch = Ranch::new();
+    fs::copy(client_bin(), ranch._dir.path().join("adhd-ranch-hook")).unwrap();
+
+    let mut wrapper = Command::new(plugin_wrapper())
+        .arg("start")
+        .env("ADHD_RANCH_HOME", ranch._dir.path())
+        .stdin(Stdio::piped())
+        .spawn()
+        .unwrap();
+    wrapper
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(payload("SessionStart").as_bytes())
+        .unwrap();
+    assert!(wrapper.wait().unwrap().success());
+
+    ranch
+        .await_change()
+        .expect("the wrapper should deliver a firing");
+    assert_eq!(ranch.sessions.list()[0].id, SESSION);
 }
 
 #[test]

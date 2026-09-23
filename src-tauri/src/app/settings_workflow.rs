@@ -258,22 +258,14 @@ impl SettingsEffects for TauriSettingsEffects {
         previous: &Settings,
         next: &Settings,
     ) -> Result<(), SettingsWorkflowError> {
-        let reconciled = if agents_setting_changed(previous, next) {
-            if !next.agents.enabled {
-                self.forget_live_sessions();
-            }
-            super::claude_hook::reconcile(next.agents.enabled)
-        } else {
-            Ok(())
-        };
-        // The overlay hears either way: what it is drawing has changed even when the
-        // hooks could not be brought into line.
+        if agents_setting_changed(previous, next) && !next.agents.enabled {
+            self.forget_live_sessions();
+        }
+        // The overlay hears either way: what it is drawing has changed. Claude's
+        // plugin remains installed regardless of this preference.
         self.app
             .emit(AGENT_SESSIONS_CHANGED_EVENT, ())
-            .map_err(|e| {
-                SettingsWorkflowError::Effect(format!("emit agent-sessions-changed: {e}"))
-            })?;
-        reconciled.map_err(SettingsWorkflowError::Effect)
+            .map_err(|e| SettingsWorkflowError::Effect(format!("emit agent-sessions-changed: {e}")))
     }
 
     fn refresh_runtime_consumers(&self, _settings: &Settings) -> Result<(), SettingsWorkflowError> {
@@ -515,7 +507,7 @@ mod tests {
     }
 
     #[test]
-    fn enabling_agents_reconciles_the_hooks() {
+    fn enabling_agents_changes_the_projection() {
         assert!(agents_setting_changed(
             &settings_with_agents(false),
             &settings_with_agents(true)
@@ -523,7 +515,7 @@ mod tests {
     }
 
     #[test]
-    fn disabling_agents_reconciles_the_hooks() {
+    fn disabling_agents_changes_the_projection() {
         assert!(agents_setting_changed(
             &settings_with_agents(true),
             &settings_with_agents(false)
@@ -531,7 +523,7 @@ mod tests {
     }
 
     #[test]
-    fn leaving_the_agents_setting_alone_touches_no_hooks() {
+    fn leaving_the_agents_setting_alone_needs_no_projection_change() {
         assert!(!agents_setting_changed(
             &settings_with_agents(true),
             &settings_with_agents(true)

@@ -17,6 +17,7 @@ const NO_FOCUSES_ID: &str = "tray-no-focuses";
 const NEW_FOCUS_ID: &str = "tray-new-focus";
 const GATHER_PIGS_ID: &str = "tray-gather-pigs";
 const AGENTS_AS_ANIMALS_ID: &str = "tray-agents-as-animals";
+const INSTALL_HOOKS_ID: &str = "tray-install-hooks";
 const DELETE_PREFIX: &str = "tray-delete-";
 const OPEN_FOCUS_PREFIX: &str = "tray-open-focus-";
 const TRAY_OPEN_PREFS_ID: &str = "tray-open-prefs";
@@ -62,6 +63,8 @@ pub fn setup(
             } else if id == AGENTS_AS_ANIMALS_ID {
                 let app_handle = app.clone();
                 std::thread::spawn(move || toggle_agents(app_handle));
+            } else if id == INSTALL_HOOKS_ID {
+                super::open_install_hooks_window(app);
             } else if id == QUIT_ID {
                 app.exit(0);
             } else if id == NEW_FOCUS_ID {
@@ -139,6 +142,9 @@ fn build_menu(
         .checked(agents_enabled)
         .build(handle)?;
     items.push(Box::new(agents));
+    let install_hooks =
+        MenuItemBuilder::with_id(INSTALL_HOOKS_ID, "Install Hooks…").build(handle)?;
+    items.push(Box::new(install_hooks));
     items.push(Box::new(PredefinedMenuItem::separator(handle)?));
     let new_focus = MenuItemBuilder::with_id(NEW_FOCUS_ID, "+ New Focus").build(handle)?;
     items.push(Box::new(new_focus));
@@ -250,6 +256,17 @@ fn toggle_agents(app: AppHandle<Wry>) {
     );
     if let Err(e) = workflow.update(with_agents_toggled(&current)) {
         log::error!("tray toggle agents: {e:?}");
+    } else if !current.agents.enabled {
+        // The user enables the Ranch projection; Claude plugin installation is
+        // still their choice and is never performed by this toggle.
+        match super::claude_hook::plugin_enabled() {
+            Ok(true) => {}
+            Ok(false) => {
+                let handle = app.clone();
+                let _ = app.run_on_main_thread(move || super::open_install_hooks_window(&handle));
+            }
+            Err(error) => log::warn!("cannot check Claude plugin status: {error}"),
+        }
     }
 }
 

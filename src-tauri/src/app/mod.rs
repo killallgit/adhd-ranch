@@ -17,8 +17,8 @@ use crate::display::{DisplayManager, DisplayManagerState, DisplayService};
 use adhd_ranch_commands::{AgentDebug, AgentSessions, CapEvaluator, Commands, HookPaths, Timers};
 use adhd_ranch_domain::{DisplayConfig, OverCapMonitor, RectUpdater, Settings};
 use adhd_ranch_storage::{
-    watch_path, ClaudeCodeHooks, FocusStore, FocusWatcher, HookEventSink, HookHistory, HookJournal,
-    LiveSessions, MarkdownFocusStore,
+    watch_path, FocusStore, FocusWatcher, HookEventSink, HookHistory, HookJournal, LiveSessions,
+    MarkdownFocusStore,
 };
 use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 use time::format_description::well_known::Rfc3339;
@@ -152,12 +152,13 @@ pub fn run() {
             app.handle(),
             paths::agent_hook_socket()?,
             Arc::clone(&journal) as Arc<dyn HookEventSink>,
+            Arc::clone(&settings_provider),
         )?;
         app.manage(HookServerHandle(server));
-        // A startup failure here is worth knowing about but not worth refusing to
-        // launch over: the ranch still runs, it just has no animals to draw.
-        if let Err(e) = claude_hook::reconcile(settings.agents.enabled) {
-            log::error!("{e}");
+        // Claude owns plugin registration. Ranch only refreshes the local client;
+        // a failure leaves any previous working copy intact.
+        if let Err(e) = claude_hook::place_client() {
+            log::error!("agent hooks: cannot place bundled client: {e}");
         }
         app.manage(LiveSessionsState(Arc::clone(&live_sessions)));
         app.manage(ui_bridge::AgentSessionsState(Arc::new(AgentSessions::new(
@@ -165,11 +166,14 @@ pub fn run() {
             Arc::clone(&settings_provider),
         ))));
 
-        let claude_paths = claude_hook::hook_paths()?;
         let hook_paths = HookPaths {
-            settings_file: claude_paths.settings_file.to_string_lossy().into_owned(),
-            client_bin: claude_paths.client_bin.to_string_lossy().into_owned(),
-            socket_path: claude_paths.socket_path.to_string_lossy().into_owned(),
+            settings_file: paths::claude_settings_file()?
+                .to_string_lossy()
+                .into_owned(),
+            client_bin: paths::stable_hook_client_bin()?
+                .to_string_lossy()
+                .into_owned(),
+            socket_path: paths::agent_hook_socket()?.to_string_lossy().into_owned(),
         };
         log::info!(
             "agent hooks: client={} agent settings={}",
@@ -177,7 +181,7 @@ pub fn run() {
             hook_paths.settings_file
         );
         app.manage(ui_bridge::AgentDebugState(Arc::new(AgentDebug::new(
-            Arc::new(ClaudeCodeHooks::new(claude_paths)),
+            Arc::new(claude_hook::plugin_enabled),
             Arc::clone(&journal) as Arc<dyn HookHistory>,
             Arc::clone(&settings_provider),
             hook_paths,
@@ -317,6 +321,35 @@ pub fn open_agent_debug_window<R: tauri::Runtime>(app: &AppHandle<R>) {
             let _ = win.show();
         }
         Err(e) => log::error!("open_agent_debug_window: {e}"),
+    }
+}
+
+/// Small instruction window: the user runs the command in Claude Code. Ranch
+/// never calls Claude's install command on their behalf.
+pub fn open_install_hooks_window<R: tauri::Runtime>(app: &AppHandle<R>) {
+    if let Some(win) = app.get_webview_window("install-hooks") {
+        let _ = win.show();
+        let _ = win.set_focus();
+        return;
+    }
+    match WebviewWindowBuilder::new(
+        app,
+        "install-hooks",
+        WebviewUrl::App("install-hooks.html".into()),
+    )
+    .title("Install Claude Hooks")
+    .inner_size(520.0, 310.0)
+    .min_inner_size(420.0, 280.0)
+    .decorations(true)
+    .resizable(true)
+    .always_on_top(true)
+    .build()
+    {
+        Ok(win) => {
+            let _ = win.show();
+            let _ = win.set_focus();
+        }
+        Err(e) => log::error!("open_install_hooks_window: {e}"),
     }
 }
 

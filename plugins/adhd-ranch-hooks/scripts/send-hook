@@ -1,0 +1,16 @@
+#!/bin/sh
+# Claude owns this plugin; Ranch owns the transport client under its data root.
+# A stopped or disabled Ranch must never interrupt the Claude session.
+if [ -n "${ADHD_RANCH_HOME:-}" ]; then
+  ranch_root=$ADHD_RANCH_HOME
+elif [ -n "${HOME:-}" ]; then
+  ranch_root=$HOME/.adhd-ranch
+else
+  exit 0
+fi
+
+client=$ranch_root/adhd-ranch-hook
+if [ -x "$client" ]; then
+  exec "$client" "$ranch_root/agent-hooks.sock" "$1"
+fi
+exit 0

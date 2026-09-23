@@ -42,7 +42,8 @@ pub fn agent_hook_socket() -> io::Result<PathBuf> {
     Ok(data_root()?.join("agent-hooks.sock"))
 }
 
-/// The client an agent runs, which ships beside the app's own binary.
+/// The client bundled beside the app's own binary.
+#[cfg(unix)]
 pub fn hook_client_bin() -> io::Result<PathBuf> {
     let exe = std::env::current_exe()?;
     let dir = exe.parent().ok_or_else(|| {
@@ -52,6 +53,11 @@ pub fn hook_client_bin() -> io::Result<PathBuf> {
         )
     })?;
     Ok(dir.join("adhd-ranch-hook"))
+}
+
+/// The stable path used by the user-installed Claude plugin.
+pub fn stable_hook_client_bin() -> io::Result<PathBuf> {
+    Ok(data_root()?.join("adhd-ranch-hook"))
 }
 
 pub fn claude_settings_file() -> io::Result<PathBuf> {

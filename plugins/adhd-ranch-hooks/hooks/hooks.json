@@ -1,0 +1,19 @@
+{
+  "hooks": {
+    "SessionStart": [
+      { "hooks": [{ "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/scripts/send-hook", "args": ["start"], "timeout": 5 }] }
+    ],
+    "UserPromptSubmit": [
+      { "hooks": [{ "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/scripts/send-hook", "args": ["working"], "timeout": 5 }] }
+    ],
+    "Stop": [
+      { "hooks": [{ "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/scripts/send-hook", "args": ["idle"], "timeout": 5 }] }
+    ],
+    "StopFailure": [
+      { "hooks": [{ "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/scripts/send-hook", "args": ["idle"], "timeout": 5 }] }
+    ],
+    "SessionEnd": [
+      { "hooks": [{ "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/scripts/send-hook", "args": ["end"], "timeout": 5 }] }
+    ]
+  }
+}

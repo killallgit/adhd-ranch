@@ -1,11 +1,12 @@
+use std::io;
 use std::sync::Arc;
 
 use adhd_ranch_domain::agents::hooks::{HookFiring, HookWiring};
-use adhd_ranch_storage::{AgentHooks, HookHistory};
+use adhd_ranch_storage::HookHistory;
 
 use crate::SettingsProvider;
 
-/// Where the ranch and an agent were told to meet. Settled once, at startup.
+/// Where the ranch and Claude's plugin meet. Settled once, at startup.
 pub struct HookPaths {
     pub settings_file: String,
     pub client_bin: String,
@@ -15,10 +16,10 @@ pub struct HookPaths {
 /// Answers "is any of this working?" for one agent.
 ///
 /// Every part of the hook path fails silently by design — the client says nothing
-/// when it cannot deliver, and a wrong path in a settings file looks exactly like an
-/// idle machine. This is the one place that makes those distinguishable.
+/// when it cannot deliver, and an absent or disabled plugin looks like an idle
+/// machine. This window exposes both Claude's plugin listing and observed firings.
 pub struct AgentDebug {
-    hooks: Arc<dyn AgentHooks + Send + Sync>,
+    plugin_enabled: Arc<dyn Fn() -> io::Result<bool> + Send + Sync>,
     history: Arc<dyn HookHistory>,
     settings: SettingsProvider,
     paths: HookPaths,
@@ -26,13 +27,13 @@ pub struct AgentDebug {
 
 impl AgentDebug {
     pub fn new(
-        hooks: Arc<dyn AgentHooks + Send + Sync>,
+        plugin_enabled: Arc<dyn Fn() -> io::Result<bool> + Send + Sync>,
         history: Arc<dyn HookHistory>,
         settings: SettingsProvider,
         paths: HookPaths,
     ) -> Self {
         Self {
-            hooks,
+            plugin_enabled,
             history,
             settings,
             paths,
@@ -41,7 +42,7 @@ impl AgentDebug {
 
     pub fn wiring(&self) -> HookWiring {
         HookWiring {
-            agent: self.hooks.agent().to_string(),
+            agent: "Claude Code".to_string(),
             settings_file: self.paths.settings_file.clone(),
             client_bin: self.paths.client_bin.clone(),
             socket_path: self.paths.socket_path.clone(),
@@ -54,14 +55,13 @@ impl AgentDebug {
         self.history.recent()
     }
 
-    /// An unreadable settings file is reported as "not installed", which is what it
-    /// means for the ranch: nothing there is going to call us. The log carries the
-    /// reason, because the window has no room for one.
+    /// A failed plugin-list read is not proof of installation. Log the reason;
+    /// the install instructions remain available from the tray either way.
     fn installed(&self) -> bool {
-        match self.hooks.installed() {
+        match (self.plugin_enabled)() {
             Ok(installed) => installed,
             Err(e) => {
-                log::warn!("{} hooks: cannot read settings: {e}", self.hooks.agent());
+                log::warn!("Claude Code plugin: cannot read status: {e}");
                 false
             }
         }
@@ -72,31 +72,9 @@ impl AgentDebug {
 mod tests {
     use std::io;
 
+    use super::*;
     use adhd_ranch_domain::agents::hooks::HookAction;
     use adhd_ranch_domain::{AgentsConfig, Settings};
-    use adhd_ranch_storage::HookOutcome;
-
-    use super::*;
-
-    struct StubHooks(io::Result<bool>);
-
-    impl AgentHooks for StubHooks {
-        fn agent(&self) -> &'static str {
-            "Stub"
-        }
-        fn install(&self) -> io::Result<HookOutcome> {
-            Ok(HookOutcome::AlreadyDone)
-        }
-        fn uninstall(&self) -> io::Result<HookOutcome> {
-            Ok(HookOutcome::AlreadyDone)
-        }
-        fn installed(&self) -> io::Result<bool> {
-            match &self.0 {
-                Ok(installed) => Ok(*installed),
-                Err(e) => Err(io::Error::new(e.kind(), "unreadable")),
-            }
-        }
-    }
 
     struct StubHistory(Vec<HookFiring>);
 
@@ -107,12 +85,16 @@ mod tests {
     }
 
     fn debug_with(installed: io::Result<bool>, enabled: bool) -> AgentDebug {
+        let installed = installed.map_err(|error| error.kind());
         let settings = Settings {
             agents: AgentsConfig { enabled },
             ..Settings::default()
         };
         AgentDebug::new(
-            Arc::new(StubHooks(installed)),
+            Arc::new(move || match installed {
+                Ok(value) => Ok(value),
+                Err(kind) => Err(io::Error::new(kind, "unreadable")),
+            }),
             Arc::new(StubHistory(vec![HookFiring {
                 at: "2026-01-01T00:00:00Z".into(),
                 action: HookAction::Working,
@@ -130,7 +112,7 @@ mod tests {
     }
 
     #[test]
-    fn wiring_reports_the_paths_the_hooks_were_installed_with() {
+    fn wiring_reports_the_stable_client_and_socket_paths() {
         let wiring = debug_with(Ok(true), true).wiring();
 
         assert_eq!(wiring.client_bin, "/app/adhd-ranch-hook");
@@ -140,7 +122,7 @@ mod tests {
     }
 
     #[test]
-    fn settings_that_cannot_be_read_mean_nothing_is_installed() {
+    fn plugin_status_that_cannot_be_read_does_not_claim_installation() {
         assert!(
             !debug_with(Err(io::Error::other("boom")), true)
                 .wiring()

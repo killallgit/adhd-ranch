@@ -28,6 +28,16 @@ See `PRD.md`, `CONTEXT.md`, and `CLAUDE.md` for the full design and the programm
 6. Hand-edit `~/.adhd-ranch/focuses/<slug>/focus.md` whenever you want — the watcher reflects changes within a second. Adding `- [ ] something` adds a task, `- [x]` marks it done, deleting a line removes it.
 7. Tray → **Settings…** opens Preferences: caps, always-on-top, delete confirmation, enabled displays, and notification toggles.
 
+### Claude Code animals (optional, macOS/Linux)
+
+Turn on **Agents as Animals** in the tray to show Claude Code sessions as animals. Ranch will show **Install Hooks…** if its Claude plugin is missing; the same item is always available in the tray. Run the command it shows inside Claude Code and choose **User** scope so it works across projects:
+
+```text
+/plugin install adhd-ranch-hooks --marketplace killallgit/adhd-ranch
+```
+
+Follow Claude's reload prompt if an already-open session has not activated the plugin. Turning Agents as Animals off hides and forgets sessions but leaves the Claude plugin installed. Ranch never installs or removes the plugin for you. The plugin transport is not supported on Windows yet.
+
 ## Limits + alerts
 
 Default caps: **5 Focuses**, **7 Tasks per Focus**. Going over still works (your markdown wins), but the tray icon turns red and the app sends a one-shot system notification per `under → over` transition.

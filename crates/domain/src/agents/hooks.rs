@@ -90,7 +90,8 @@ pub struct HookWiring {
     pub settings_file: String,
     pub client_bin: String,
     pub socket_path: String,
-    /// Whether the agent's settings currently name this exact client and socket.
+    /// Whether Claude lists the ADHD Ranch plugin as enabled. Hook delivery is
+    /// confirmed separately by observing a firing.
     pub installed: bool,
     /// Whether the ranch is drawing agents at all.
     pub enabled: bool,
