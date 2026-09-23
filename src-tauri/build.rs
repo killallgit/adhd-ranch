@@ -10,8 +10,8 @@ fn main() {
 /// there, but `tauri_build::build()` still insists on resolving one.
 const SKIP_SIDECAR: &str = "ADHD_RANCH_SKIP_SIDECAR";
 
-/// Claude Code runs the hook client by absolute path, resolved beside the app's own
-/// executable, so Tauri has to pick it up as a sidecar — and it looks for one during
+/// Ranch copies the bundled client to a stable data-root path for Claude's plugin,
+/// so Tauri has to pick it up as a sidecar — and it looks for one during
 /// this build script, not at bundle time. Building it here is what makes it exist for
 /// every way the app gets compiled: `cargo build`, clippy, `tauri dev`, `tauri build`,
 /// a fresh clone.

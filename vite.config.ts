@@ -19,6 +19,7 @@ export default defineConfig({
         newFocus: resolve(__dirname, "new-focus.html"),
         settings: resolve(__dirname, "settings.html"),
         agentDebug: resolve(__dirname, "agent-debug.html"),
+        installHooks: resolve(__dirname, "install-hooks.html"),
       },
     },
   },

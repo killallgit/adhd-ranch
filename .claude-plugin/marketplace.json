@@ -1,0 +1,15 @@
+{
+  "name": "adhd-ranch",
+  "description": "Claude Code integrations for ADHD Ranch",
+  "owner": {
+    "name": "killallgit",
+    "url": "https://github.com/killallgit/adhd-ranch"
+  },
+  "plugins": [
+    {
+      "name": "adhd-ranch-hooks",
+      "source": "./plugins/adhd-ranch-hooks",
+      "description": "Send Claude Code session activity to ADHD Ranch"
+    }
+  ]
+}
