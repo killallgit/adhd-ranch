@@ -153,8 +153,10 @@ description: "Dependency-ordered implementation tasks for the Rust-owned render 
 built and started both Vite on port 1420 and the debug Tauri binary without runtime startup errors;
 the test processes were then stopped and port 1420 was verified clear again. The automated Rust,
 hook, and App integration tests cover mixed-domain rendering, Focus-only interaction, independent
-Motion/size changes, and region rendering. A live mixed Claude-session visual check requires an
-active hook session. Windows CI is intentionally deferred while the app remains a prototype.
+Motion/size changes, and region rendering. At the time of this initial smoke, a live mixed
+Claude-session visual check still required an active hook session; T050 records the subsequently
+completed live mixed-session verification. Windows CI is deferred under the explicit platform
+scope in `spec.md`.
 
 ---
 
@@ -168,6 +170,7 @@ active hook session. Windows CI is intentionally deferred while the app remains 
 - **Phase 4 (US2)**: Depends on the generated scene and App cutover from US1; it changes only Focus-owned interaction semantics.
 - **Phase 5 (US3)**: Depends on the scene/runtime interfaces from US1, but its Rust layout work can begin after Phase 2 while US1 frontend work proceeds.
 - **Phase 6 (Polish)**: Depends on all selected user stories.
+- **Phase 7 (Convergence)**: Depends on Phase 6 and closes remaining acceptance or boundary gaps before synchronization with current `main` and the final gate.
 
 ### User-story dependency graph
 
@@ -228,7 +231,12 @@ Then: T038 -> T039; T039 + T040 -> T041; T041 + T042 -> T043 -> T044
 
 1. **Rust contract and independent projectors**: T001-T020. Completion promise: Rust independently turns either source domain into generated renderer-only values and proves all source-semantic decisions.
 2. **Scene IPC, App cutover, and Focus-only selection**: T021-T033. Completion promise: the ranch renders the Rust scene, only current Focuses open details, and no TypeScript production module projects source records.
-3. **Rust regions and Species-driven thin frame runtime**: T034-T048. Completion promise: Rust owns region/physical policy, the browser owns only frame mechanics/presentation, legacy policy files are gone, and the full gate passes.
+3. **Rust regions, Species-driven thin frame runtime, and convergence**: T034-T051. Completion promise: Rust owns region/physical policy, the browser owns only frame mechanics/presentation, legacy policy files are gone, the live mixed scene is verified, and the synchronized full gate passes.
+
+**Approved delivery exception (2026-09-28)**: Owner approved delivering these three review slices
+atomically in PR #88 because the generated contract, application cutover, and removal of the old
+renderer authority form one replacement. Review PR #88 in the three ranges above. This exception
+is limited to this feature and does not relax the normal small-PR rule.
 
 Each slice must synchronize with current `main`, restate its completion promise in the PR, cite the source Spec Kit tasks, pass its focused tests and `task check`, and stay narrow enough for a roughly fifteen-minute human review.
 
@@ -242,8 +250,9 @@ Each slice must synchronize with current `main`, restate its completion promise 
 
 ## Phase 7: Convergence
 
-- [X] T049 Remove frame-driven Tauri command traffic from `src/hooks/useAnimalMovement.ts` while preserving moving-animal hit-testing, dragging, and existing visible behavior; add regression coverage that observes every backend call and proves normal animation and dragging issue no per-frame invokes or events per FR-021 and SC-011 (contradicts)
-- [X] T050 Run the complete mixed Focus/Agent visual checklist in `specs/001-render-domain-seam/quickstart.md` with an active hook session and record the observed results in `specs/001-render-domain-seam/tasks.md` per SC-001 and T048 (partial)
+- [X] T049 Remove frame-driven Tauri command traffic from `src/hooks/useAnimalMovement.ts` while preserving moving-animal hit-testing, dragging, and existing visible behavior; add regression coverage that observes every backend call and proves normal animation and dragging issue no per-frame invokes or events per FR-021 and SC-011
+- [X] T050 Run the complete mixed Focus/Agent visual checklist in `specs/001-render-domain-seam/quickstart.md` with an active hook session and record the observed results in `specs/001-render-domain-seam/tasks.md` per SC-001 and T048
+- [ ] T051 Synchronize the feature branch with the latest `origin/main`, record the feature-head and main SHAs, then rerun `task check`, generated-type drift verification, and CI before merge
 
 **T049 regression record (2026-09-27)**: The animation loop now advances only local movement
 and presentation state. Moving-animal hit rectangles synchronize on an independent 64 ms cadence,

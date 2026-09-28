@@ -233,10 +233,22 @@ same movement and hit-testing behavior.
 - Focus, Task, and Timer product work remains a separate Work Management roadmap. It may project
   Animals through the same renderer but does not depend on Claude, Codex, hooks, or session
   ingestion.
+- Windows compilation and CI verification are explicitly outside this prototype slice by owner
+  direction. macOS is the acceptance platform for this feature. This temporary scope narrowing
+  does not assert Windows compatibility and must be revisited before Windows support resumes.
 - Existing desktop command names may remain as compatibility contracts even when the internal
   shared movement vocabulary changes.
-- The temporary constitution draft in `.specify/memory/constitution.md` is treated as the current
-  governing direction for planning; it must complete its own review before being committed.
+- ADHD Ranch Constitution v1.0.0, ratified 2026-09-26, is the governing authority for this
+  specification, plan, tasks, implementation, and final review.
+
+## Approved Delivery Exception
+
+Owner approved on 2026-09-28 that this initial renderer-boundary cutover may deliver its three
+review slices in PR #88 as one atomic replacement. The generated contract, application cutover,
+and deletion of the previous renderer authority must remain reviewable together so the branch
+never presents two production authorities as the intended final state. This exception applies
+only to this feature and does not relax the normal small-PR rule for subsequent work. The task
+plan retains the three slice boundaries as the PR review guide.
 
 ## Source Provenance
 
@@ -249,7 +261,9 @@ same movement and hit-testing behavior.
   records through a discriminated animal union and shared consumers.
 - **Present owner direction**: Plan ADR-0001 now, preserve the future Species and animated-element
   seam explicitly, and treat complete Claude/Codex session ingestion as a distinct future domain
-  from Focus/Timer work, with Rust performing as much non-frame-local work as practical.
+  from Focus/Timer work, with Rust performing as much non-frame-local work as practical. For this
+  prototype slice, accept macOS as the platform gate, defer Windows verification, and deliver the
+  three review slices atomically in PR #88.
 - **New proposal in this spec**: Deliver the accepted boundary as at most three vertical slices,
   including an explicit Pig Species and Pig-owned behavior boundary; exact technical sequencing is
   left to `plan.md` and `tasks.md`.

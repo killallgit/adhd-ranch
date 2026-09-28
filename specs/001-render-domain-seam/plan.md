@@ -33,9 +33,10 @@ Rust-to-TypeScript renderer contracts do change.
 **Testing**: Vitest/jsdom unit and component tests, TypeScript type checking, Biome, Knip, and the
 repository-wide `task check` gate (including Rust checks and generated-type drift verification).
 
-**Target Platform**: Tauri v2 desktop application; macOS is the primary design target. The changed
-Rust read service and webview remain platform-neutral and do not alter Windows or Linux packaging
-paths.
+**Target Platform**: Tauri v2 desktop application with macOS as the acceptance platform for this
+prototype slice. Windows compilation and CI verification are explicitly deferred by the approved
+feature scope. The implementation remains platform-neutral where practical and does not
+intentionally change Linux or Windows packaging code.
 
 **Project Type**: Local-first desktop application with a React/TypeScript renderer and Rust/Tauri
 host.
@@ -72,7 +73,7 @@ Motion, Harness, screen, or stored entity is introduced.
 | IV. Explicit, User-Controlled Integrations | PASS | Harness installation, validation, transport, and diagnostics are untouched. |
 | V. Observable Completion in Small Slices | PASS | ADR-0001 plus ADR-0003, three completion promises, focused Rust/TypeScript tests, generated-binding proof, and `task check` provide observable proof. |
 | VI. Evidence Is Not Authority | PASS | Requirements come from the constitution, accepted ADR-0001, current `main`, and present owner direction. Issues 051/057/058 are evidence only; stale ADR action checkboxes do not override current code. |
-| Product constraints | PASS | Tauri IPC remains the only frontend/core boundary; the read model is generated from Rust; Pig physical policy is not relabeled as generic Animal behavior; no per-frame transport or speculative compatibility layer is added. |
+| Product constraints | PASS | Tauri IPC remains the only frontend/core boundary; the read model is generated from Rust; Pig physical policy is not relabeled as generic Animal behavior; no per-frame transport or speculative compatibility layer is added. The approved specification explicitly narrows this prototype slice's platform acceptance gate to macOS and defers Windows verification. |
 
 **Gate result**: PASS. No exception or complexity justification is required.
 
