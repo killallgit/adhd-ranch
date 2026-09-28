@@ -252,7 +252,7 @@ Each slice must synchronize with current `main`, restate its completion promise 
 
 - [X] T049 Remove frame-driven Tauri command traffic from `src/hooks/useAnimalMovement.ts` while preserving moving-animal hit-testing, dragging, and existing visible behavior; add regression coverage that observes every backend call and proves normal animation and dragging issue no per-frame invokes or events per FR-021 and SC-011
 - [X] T050 Run the complete mixed Focus/Agent visual checklist in `specs/001-render-domain-seam/quickstart.md` with an active hook session and record the observed results in `specs/001-render-domain-seam/tasks.md` per SC-001 and T048
-- [ ] T051 Synchronize the feature branch with the latest `origin/main`, record the feature-head and main SHAs, then rerun `task check`, generated-type drift verification, and CI before merge
+- [X] T051 Synchronize the feature branch with the latest `origin/main`, record the feature-head and main SHAs, then rerun `task check`, generated-type drift verification, and CI before merge
 
 **T049 regression record (2026-09-27)**: The animation loop now advances only local movement
 and presentation state. Moving-animal hit rectangles synchronize on an independent 64 ms cadence,
@@ -273,3 +273,9 @@ the same pointer-up interaction to the Agent opened no Focus detail. Finally, en
 changed from the secondary display to both displays (`3000x1920`) and then to the primary display
 (`1920x1080`); each backend `DisplaySpace` refresh kept the Agent region centered/capped and the Focus
 free in the full enabled space. The app was stopped cleanly and port 1420 was clear afterward.
+
+**T051 synchronization record (2026-09-28)**: Fetched `origin/main` at
+`c188eea21593c229b28e952a7519e9f6984ca790` and verified feature head
+`7649de1bbbe62d5f2cfc1ab8788e5d8343a6e5d6` was six commits ahead and zero behind. The synchronized
+tree passed `task check`, including generated-type drift verification, and GitHub Actions CI run
+[`36437871180`](https://github.com/killallgit/adhd-ranch/actions/runs/36437871180) completed successfully.
