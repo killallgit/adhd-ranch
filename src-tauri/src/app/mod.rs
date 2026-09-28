@@ -15,6 +15,7 @@ use std::time::Duration;
 
 use crate::display::monitor::LogicalMonitor;
 use crate::display::{DisplayManager, DisplayManagerState, DisplayService};
+use adhd_ranch_commands::render_scene::RenderSceneService;
 use adhd_ranch_commands::{AgentDebug, AgentSessions, CapEvaluator, Commands, HookPaths, Timers};
 use adhd_ranch_domain::{DisplayConfig, OverCapMonitor, RectUpdater, Settings};
 use adhd_ranch_storage::{
@@ -64,6 +65,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             claude_plugin::install_claude_hooks,
+            ui_bridge::get_render_scene,
             ui_bridge::list_agent_sessions,
             ui_bridge::list_hook_firings,
             ui_bridge::agent_wiring,
@@ -163,6 +165,13 @@ pub fn run() {
             log::error!("agent hooks: cannot place bundled client: {e}");
         }
         app.manage(LiveSessionsState(Arc::clone(&live_sessions)));
+        app.manage(ui_bridge::RenderSceneState(Arc::new(
+            RenderSceneService::new(
+                store.clone(),
+                Arc::clone(&live_sessions) as Arc<dyn adhd_ranch_storage::AgentSessionStore>,
+                Arc::clone(&settings_provider),
+            ),
+        )));
         app.manage(ui_bridge::AgentSessionsState(Arc::new(AgentSessions::new(
             Arc::clone(&live_sessions) as Arc<dyn adhd_ranch_storage::AgentSessionStore>,
             Arc::clone(&settings_provider),

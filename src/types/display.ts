@@ -1,4 +1,4 @@
-export interface Rect {
+interface Rect {
   readonly x: number;
   readonly y: number;
   readonly w: number;

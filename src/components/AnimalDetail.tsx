@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { PIG_SIZE } from "../hooks/usePigMovement";
 import type { Focus } from "../types/focus";
 import type { TimerPreset } from "../types/timer";
 import { TimerDropdown } from "./TimerDropdown";
@@ -8,7 +7,7 @@ export interface AnimalDetailProps {
   readonly focus: Focus;
   readonly animalX: number;
   readonly animalY: number;
-  readonly animalSize?: number;
+  readonly animalSize: number;
   readonly viewportW: number;
   readonly viewportH: number;
   readonly confirmDelete: boolean;
@@ -31,7 +30,7 @@ export function AnimalDetail({
   focus,
   animalX,
   animalY,
-  animalSize = PIG_SIZE,
+  animalSize,
   viewportW,
   viewportH,
   confirmDelete,

@@ -18,6 +18,7 @@ function renderDetail(overrides?: Partial<React.ComponentProps<typeof AnimalDeta
     focus: baseFocus,
     animalX: 100,
     animalY: 100,
+    animalSize: 48,
     viewportW: 1920,
     viewportH: 1080,
     confirmDelete: true,
@@ -313,6 +314,7 @@ describe("AnimalDetail timer picker", () => {
             focus={{ ...baseFocus, id: focusId }}
             animalX={100}
             animalY={100}
+            animalSize={48}
             viewportW={1920}
             viewportH={1080}
             confirmDelete={true}

@@ -1,6 +1,7 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
+use adhd_ranch_commands::render_scene::{RenderScene, RenderSceneRequest, RenderSceneService};
 use adhd_ranch_commands::{
     AgentDebug, AgentSessions, CommandError, Commands, CreateFocusInput, CreatedFocus, Timers,
 };
@@ -15,11 +16,23 @@ use adhd_ranch_domain::{PigRect, RectUpdater};
 use crate::app::{DebugOverlayState, SettingsPathState, SettingsState};
 
 pub struct CommandsState(pub Arc<Commands>);
+pub struct RenderSceneState(pub Arc<RenderSceneService>);
 pub struct AgentSessionsState(pub Arc<AgentSessions>);
 pub struct AgentDebugState(pub Arc<AgentDebug>);
 pub struct TimersState(pub Arc<Timers>);
 pub struct PigHitState(pub Arc<dyn RectUpdater>);
 pub struct DragLockState(pub Arc<AtomicBool>);
+
+#[tauri::command]
+pub fn get_render_scene(
+    request: RenderSceneRequest,
+    state: State<'_, RenderSceneState>,
+) -> Result<RenderScene, CommandError> {
+    state
+        .0
+        .get(request)
+        .inspect_err(|error| log::error!("get_render_scene: {error}"))
+}
 
 #[tauri::command]
 pub fn list_agent_sessions(state: State<'_, AgentSessionsState>) -> Vec<AgentSession> {

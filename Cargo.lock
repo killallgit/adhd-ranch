@@ -32,7 +32,9 @@ dependencies = [
  "adhd-ranch-storage",
  "log",
  "serde",
+ "serde_json",
  "tempfile",
+ "ts-rs",
 ]
 
 [[package]]

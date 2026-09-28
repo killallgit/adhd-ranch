@@ -1,40 +1,32 @@
 import { useState } from "react";
 import type { FocusWriter } from "../api/focusWriter";
 import type { PolledReader } from "../api/polledReader";
-import { useAnimalSelection } from "../hooks/useAnimalSelection";
-import { useAnimals } from "../hooks/useAnimals";
+import type { RenderSceneReader } from "../api/tauriRenderSceneReader";
+import { useAnimalMovement } from "../hooks/useAnimalMovement";
 import { useConfirmDelete } from "../hooks/useConfirmDelete";
 import { useDebugOverlay } from "../hooks/useDebugOverlay";
 import { type ReportWriteFailure, useFocusController } from "../hooks/useFocusController";
-import { PIG_SIZE, usePigMovement } from "../hooks/usePigMovement";
+import { useFocusSelection } from "../hooks/useFocusSelection";
 import { usePolledReader } from "../hooks/usePolledReader";
+import { useRenderScene } from "../hooks/useRenderScene";
 import { useViewport } from "../hooks/useViewport";
-import type { AgentSession } from "../types/agentSession";
+import { sampleAnimalSize } from "../lib/animalSize";
 import type { Focus } from "../types/focus";
-import type { Settings } from "../types/settings";
 import type { TimerPreset } from "../types/timer";
 import { AnimalDetail } from "./AnimalDetail";
-import { PenBox } from "./PenBox";
-import { PigSprite } from "./PigSprite";
+import { AnimalSprite } from "./AnimalSprite";
+import { RegionBox } from "./RegionBox";
 
 export interface AppProps {
   readonly focusReader: PolledReader<readonly Focus[]>;
   readonly focusWriter: FocusWriter;
   readonly onWriteFailure: ReportWriteFailure;
-  readonly agentSessionReader: PolledReader<readonly AgentSession[]>;
-  readonly settingsReader: PolledReader<Settings>;
+  readonly renderSceneReader: RenderSceneReader;
 }
 
 const EMPTY_FOCUSES: readonly Focus[] = [];
-const EMPTY_SESSIONS: readonly AgentSession[] = [];
 
-export function App({
-  focusReader,
-  focusWriter,
-  onWriteFailure,
-  agentSessionReader,
-  settingsReader,
-}: AppProps) {
+export function App({ focusReader, focusWriter, onWriteFailure, renderSceneReader }: AppProps) {
   const focusController = useFocusController(focusWriter, onWriteFailure);
   const focusState = usePolledReader(focusReader);
   const readerFocuses = focusState.status === "ready" ? focusState.value : EMPTY_FOCUSES;
@@ -44,23 +36,22 @@ export function App({
   } | null>(null);
   const focuses =
     optimisticFocuses?.source === readerFocuses ? optimisticFocuses.value : readerFocuses;
-  const sessionState = usePolledReader(agentSessionReader);
-  const sessions = sessionState.status === "ready" ? sessionState.value : EMPTY_SESSIONS;
-  const animals = useAnimals(focuses, sessions);
-  const animalsById = new Map(animals.map((animal) => [animal.id, animal]));
-  const { selected, select, close } = useAnimalSelection(animals);
-  const selectedFocus = selected?.focus ?? null;
+  const { scene, displaySpace } = useRenderScene(renderSceneReader);
+  const animalsById = new Map(scene.animals.map((animal) => [animal.id, animal]));
+  const { selected: selectedFocus, request, close } = useFocusSelection(focuses);
   const confirmDelete = useConfirmDelete();
-  const settingsState = usePolledReader(settingsReader);
-  const { pigs, pens, startDrag, moveDrag, endDrag, setDragActive } = usePigMovement(
-    animals,
-    selected?.id ?? null,
-    settingsState.status === "ready" ? settingsState.value.pens.max_size : null,
-  );
+  const {
+    animals: movement,
+    startDrag,
+    moveDrag,
+    endDrag,
+    setDragActive,
+  } = useAnimalMovement(scene, displaySpace, selectedFocus?.id ?? null);
   const { screenW, screenH } = useViewport();
   const { visible: showDebug, topOffset: debugTopOffset } = useDebugOverlay();
 
-  const selectedPig = pigs.find((p) => p.id === selected?.id);
+  const selectedMovement = movement.find((state) => state.id === selectedFocus?.id);
+  const selectedAnimal = scene.animals.find((animal) => animal.id === selectedFocus?.id);
 
   async function handleClearTask(index: number) {
     if (!selectedFocus) return;
@@ -146,40 +137,36 @@ export function App({
             fontFamily: "monospace",
           }}
         >
-          overlay-debug | w={screenW} h={screenH} | focuses={focuses.length} pigs={pigs.length}{" "}
-          pens={pens.length}
+          overlay-debug | w={screenW} h={screenH} | focuses={focuses.length} animals=
+          {movement.length} regions={scene.regions.length}
         </div>
       )}
-      {pens.map((layout) => (
-        <PenBox key={layout.pen.id} layout={layout} />
+      {scene.regions.map((layout) => (
+        <RegionBox key={layout.id} layout={layout} />
       ))}
-      {pigs.map((pig) => {
-        const animal = animalsById.get(pig.id);
+      {movement.map((state) => {
+        const animal = animalsById.get(state.id);
         if (!animal) return null;
         return (
-          <PigSprite
-            key={pig.id}
-            x={pig.x}
-            y={pig.y}
-            direction={pig.direction}
-            frame={pig.frameIndex}
-            name={pig.name}
-            scale={animal.scale}
-            resting={animal.resting}
-            onClick={() => select(pig.id)}
-            onDragStart={(x, y) => startDrag(pig.id, x, y)}
+          <AnimalSprite
+            key={state.id}
+            animal={animal}
+            movement={state}
+            size={sampleAnimalSize(animal.size, Date.now())}
+            onClick={() => request(state.id)}
+            onDragStart={(x, y) => startDrag(state.id, x, y)}
             onDragMove={moveDrag}
             onDragEnd={endDrag}
             onSetDragActive={setDragActive}
           />
         );
       })}
-      {selectedPig && selected && selectedFocus && (
+      {selectedMovement && selectedAnimal && selectedFocus && (
         <AnimalDetail
           focus={selectedFocus}
-          animalX={selectedPig.x}
-          animalY={selectedPig.y}
-          animalSize={PIG_SIZE * selected.scale}
+          animalX={selectedMovement.x}
+          animalY={selectedMovement.y}
+          animalSize={sampleAnimalSize(selectedAnimal.size, Date.now())}
           viewportW={screenW}
           viewportH={screenH}
           confirmDelete={confirmDelete}

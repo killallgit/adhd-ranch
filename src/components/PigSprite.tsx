@@ -1,10 +1,12 @@
 import { useRef } from "react";
 import pigSheet from "../assets/pig-spritesheet.png";
-import { DRAG_THRESHOLD, PIG_SIZE } from "../hooks/usePigMovement";
-import type { PigDirection } from "../hooks/usePigMovement";
+import type { AnimalDirection } from "../lib/animalMovement";
+import type { Motion } from "../types/generated/Motion";
+
+const DRAG_THRESHOLD = 4;
 
 const SHEET_COLS = 4;
-const DIRECTION_ROW: Record<PigDirection, number> = {
+const DIRECTION_ROW: Record<AnimalDirection, number> = {
   front: 0,
   right: 1,
   back: 2,
@@ -17,11 +19,11 @@ const BOB_OFFSETS = [0, -2, 0, -1];
 export interface PigSpriteProps {
   readonly x: number;
   readonly y: number;
-  readonly direction: PigDirection;
+  readonly direction: AnimalDirection;
   readonly frame: number;
-  readonly name: string;
-  readonly scale?: number;
-  readonly resting?: boolean;
+  readonly label: string;
+  readonly size: number;
+  readonly motion: Motion;
   readonly onClick: () => void;
   readonly onDragStart: (x: number, y: number) => void;
   readonly onDragMove: (x: number, y: number) => void;
@@ -34,19 +36,19 @@ export function PigSprite({
   y,
   direction,
   frame,
-  name,
-  scale = 1,
-  resting = false,
+  label,
+  size,
+  motion,
   onClick,
   onDragStart,
   onDragMove,
   onDragEnd,
   onSetDragActive,
 }: PigSpriteProps) {
+  const resting = motion === "resting";
   const bob = BOB_OFFSETS[frame % BOB_OFFSETS.length];
   const col = frame % SHEET_COLS;
   const row = DIRECTION_ROW[direction];
-  const size = PIG_SIZE * scale;
   const sheetSize = size * SHEET_COLS;
 
   const startPosRef = useRef<{ x: number; y: number } | null>(null);
@@ -117,7 +119,7 @@ export function PigSprite({
           opacity: resting ? 0.48 : undefined,
         }}
       />
-      <span className="pig-name">{name}</span>
+      <span className="pig-name">{label}</span>
     </button>
   );
 }

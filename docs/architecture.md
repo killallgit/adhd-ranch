@@ -69,9 +69,40 @@ Every Timer rule lives in one `Timers` module in `crates/commands`, built once i
 
 Display spanning uses a Rust-emitted DisplaySpace model so monitor geometry policy is local to the display module, while Animal movement consumes normalized visible monitor regions instead of the raw overlay span.
 
+## Renderer read model
+
+The current implementation follows [ADR-0001](adr/0001-two-apps-over-one-renderer.md) and
+[ADR-0003](adr/0003-rust-owned-render-scene.md): Focus work and observed Agent Sessions are
+independent applications that meet only in a Rust-owned renderer read model.
+
+- `crates/commands/src/focus_animals.rs` projects only Focus/Timer records. It emits raw Focus ids,
+  labels, explicit Pig Species, full-display placement, renderer-only fixed/linear pixel sizes,
+  and walking/resting Motion. Task Timers do not affect this projection.
+- `crates/commands/src/agent_animals.rs` projects only harness-neutral `AgentSession` records. It
+  emits collision-safe `agent:` ids, explicit Pig Species, Activity-derived Motion, fixed size,
+  and opaque logical region ids/descriptors. Claude hook payloads and transport frames stop before
+  this boundary.
+- `RenderSceneService` composes both projections, filters disabled Agents, lays out unique regions
+  from the requested display area and current size setting, and attaches the Rust-owned Pig
+  `SpeciesProfile`. `get_render_scene` is read-only and returns generated renderer values only.
+- `useRenderScene` refreshes the scene after Focus, Agent Session, settings, or DisplaySpace
+  invalidation. Ordinary animation and pointer movement do not cross Tauri IPC.
+- `useAnimalMovement` owns only browser-local position, velocity, animation-frame, freeze, Gather,
+  and drag/toss state. It consumes generated Animals, region rectangles, and Species profiles;
+  `AnimalSprite` dispatches explicit Species to `PigSprite`, which alone owns the Pig asset,
+  sprite-sheet mapping, bobbing, CSS, and DOM presentation.
+- `useFocusSelection` resolves renderer click ids only against the current Focus collection. Agent
+  Animals remain observation-only, and removing a selected Focus clears the request and frozen
+  hit-testing state.
+
+The generated contract contains `Animal`, `AnimalSize`, `Motion`, `Species`,
+`AnimalRegionLayout`, `SpeciesProfile`, and `RenderScene`. It contains no Focus, Task, Timer,
+Agent Session, Harness, Hook Firing, Pen, Claude, or Codex record. Rust owns stable projection,
+layout, and physical policy; TypeScript owns synchronous frame mechanics and presentation.
+
 ## Core interaction loop
 
-1. **Pigs roam the screen.** One pig per Focus, wandering at 60px/s with random direction changes every 3–8 s; minimum velocity floor so pigs never look frozen. 4-direction pixel-art sprite sheet (016). Hit-box is 16px larger than sprite (018).
+1. **Animals roam the screen.** One generated Animal per visible Focus or enabled Agent Session. The Rust Pig profile supplies the current 60px/s speed, 3–8 s turns, friction, minimum-speed floor, footprint, toss cap, and frame cadence. `PigSprite` retains the 4-direction pixel-art presentation (016). Hit-box is 16px larger than the sampled sprite size (018).
 2. **Click a pig.** Pig freezes. `AnimalDetail` card opens near the pig: editable Focus title, duplicate and delete buttons, scrollable Task list (check off, edit text, `✗` to clear), and an "Add task…" input at the bottom. Clock/time controls on the Focus title and each Task open compact timer dropdowns. Click-outside or Escape closes; pig resumes (019, 052).
 3. **Drag a pig.** Click-and-hold then move > 4px enters drag mode — pig follows cursor. Release sends pig flying in that direction; friction decelerates it; bounces at region edges. Pure click (< 4px movement) still opens AnimalDetail (020).
 4. **Clear a task.** Tap `✗` → `delete_task` Tauri command → markdown updated → pig's task list reflects change.
@@ -129,7 +160,7 @@ An opt-in overlay mode that draws one Animal per running Claude Code session alo
 - **Delivery.** A push, not a watcher: while enabled, the listener applies the firing in memory and calls back, and the callback emits `agent-sessions-changed`. The overlay re-invokes `list_agent_sessions`, which returns an empty list while `agents.enabled` is false. The listener discards firings while disabled; the plugin stays installed. Session census and stale-session recovery remain future stabilization work.
 - **Journal.** `HookJournal` decorates the sink and keeps the last 200 firings — what arrived, and whether the app looked any different for it. The payload itself is deliberately not retained: `UserPromptSubmit` carries the text the user just typed, and a debug window is exactly the wrong place for it to resurface.
 - **Agent Hooks window.** Window → "Agent Hooks…" opens an always-on-top webview showing the wiring (agents enabled, hooks verified, and the socket, client and Claude settings paths), the live sessions, and every firing that Ranch accepted while enabled, including those that changed nothing. A complete enabled plugin is not proof of delivery; an observed firing is.
-- **Overlay.** `projectAnimals` concatenates Focus Animals and Session Animals into one list. Session Animals take `agent:<session_id>` ids, are never selectable and have no detail card, take no clock, and rest while the session is idle. They roam only their Pen; a Focus Animal has the run of the DisplaySpace. Selection is derived from that list, so an Animal that disappears closes its card and narrows the overlay's hit rect in the same render.
+- **Overlay.** `RenderSceneService` independently invokes the Focus and Agent projectors, then returns one generated scene. Session Animals take `agent:<session_id>` ids, are never selectable and have no detail card, take no clock, and rest while the session is idle. Rust converts Pens to opaque, laid-out renderer regions before IPC; shared TypeScript never receives a Pen. A Focus Animal has the run of the DisplaySpace. Focus selection resolves only against current Focuses, so a disappearing Focus closes its card and narrows the overlay's hit rect without granting Agent Animals edit behavior.
 - **Windows.** No Unix socket there, so Ranch does not listen or receive firings. The plugin wrapper is currently a Unix shell script; this prototype's plugin transport is macOS/Linux-only even though the app continues to compile and package on Windows.
 
 ## Configuration
