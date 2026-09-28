@@ -17,12 +17,14 @@ export function useRenderScene(reader: RenderSceneReader): RenderSceneState {
 
   useEffect(() => {
     let cancelled = false;
+    let latestRequest = 0;
 
     const refresh = (space: DisplaySpace) => {
+      const request = ++latestRequest;
       reader
         .read(space.spawnRegion)
         .then((next) => {
-          if (!cancelled) setScene(next);
+          if (!cancelled && request === latestRequest) setScene(next);
         })
         .catch(() => {});
     };

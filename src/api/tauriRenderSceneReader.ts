@@ -10,7 +10,7 @@ export interface RenderSceneReader {
   subscribe(onChange: (invalidation: RenderSceneInvalidation) => void): Promise<Unsubscribe>;
 }
 
-type RenderSceneInvalidation =
+export type RenderSceneInvalidation =
   | { readonly event: "focuses-changed" | "agent-sessions-changed" | "settings-changed" }
   | { readonly event: "display-space"; readonly displaySpace: DisplaySpace };
 

@@ -65,38 +65,36 @@ export function useAnimalMovement(
   useEffect(() => {
     const nowMs = performance.now();
     const profileBySpecies = profilesBySpecies(scene);
-    setMovement((previous) => {
-      const previousById = new Map(previous.map((animal) => [animal.id, animal]));
-      const next = scene.animals.flatMap((animal) => {
-        const profile = profileBySpecies.get(animal.species);
-        if (!profile) return [];
-        const regions = movementRegionsFor(animal, scene.regions, displaySpace);
-        const spawnRegion = spawnRegionFor(animal, scene.regions, displaySpace);
-        let state = reconcileAnimalMovement(
-          previousById.get(animal.id),
-          animal,
-          spawnRegion,
-          profile,
+    const previousById = new Map(movementRef.current.map((animal) => [animal.id, animal]));
+    const next = scene.animals.flatMap((animal) => {
+      const profile = profileBySpecies.get(animal.species);
+      if (!profile) return [];
+      const regions = movementRegionsFor(animal, scene.regions, displaySpace);
+      const spawnRegion = spawnRegionFor(animal, scene.regions, displaySpace);
+      let state = reconcileAnimalMovement(
+        previousById.get(animal.id),
+        animal,
+        spawnRegion,
+        profile,
+        nowMs,
+        Math.random,
+      );
+      if (animal.motion === "resting") {
+        state = advanceAnimal({
+          animal: state,
+          regions,
+          dtMs: 0,
           nowMs,
-          Math.random,
-        );
-        if (animal.motion === "resting") {
-          state = advanceAnimal({
-            animal: state,
-            regions,
-            dtMs: 0,
-            nowMs,
-            motion: animal.motion,
-            frozen: false,
-            random: Math.random,
-            profile,
-          });
-        }
-        return [state];
-      });
-      movementRef.current = next;
-      return next;
+          motion: animal.motion,
+          frozen: false,
+          random: Math.random,
+          profile,
+        });
+      }
+      return [state];
     });
+    movementRef.current = next;
+    setMovement(next);
   }, [scene, displaySpace]);
 
   const setDragActive = useCallback((active: boolean) => {
@@ -117,13 +115,11 @@ export function useAnimalMovement(
     pointerHistoryRef.current = pointerHistoryRef.current.filter(
       (sample) => sample.t >= nowMs - 200,
     );
-    setMovement((previous) => {
-      const next = previous.map((animal) =>
-        animal.id === dragIdRef.current ? { ...animal, x, y } : animal,
-      );
-      movementRef.current = next;
-      return next;
-    });
+    const next = movementRef.current.map((animal) =>
+      animal.id === dragIdRef.current ? { ...animal, x, y } : animal,
+    );
+    movementRef.current = next;
+    setMovement(next);
   }, []);
 
   const endDrag = useCallback((): { wasDrag: boolean } => {
@@ -143,43 +139,39 @@ export function useAnimalMovement(
     const profile = source ? profilesBySpecies(sceneRef.current).get(source.species) : undefined;
     if (profile) {
       const velocity = computeTossVelocity(samples, TOSS_VELOCITY_WINDOW_MS, last.t, profile);
-      setMovement((previous) => {
-        const next = previous.map((animal) =>
-          animal.id === animalId ? { ...animal, ...velocity } : animal,
-        );
-        movementRef.current = next;
-        syncRects(next, false, sceneRef.current, displaySpaceRef.current);
-        return next;
-      });
+      const next = movementRef.current.map((animal) =>
+        animal.id === animalId ? { ...animal, ...velocity } : animal,
+      );
+      movementRef.current = next;
+      setMovement(next);
+      syncRects(next, false, sceneRef.current, displaySpaceRef.current);
     }
     return { wasDrag: true };
   }, []);
 
   const gather = useCallback(() => {
-    setMovement((previous) => {
-      const area = displaySpaceRef.current.spawnRegion;
-      const profiles = profilesBySpecies(sceneRef.current);
-      const sourceById = new Map(sceneRef.current.animals.map((animal) => [animal.id, animal]));
-      const margin = 20;
-      const next = previous.map((state, index) => {
-        const source = sourceById.get(state.id);
-        const profile = source ? profiles.get(source.species) : undefined;
-        if (!profile) return state;
-        const footprint = profile.movementFootprintPx;
-        const rowHeight = footprint + 24;
-        const columnWidth = footprint + 24;
-        const rows = Math.max(1, Math.floor((area.h - margin * 2) / rowHeight));
-        return {
-          ...state,
-          x: area.x + area.w - margin - footprint - Math.floor(index / rows) * columnWidth,
-          y: area.y + margin + (index % rows) * rowHeight,
-          vx: 0,
-          vy: 0,
-        };
-      });
-      movementRef.current = next;
-      return next;
+    const area = displaySpaceRef.current.spawnRegion;
+    const profiles = profilesBySpecies(sceneRef.current);
+    const sourceById = new Map(sceneRef.current.animals.map((animal) => [animal.id, animal]));
+    const margin = 20;
+    const next = movementRef.current.map((state, index) => {
+      const source = sourceById.get(state.id);
+      const profile = source ? profiles.get(source.species) : undefined;
+      if (!profile) return state;
+      const footprint = profile.movementFootprintPx;
+      const rowHeight = footprint + 24;
+      const columnWidth = footprint + 24;
+      const rows = Math.max(1, Math.floor((area.h - margin * 2) / rowHeight));
+      return {
+        ...state,
+        x: area.x + area.w - margin - footprint - Math.floor(index / rows) * columnWidth,
+        y: area.y + margin + (index % rows) * rowHeight,
+        vx: 0,
+        vy: 0,
+      };
     });
+    movementRef.current = next;
+    setMovement(next);
   }, []);
 
   useEffect(() => {

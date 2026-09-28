@@ -8,7 +8,7 @@ use crate::{
     error::CommandError,
     focus_animals::project_focus_animals,
     region_layout::layout_regions,
-    species::all_species_profiles,
+    species::{all_species_profiles, species_profile},
     SettingsProvider,
 };
 
@@ -322,17 +322,15 @@ impl RenderSceneService {
 
     pub fn get(&self, request: RenderSceneRequest) -> Result<RenderScene, CommandError> {
         let profiles = all_species_profiles();
-        let pig_profile = profiles
-            .first()
-            .expect("the exhaustive Species roster always includes Pig");
-        let mut animals = project_focus_animals(&self.focus_store.list()?, pig_profile)?;
+        let pig_profile = species_profile(Species::Pig);
+        let mut animals = project_focus_animals(&self.focus_store.list()?, &pig_profile)?;
         let settings = self.settings.get();
         let mut logical_regions = Vec::new();
         if settings.agents.enabled {
             let AgentAnimalProjection {
                 animals: agent_animals,
                 regions: agent_regions,
-            } = project_agent_animals(&self.agent_session_store.list(), pig_profile)?;
+            } = project_agent_animals(&self.agent_session_store.list(), &pig_profile)?;
             animals.extend(agent_animals);
             logical_regions = agent_regions;
         }
