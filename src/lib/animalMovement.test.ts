@@ -100,6 +100,28 @@ describe("animalMovement", () => {
     expect(frozen).toMatchObject({ x: 100, y: 100, vx: 60, vy: 0 });
   });
 
+  it("keeps a frozen resting animal at its selected position", () => {
+    const selected = state({ x: -20, y: -30 });
+
+    const frozen = advanceAnimal({
+      animal: selected,
+      regions: [REGION],
+      dtMs: 100,
+      nowMs: 100,
+      motion: "resting",
+      frozen: true,
+      random: () => 0.5,
+      profile: PROFILE,
+    });
+
+    expect(frozen).toMatchObject({
+      x: selected.x,
+      y: selected.y,
+      vx: selected.vx,
+      vy: selected.vy,
+    });
+  });
+
   it("preserves position when label, size, or Motion presentation changes", () => {
     const existing = state({ x: 123, y: 234 });
     const reconciled = reconcileAnimalMovement(

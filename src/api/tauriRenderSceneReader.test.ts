@@ -64,4 +64,20 @@ describe("createTauriRenderSceneReader", () => {
     expect(mockListen).toHaveBeenCalledTimes(4);
     for (const un of unlisten) expect(un).toHaveBeenCalledTimes(1);
   });
+
+  it("cleans up successful listeners when another registration fails", async () => {
+    const unlisten = [vi.fn(), vi.fn(), vi.fn()];
+    mockListen
+      .mockResolvedValueOnce(unlisten[0])
+      .mockResolvedValueOnce(unlisten[1])
+      .mockRejectedValueOnce(new Error("registration failed"))
+      .mockResolvedValueOnce(unlisten[2]);
+
+    await expect(createTauriRenderSceneReader().subscribe(() => {})).rejects.toThrow(
+      "registration failed",
+    );
+
+    expect(mockListen).toHaveBeenCalledTimes(4);
+    for (const un of unlisten) expect(un).toHaveBeenCalledTimes(1);
+  });
 });

@@ -18,7 +18,7 @@ export function createTauriRenderSceneReader(): RenderSceneReader {
   return {
     read: (area) => invoke<RenderScene>("get_render_scene", { request: { area } }),
     subscribe: async (onChange) => {
-      const unlisteners = await Promise.all([
+      const results = await Promise.allSettled([
         listen("focuses-changed", () => onChange({ event: "focuses-changed" })),
         listen("agent-sessions-changed", () => onChange({ event: "agent-sessions-changed" })),
         listen("settings-changed", () => onChange({ event: "settings-changed" })),
@@ -26,6 +26,14 @@ export function createTauriRenderSceneReader(): RenderSceneReader {
           onChange({ event: "display-space", displaySpace: payload }),
         ),
       ]);
+      const unlisteners = results.flatMap((result) =>
+        result.status === "fulfilled" ? [result.value] : [],
+      );
+      const rejected = results.find((result) => result.status === "rejected");
+      if (rejected?.status === "rejected") {
+        for (const unlisten of unlisteners) unlisten();
+        throw rejected.reason;
+      }
       return () => {
         for (const unlisten of unlisteners) unlisten();
       };

@@ -90,7 +90,6 @@ export function advanceAnimal({
   random,
   profile,
 }: AdvanceAnimalInput): AnimalMovementState {
-  if (motion === "resting") return restAnimal(animal, regions, profile);
   if (frozen) {
     return {
       ...animal,
@@ -98,6 +97,7 @@ export function advanceAnimal({
       nextTurnAt: animal.nextTurnAt + dtMs,
     };
   }
+  if (motion === "resting") return restAnimal(animal, regions, profile);
 
   const steeringRegion = nearestRegion(animal.x, animal.y, regions, profile);
   let { nextTurnAt } = animal;

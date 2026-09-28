@@ -10,6 +10,7 @@ import {
 import { sampleAnimalSize } from "../lib/animalSize";
 import { movementRegionsFor, spawnRegionFor } from "../lib/regions";
 import type { DisplaySpace } from "../types/display";
+import type { RenderRect } from "../types/generated/RenderRect";
 import type { RenderScene } from "../types/generated/RenderScene";
 import type { SpeciesProfile } from "../types/generated/SpeciesProfile";
 import type { PigHitRect } from "../types/pig";
@@ -85,7 +86,7 @@ export function useAnimalMovement(
           dtMs: 0,
           nowMs,
           motion: animal.motion,
-          frozen: false,
+          frozen: animal.id === frozenIdRef.current,
           random: Math.random,
           profile,
         });
@@ -149,22 +150,29 @@ export function useAnimalMovement(
   }, []);
 
   const gather = useCallback(() => {
-    const area = displaySpaceRef.current.spawnRegion;
     const profiles = profilesBySpecies(sceneRef.current);
     const sourceById = new Map(sceneRef.current.animals.map((animal) => [animal.id, animal]));
     const margin = 20;
-    const next = movementRef.current.map((state, index) => {
+    const nextIndexByRegion = new Map<RenderRect, number>();
+    const next = movementRef.current.map((state) => {
       const source = sourceById.get(state.id);
       const profile = source ? profiles.get(source.species) : undefined;
-      if (!profile) return state;
+      if (!source || !profile) return state;
+      const area = spawnRegionFor(source, sceneRef.current.regions, displaySpaceRef.current);
+      const index = nextIndexByRegion.get(area) ?? 0;
+      nextIndexByRegion.set(area, index + 1);
       const footprint = profile.movementFootprintPx;
       const rowHeight = footprint + 24;
       const columnWidth = footprint + 24;
       const rows = Math.max(1, Math.floor((area.h - margin * 2) / rowHeight));
+      const rawX = area.x + area.w - margin - footprint - Math.floor(index / rows) * columnWidth;
+      const rawY = area.y + margin + (index % rows) * rowHeight;
+      const maxX = Math.max(area.x, area.x + area.w - footprint);
+      const maxY = Math.max(area.y, area.y + area.h - footprint);
       return {
         ...state,
-        x: area.x + area.w - margin - footprint - Math.floor(index / rows) * columnWidth,
-        y: area.y + margin + (index % rows) * rowHeight,
+        x: Math.min(maxX, Math.max(area.x, rawX)),
+        y: Math.min(maxY, Math.max(area.y, rawY)),
         vx: 0,
         vy: 0,
       };

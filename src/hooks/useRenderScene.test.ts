@@ -50,4 +50,19 @@ describe("useRenderScene", () => {
     await act(async () => first.resolve(scene("old")));
     expect(result.current.scene.animals[0]?.id).toBe("new");
   });
+
+  it("retries the latest scene read once after a transient failure", async () => {
+    const reader: RenderSceneReader = {
+      read: vi
+        .fn()
+        .mockRejectedValueOnce(new Error("transient read failure"))
+        .mockResolvedValueOnce(scene("recovered")),
+      subscribe: vi.fn(async () => () => {}),
+    };
+
+    const { result } = renderHook(() => useRenderScene(reader));
+
+    await waitFor(() => expect(result.current.scene.animals[0]?.id).toBe("recovered"));
+    expect(reader.read).toHaveBeenCalledTimes(2);
+  });
 });

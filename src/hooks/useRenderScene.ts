@@ -19,14 +19,16 @@ export function useRenderScene(reader: RenderSceneReader): RenderSceneState {
     let cancelled = false;
     let latestRequest = 0;
 
-    const refresh = (space: DisplaySpace) => {
+    const refresh = (space: DisplaySpace, retry = true) => {
       const request = ++latestRequest;
       reader
         .read(space.spawnRegion)
         .then((next) => {
           if (!cancelled && request === latestRequest) setScene(next);
         })
-        .catch(() => {});
+        .catch(() => {
+          if (!cancelled && request === latestRequest && retry) refresh(space, false);
+        });
     };
 
     refresh(displaySpaceRef.current);
