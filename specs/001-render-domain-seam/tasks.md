@@ -237,3 +237,30 @@ Each slice must synchronize with current `main`, restate its completion promise 
 - Existing Focus/Timer mutations, persisted files, Agent hook frames, socket transport, plugin lifecycle, settings schema, Pig hit-test/drag command names, debug reads, and integration diagnostics are protected and remain unchanged.
 - Complete Claude hook schema modeling, the harness-neutral ingestion layer, Codex support, a second Species, Species assignment/persistence, and backend fixed-step movement are separate future milestones.
 - A task is not complete when only focused tests pass; its slice must pass the repository gate and generated-type drift check.
+
+---
+
+## Phase 7: Convergence
+
+- [X] T049 Remove frame-driven Tauri command traffic from `src/hooks/useAnimalMovement.ts` while preserving moving-animal hit-testing, dragging, and existing visible behavior; add regression coverage that observes every backend call and proves normal animation and dragging issue no per-frame invokes or events per FR-021 and SC-011 (contradicts)
+- [X] T050 Run the complete mixed Focus/Agent visual checklist in `specs/001-render-domain-seam/quickstart.md` with an active hook session and record the observed results in `specs/001-render-domain-seam/tasks.md` per SC-001 and T048 (partial)
+
+**T049 regression record (2026-09-27)**: The animation loop now advances only local movement
+and presentation state. Moving-animal hit rectangles synchronize on an independent 64 ms cadence,
+with immediate wide/narrow updates retained at drag boundaries. The hook regression observes both
+backend adapters and proves ordinary and dragging animation frames add no Tauri calls; it also
+proves explicit drag-active calls, wide drag/selection hit regions, and the narrow animal-only region
+restored after selection closes.
+
+**T050 mixed-scene visual record (2026-09-27, macOS)**: Ran `task dev` against an isolated
+`ADHD_RANCH_HOME` containing one Focus and delivered an active Agent session through the real Unix
+hook socket. Both Pig presentations rendered and moved without visible presentation changes. The
+Focus ranged over the full enabled display while the Agent remained inside the centered, 320 px
+capped `ADHD-RANCH` region. Expiring the Focus timer enlarged and rested only the Focus; changing the
+Agent from working to idle rested only the Agent. Selecting the Focus opened its detail card and held
+its accessibility position at `(-1010, 643)` for two seconds; closing the card removed the detail,
+restored the narrow hit region, and movement resumed from `(-927, 711)` to `(-942, 750)`. Dispatching
+the same pointer-up interaction to the Agent opened no Focus detail. Finally, enabled displays were
+changed from the secondary display to both displays (`3000x1920`) and then to the primary display
+(`1920x1080`); each backend `DisplaySpace` refresh kept the Agent region centered/capped and the Focus
+free in the full enabled space. The app was stopped cleanly and port 1420 was clear afterward.

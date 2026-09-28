@@ -7,12 +7,13 @@ import { buildHitRects, useAnimalMovement } from "./useAnimalMovement";
 
 const pigApi = vi.hoisted(() => ({
   gather: null as null | (() => void),
+  setPigDragActive: vi.fn().mockResolvedValue(undefined),
   updatePigRects: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("../api/pig", () => ({
-  setPigDragActive: vi.fn().mockResolvedValue(undefined),
+  setPigDragActive: pigApi.setPigDragActive,
   subscribeGatherPigs: vi.fn().mockImplementation(async (callback: () => void) => {
     pigApi.gather = callback;
     return () => {};
@@ -65,6 +66,7 @@ const SCENE: RenderScene = {
 
 beforeEach(() => {
   pigApi.gather = null;
+  pigApi.setPigDragActive.mockClear();
   pigApi.updatePigRects.mockClear();
   vi.mocked(invoke).mockReset();
 });
@@ -103,6 +105,70 @@ describe("useAnimalMovement", () => {
     expect(raf).toHaveBeenCalledTimes(1);
 
     unmount();
+    cancel.mockRestore();
+    raf.mockRestore();
+  });
+
+  it("keeps backend synchronization out of normal and dragging animation frames", async () => {
+    let frame: FrameRequestCallback | undefined;
+    let synchronize: TimerHandler | undefined;
+    const raf = vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+      frame = callback;
+      return 1;
+    });
+    const cancel = vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => {});
+    const interval = vi.spyOn(window, "setInterval").mockImplementation((handler, timeout) => {
+      if (timeout === 64) synchronize = handler;
+      return 1 as unknown as ReturnType<typeof window.setInterval>;
+    });
+    const clearInterval = vi.spyOn(window, "clearInterval").mockImplementation(() => {});
+    const { result, rerender, unmount } = renderHook(
+      ({ frozenId }: { frozenId: string | null }) => useAnimalMovement(SCENE, DISPLAY, frozenId),
+      { initialProps: { frozenId: null as string | null } },
+    );
+    await waitFor(() => expect(result.current.animals).toHaveLength(2));
+    pigApi.updatePigRects.mockClear();
+
+    act(() => frame?.(performance.now() + 16));
+    expect(pigApi.updatePigRects).not.toHaveBeenCalled();
+    expect(pigApi.setPigDragActive).not.toHaveBeenCalled();
+
+    let dragOutcome = { wasDrag: false };
+    act(() => {
+      result.current.setDragActive(true);
+      result.current.startDrag("focus-1", 100, 100);
+      result.current.moveDrag(160, 100);
+      dragOutcome = result.current.endDrag();
+      result.current.setDragActive(false);
+    });
+    expect(dragOutcome.wasDrag).toBe(true);
+    expect(pigApi.updatePigRects).toHaveBeenCalledTimes(2);
+    expect(pigApi.updatePigRects.mock.calls[0]?.[0]).toEqual([{ x: 0, y: 0, size: 3_200 }]);
+    expect(pigApi.updatePigRects.mock.calls[1]?.[0]).toHaveLength(2);
+    expect(pigApi.setPigDragActive.mock.calls).toEqual([[true], [false]]);
+
+    act(() => frame?.(performance.now() + 32));
+    expect(pigApi.updatePigRects).toHaveBeenCalledTimes(2);
+    expect(pigApi.setPigDragActive).toHaveBeenCalledTimes(2);
+
+    rerender({ frozenId: "focus-1" });
+    act(() => {
+      if (typeof synchronize === "function") synchronize();
+    });
+    expect(pigApi.updatePigRects).toHaveBeenCalledTimes(3);
+    expect(pigApi.updatePigRects.mock.calls[2]?.[0]).toEqual([{ x: 0, y: 0, size: 3_200 }]);
+
+    rerender({ frozenId: null });
+    act(() => {
+      if (typeof synchronize === "function") synchronize();
+    });
+    expect(pigApi.updatePigRects).toHaveBeenCalledTimes(4);
+    expect(pigApi.updatePigRects.mock.calls[3]?.[0]).toHaveLength(2);
+
+    unmount();
+    expect(clearInterval).toHaveBeenCalled();
+    clearInterval.mockRestore();
+    interval.mockRestore();
     cancel.mockRestore();
     raf.mockRestore();
   });

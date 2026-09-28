@@ -17,7 +17,7 @@ import type { PigHitRect } from "../types/pig";
 export const HITBOX_PADDING = 16;
 export const DRAG_THRESHOLD = 4;
 export const TOSS_VELOCITY_WINDOW_MS = 80;
-const RECT_UPDATE_EVERY = 4;
+const HIT_RECT_SYNC_INTERVAL_MS = 64;
 
 export interface AnimalMovementResult {
   readonly animals: readonly AnimalMovementState[];
@@ -51,7 +51,6 @@ export function useAnimalMovement(
   const frozenIdRef = useRef(frozenId);
   const rafRef = useRef(0);
   const lastTimeRef = useRef(performance.now());
-  const frameCountRef = useRef(0);
   const dragIdRef = useRef<string | null>(null);
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
   const pointerHistoryRef = useRef<PointerSample[]>([]);
@@ -209,20 +208,23 @@ export function useAnimalMovement(
       movementRef.current = next;
       setMovement(next);
 
-      frameCountRef.current += 1;
-      if (frameCountRef.current % RECT_UPDATE_EVERY === 0) {
-        syncRects(
-          next,
-          frozenIdRef.current !== null || dragIdRef.current !== null,
-          currentScene,
-          currentDisplaySpace,
-        );
-      }
       rafRef.current = requestAnimationFrame(loop);
     };
 
     rafRef.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(rafRef.current);
+  }, []);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      syncRects(
+        movementRef.current,
+        frozenIdRef.current !== null || dragIdRef.current !== null,
+        sceneRef.current,
+        displaySpaceRef.current,
+      );
+    }, HIT_RECT_SYNC_INTERVAL_MS);
+    return () => window.clearInterval(interval);
   }, []);
 
   return { animals: movement, startDrag, moveDrag, endDrag, setDragActive };
