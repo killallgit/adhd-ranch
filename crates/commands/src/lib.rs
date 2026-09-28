@@ -3,11 +3,16 @@ use std::sync::Arc;
 use adhd_ranch_domain::Settings;
 use adhd_ranch_storage::FocusStore;
 
+pub mod agent_animals;
 pub mod agent_debug;
 pub mod agent_sessions;
 pub mod caps;
 pub mod error;
 pub mod focus;
+pub mod focus_animals;
+pub mod region_layout;
+pub mod render_scene;
+pub mod species;
 pub mod timers;
 
 pub use agent_debug::{AgentDebug, HookPaths};

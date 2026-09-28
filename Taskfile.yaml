@@ -30,12 +30,13 @@ tasks:
       - cargo test -p adhd-ranch --lib
 
   gen-types:
-    desc: Regenerate src/types/generated/*.ts from Rust domain via ts-rs
+    desc: Regenerate src/types/generated/*.ts from Rust via ts-rs
     cmds:
       - cargo test -p adhd-ranch-domain --features export-ts --quiet
+      - cargo test -p adhd-ranch-commands --features export-ts --quiet
 
   gen-types:check:
-    desc: Fail if generated TS types are out of sync with Rust domain
+    desc: Fail if generated TS types are out of sync with Rust
     cmds:
       - task: gen-types
       - git diff --exit-code -- src/types/generated

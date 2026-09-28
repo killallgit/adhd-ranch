@@ -2,14 +2,13 @@ import { listen } from "@tauri-apps/api/event";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { act } from "react";
-import { describe, expect, it, vi } from "vitest";
-import { createFixtureAgentSessionReader } from "../api/fixtureAgentSessionReader";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createFixtureFocusReader } from "../api/fixtureFocusReader";
-import { createFixtureSettingsReader } from "../api/fixtureSettingsReader";
 import type { FocusWriter } from "../api/focusWriter";
-import type { AgentSession } from "../types/agentSession";
-import type { Animal } from "../types/animal";
+import type { RenderSceneReader } from "../api/tauriRenderSceneReader";
 import type { Focus } from "../types/focus";
+import type { Animal } from "../types/generated/Animal";
+import type { RenderScene } from "../types/generated/RenderScene";
 import { App } from "./App";
 
 vi.mock("@tauri-apps/api/core", () => ({
@@ -20,39 +19,22 @@ vi.mock("@tauri-apps/api/event", () => ({
   listen: vi.fn().mockResolvedValue(() => {}),
 }));
 
-// The overlay widens its hit rect to the whole viewport while an Animal is
-// selected, so what App passes as selectedId decides whether clicks reach the
-// desktop behind it.
-const movement = vi.hoisted(() => ({ selectedId: null as string | null }));
+const movement = vi.hoisted(() => ({ frozenId: null as string | null }));
 
-const PEN_AREA = { x: 0, y: 0, w: 1000, h: 800 };
-
-vi.mock(import("../hooks/usePigMovement"), async (importOriginal) => {
-  const actual = await importOriginal();
-  const { animalPen } = await import("../lib/animals");
-  const { layoutPens, uniquePens } = await import("../lib/session/pens");
+vi.mock(import("../hooks/useAnimalMovement"), async () => {
   return {
-    ...actual,
-    usePigMovement: (
-      animals: readonly Animal[],
-      selectedId: string | null,
-      maxPenSize: number | null,
-    ) => {
-      movement.selectedId = selectedId;
+    useAnimalMovement: (scene: RenderScene, _displaySpace: unknown, frozenId: string | null) => {
+      movement.frozenId = frozenId;
       return {
-        pens:
-          maxPenSize === null
-            ? []
-            : layoutPens(uniquePens(animals.map(animalPen)), PEN_AREA, maxPenSize),
-        pigs: animals.map((animal) => ({
+        animals: scene.animals.map((animal) => ({
           id: animal.id,
-          name: animal.name,
+          label: animal.label,
           x: 100,
           y: 100,
           vx: 1,
           vy: 0,
           frameIndex: 0,
-          direction: "right" as "left" | "right",
+          direction: "right" as const,
           lastFrameAt: 0,
           nextTurnAt: 9_999_999,
         })),
@@ -65,26 +47,47 @@ vi.mock(import("../hooks/usePigMovement"), async (importOriginal) => {
   };
 });
 
-const noAgents = createFixtureAgentSessionReader([]);
-const defaultSettings = createFixtureSettingsReader();
+const PROFILE = {
+  species: "pig" as const,
+  baseSizePx: 48,
+  movementFootprintPx: 48,
+  walkSpeedPxPerSecond: 60,
+  friction: 0.97,
+  minimumSpeedFraction: 0.35,
+  maximumTossSpeedMultiplier: 6,
+  turnMinMs: 3_000,
+  turnMaxMs: 8_000,
+  frameIntervalMs: 150,
+};
 
-function session(
-  name: string,
-  checkout: string,
-  activity: AgentSession["activity"] = "Idle",
-): AgentSession {
-  return {
-    id: `session-${name}`,
-    name,
-    pen: { id: `/code/${checkout}`, name: checkout },
-    activity,
-  };
-}
-
-const sample: Focus[] = [
+const SAMPLE_FOCUSES: Focus[] = [
   { id: "a", title: "Customer X bug", description: "", created_at: "", tasks: [] },
   { id: "b", title: "API refactor", description: "", created_at: "", tasks: [] },
 ];
+
+function animal(overrides: Partial<Animal> = {}): Animal {
+  return {
+    id: "a",
+    label: "Customer X bug",
+    species: "pig",
+    size: { kind: "fixed", px: 48 },
+    regionId: null,
+    motion: "walking",
+    ...overrides,
+  };
+}
+
+function sceneReader(animals: readonly Animal[]): RenderSceneReader {
+  const scene: RenderScene = {
+    animals: [...animals],
+    regions: [],
+    speciesProfiles: [PROFILE],
+  };
+  return {
+    read: vi.fn().mockResolvedValue(scene),
+    subscribe: vi.fn().mockResolvedValue(() => {}),
+  };
+}
 
 function noopFocusWriter(): FocusWriter {
   const ok = { ok: true } as const;
@@ -102,342 +105,105 @@ function noopFocusWriter(): FocusWriter {
   };
 }
 
+function renderApp(
+  focuses: readonly Focus[],
+  animals: readonly Animal[],
+  writer: FocusWriter = noopFocusWriter(),
+) {
+  return render(
+    <App
+      focusReader={createFixtureFocusReader(focuses)}
+      focusWriter={writer}
+      onWriteFailure={() => {}}
+      renderSceneReader={sceneReader(animals)}
+    />,
+  );
+}
+
+beforeEach(() => {
+  movement.frozenId = null;
+  vi.mocked(listen).mockResolvedValue(() => {});
+});
+
 describe("App overlay", () => {
   it("renders the overlay root", async () => {
-    render(
-      <App
-        focusReader={createFixtureFocusReader([])}
-        focusWriter={noopFocusWriter()}
-        onWriteFailure={() => {}}
-        agentSessionReader={noAgents}
-        settingsReader={defaultSettings}
-      />,
-    );
+    renderApp([], []);
     expect(document.querySelector(".overlay-root")).toBeInTheDocument();
     await act(async () => {});
   });
 
-  it("spawns a pig for each focus", async () => {
-    render(
-      <App
-        focusReader={createFixtureFocusReader(sample)}
-        focusWriter={noopFocusWriter()}
-        onWriteFailure={() => {}}
-        agentSessionReader={noAgents}
-        settingsReader={defaultSettings}
-      />,
-    );
-    await waitFor(() => {
-      expect(screen.getByText("Customer X bug")).toBeInTheDocument();
-      expect(screen.getByText("API refactor")).toBeInTheDocument();
-    });
+  it("renders mixed generated-scene Animals through explicit Species dispatch", async () => {
+    renderApp(SAMPLE_FOCUSES, [
+      animal({ label: "Focus from scene" }),
+      animal({
+        id: "agent:one",
+        label: "Agent from scene",
+        regionId: "repo",
+        motion: "resting",
+      }),
+    ]);
+
+    expect(await screen.findByText("Focus from scene")).toBeInTheDocument();
+    expect(screen.getByText("Agent from scene")).toBeInTheDocument();
   });
 
-  it("add-task input calls focusWriter.appendTask with selected focus id", async () => {
+  it("keeps the Focus reader for detail and edit data", async () => {
     const writer = noopFocusWriter();
-    render(
-      <App
-        focusReader={createFixtureFocusReader(sample)}
-        focusWriter={writer}
-        onWriteFailure={() => {}}
-        agentSessionReader={noAgents}
-        settingsReader={defaultSettings}
-      />,
-    );
+    renderApp(SAMPLE_FOCUSES, [animal()], writer);
 
-    await waitFor(() => {
-      expect(screen.getByText("Customer X bug")).toBeInTheDocument();
-    });
-
-    // Click the pig to open AnimalDetail
-    await userEvent.click(screen.getByText("Customer X bug"));
-
-    const input = screen.getByPlaceholderText("Add task…");
-    await userEvent.type(input, "write tests{Enter}");
-
-    expect(writer.appendTask).toHaveBeenCalledWith("a", "write tests");
-  });
-
-  it("shows an added task in the open detail card after append succeeds", async () => {
-    render(
-      <App
-        focusReader={createFixtureFocusReader(sample)}
-        focusWriter={noopFocusWriter()}
-        onWriteFailure={() => {}}
-        agentSessionReader={noAgents}
-        settingsReader={defaultSettings}
-      />,
-    );
-
-    await screen.findByText("Customer X bug");
-    await userEvent.click(screen.getByText("Customer X bug"));
-
+    await userEvent.click(await screen.findByText("Customer X bug"));
     await userEvent.type(screen.getByPlaceholderText("Add task…"), "write tests{Enter}");
 
+    expect(writer.appendTask).toHaveBeenCalledWith("a", "write tests");
     expect(await screen.findByLabelText("task text: write tests")).toHaveValue("write tests");
   });
 
-  it("renders a timed focus with the current animal scale", async () => {
-    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(1_060_000);
-    try {
-      render(
-        <App
-          focusReader={createFixtureFocusReader([
-            {
-              id: "timed",
-              title: "Timer focus",
-              description: "",
-              created_at: "",
-              tasks: [],
-              timer: { duration_secs: 120, started_at: 1_000, status: "Running" },
-            },
-          ])}
-          focusWriter={noopFocusWriter()}
-          onWriteFailure={() => {}}
-          agentSessionReader={noAgents}
-          settingsReader={defaultSettings}
-        />,
-      );
-
-      const pig = await screen.findByRole("button", { name: /timer focus/i });
-      expect(pig.querySelector(".pig-sprite-frame")).toHaveStyle({ width: "96px", height: "96px" });
-    } finally {
-      nowSpy.mockRestore();
-    }
-  });
-
-  it("renders an expired focus with an expired animal visual", async () => {
-    render(
-      <App
-        focusReader={createFixtureFocusReader([
-          {
-            id: "expired",
-            title: "Expired focus",
-            description: "",
-            created_at: "",
-            tasks: [],
-            timer: { duration_secs: 120, started_at: 1_000, status: "Expired" },
-          },
-        ])}
-        focusWriter={noopFocusWriter()}
-        onWriteFailure={() => {}}
-        agentSessionReader={noAgents}
-        settingsReader={defaultSettings}
-      />,
+  it("samples absolute size and renders resting Motion", async () => {
+    renderApp(
+      [],
+      [
+        animal({
+          id: "expired",
+          label: "Expired",
+          size: { kind: "fixed", px: 96 },
+          motion: "resting",
+        }),
+      ],
     );
 
-    const pig = await screen.findByRole("button", { name: /expired focus/i });
-    expect(pig).toHaveClass("pig-sprite--resting");
-    expect(pig.querySelector(".pig-sprite-frame")).toHaveStyle({
-      filter:
-        "grayscale(1) saturate(0.15) brightness(1.55) drop-shadow(0 0 8px rgba(210, 240, 255, 0.55))",
-      opacity: "0.48",
+    const sprite = await screen.findByRole("button", { name: /expired/i });
+    expect(sprite).toHaveClass("pig-sprite--resting");
+    expect(sprite.querySelector(".pig-sprite-frame")).toHaveStyle({
+      width: "96px",
+      height: "96px",
     });
   });
 
-  it("does not render expired animal visual for an expired task timer", async () => {
-    render(
-      <App
-        focusReader={createFixtureFocusReader([
-          {
-            id: "task-expired",
-            title: "Task expired focus",
-            description: "",
-            created_at: "",
-            tasks: [
-              {
-                id: "task-1",
-                text: "Write tests",
-                done: false,
-                timer: { duration_secs: 120, started_at: 1_000, status: "Expired" },
-              },
-            ],
-            timer: null,
-          },
-        ])}
-        focusWriter={noopFocusWriter()}
-        onWriteFailure={() => {}}
-        agentSessionReader={noAgents}
-        settingsReader={defaultSettings}
-      />,
-    );
-
-    const pig = await screen.findByRole("button", { name: /task expired focus/i });
-    expect(pig).not.toHaveClass("pig-sprite--resting");
-  });
-
-  it("opens animal detail when the tray asks to open a focus", async () => {
+  it("opens a current Focus when the tray requests its render id", async () => {
     const listeners = new Map<string, (event: { payload: string }) => void>();
-    vi.mocked(listen).mockImplementation((event, cb) => {
-      listeners.set(event, cb as (event: { payload: string }) => void);
+    vi.mocked(listen).mockImplementation((event, callback) => {
+      listeners.set(event, callback as (event: { payload: string }) => void);
       return Promise.resolve(() => {});
     });
-
-    render(
-      <App
-        focusReader={createFixtureFocusReader(sample)}
-        focusWriter={noopFocusWriter()}
-        onWriteFailure={() => {}}
-        agentSessionReader={noAgents}
-        settingsReader={defaultSettings}
-      />,
-    );
-
+    renderApp(SAMPLE_FOCUSES, [animal({ id: "b", label: "API refactor" })]);
     await screen.findByText("API refactor");
-    await act(async () => {
-      listeners.get("open-focus-detail")?.({ payload: "b" });
-    });
+
+    act(() => listeners.get("open-focus-detail")?.({ payload: "b" }));
 
     expect(screen.getByLabelText("focus title")).toHaveValue("API refactor");
+    expect(movement.frozenId).toBe("b");
   });
 
-  it("spawns agent pigs alongside focus pigs", async () => {
-    render(
-      <App
-        focusReader={createFixtureFocusReader(sample)}
-        focusWriter={noopFocusWriter()}
-        onWriteFailure={() => {}}
-        agentSessionReader={createFixtureAgentSessionReader([session("feature-abc", "adhd-ranch")])}
-        settingsReader={defaultSettings}
-      />,
-    );
+  it("does not open Focus details for an Agent id", async () => {
+    renderApp(SAMPLE_FOCUSES, [animal({ id: "agent:one", label: "Agent" })]);
+    await userEvent.click(await screen.findByText("Agent"));
 
-    expect(await screen.findByText("feature-abc")).toBeInTheDocument();
-    expect(screen.getByText("Customer X bug")).toBeInTheDocument();
-    expect(screen.getByText("API refactor")).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("Add task…")).not.toBeInTheDocument();
+    expect(movement.frozenId).toBeNull();
   });
 
-  it("draws one pen per checkout", async () => {
-    render(
-      <App
-        focusReader={createFixtureFocusReader([])}
-        focusWriter={noopFocusWriter()}
-        onWriteFailure={() => {}}
-        agentSessionReader={createFixtureAgentSessionReader([
-          session("feature-abc", "adhd-ranch"),
-          session("main", "adhd-ranch"),
-          session("spike", "other-repo"),
-        ])}
-        settingsReader={defaultSettings}
-      />,
-    );
-
-    expect(await screen.findByText("adhd-ranch")).toBeInTheDocument();
-    expect(screen.getByText("other-repo")).toBeInTheDocument();
-    expect(document.querySelectorAll(".pen-box")).toHaveLength(2);
-  });
-
-  it("tells two pens apart by colour", async () => {
-    render(
-      <App
-        focusReader={createFixtureFocusReader([])}
-        focusWriter={noopFocusWriter()}
-        onWriteFailure={() => {}}
-        agentSessionReader={createFixtureAgentSessionReader([
-          session("feature-abc", "adhd-ranch"),
-          session("spike", "other-repo"),
-        ])}
-        settingsReader={defaultSettings}
-      />,
-    );
-
-    await screen.findByText("adhd-ranch");
-    const hues = [...document.querySelectorAll<HTMLElement>(".pen-box")].map((pen) =>
-      pen.style.getPropertyValue("--pen-hue"),
-    );
-
-    expect(hues[0]).not.toBe("");
-    expect(hues[0]).not.toBe(hues[1]);
-  });
-
-  it("draws a pen's border around the cell its animals roam", async () => {
-    render(
-      <App
-        focusReader={createFixtureFocusReader([])}
-        focusWriter={noopFocusWriter()}
-        onWriteFailure={() => {}}
-        agentSessionReader={createFixtureAgentSessionReader([session("feature-abc", "adhd-ranch")])}
-        settingsReader={defaultSettings}
-      />,
-    );
-
-    await screen.findByText("feature-abc");
-    const pen = document.querySelector(".pen-box");
-
-    expect(pen).toHaveStyle({ left: "340px", top: "240px", width: "320px", height: "320px" });
-  });
-
-  it("draws a pen no larger than the settings allow", async () => {
-    render(
-      <App
-        focusReader={createFixtureFocusReader([])}
-        focusWriter={noopFocusWriter()}
-        onWriteFailure={() => {}}
-        agentSessionReader={createFixtureAgentSessionReader([session("feature-abc", "adhd-ranch")])}
-        settingsReader={createFixtureSettingsReader({ pens: { max_size: 200 } })}
-      />,
-    );
-
-    await waitFor(() =>
-      expect(document.querySelector(".pen-box")).toHaveStyle({
-        width: "200px",
-        height: "200px",
-      }),
-    );
-  });
-
-  it("rests a session between turns as a ghost", async () => {
-    render(
-      <App
-        focusReader={createFixtureFocusReader([])}
-        focusWriter={noopFocusWriter()}
-        onWriteFailure={() => {}}
-        agentSessionReader={createFixtureAgentSessionReader([session("feature-abc", "adhd-ranch")])}
-        settingsReader={defaultSettings}
-      />,
-    );
-
-    const pig = await screen.findByRole("button", { name: /feature-abc/i });
-
-    expect(pig).toHaveClass("pig-sprite--resting");
-  });
-
-  it("keeps a working session's animal awake", async () => {
-    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(1_000_000_000);
-    try {
-      render(
-        <App
-          focusReader={createFixtureFocusReader([])}
-          focusWriter={noopFocusWriter()}
-          onWriteFailure={() => {}}
-          agentSessionReader={createFixtureAgentSessionReader([
-            session("feature-abc", "adhd-ranch", "Working"),
-          ])}
-          settingsReader={defaultSettings}
-        />,
-      );
-
-      const pig = await screen.findByRole("button", { name: /feature-abc/i });
-
-      expect(pig).not.toHaveClass("pig-sprite--resting");
-    } finally {
-      nowSpy.mockRestore();
-    }
-  });
-
-  it("closes animal detail when the selected focus disappears", async () => {
-    // A selection that outlives its Focus used to keep the overlay's full-viewport
-    // hit rect, swallowing every click on the desktop behind it.
-    const { rerender } = render(
-      <App
-        focusReader={createFixtureFocusReader(sample)}
-        focusWriter={noopFocusWriter()}
-        onWriteFailure={() => {}}
-        agentSessionReader={noAgents}
-        settingsReader={defaultSettings}
-      />,
-    );
-
+  it("clears detail and frozen id when the selected Focus disappears", async () => {
+    const { rerender } = renderApp(SAMPLE_FOCUSES, [animal()]);
     await userEvent.click(await screen.findByText("Customer X bug"));
     expect(screen.getByLabelText("focus title")).toHaveValue("Customer X bug");
 
@@ -446,28 +212,91 @@ describe("App overlay", () => {
         focusReader={createFixtureFocusReader([])}
         focusWriter={noopFocusWriter()}
         onWriteFailure={() => {}}
-        agentSessionReader={noAgents}
-        settingsReader={defaultSettings}
+        renderSceneReader={sceneReader([])}
       />,
     );
 
     await waitFor(() => expect(screen.queryByLabelText("focus title")).not.toBeInTheDocument());
-    expect(movement.selectedId).toBeNull();
+    expect(movement.frozenId).toBeNull();
   });
 
-  it("does not open animal detail when an agent pig is clicked", async () => {
+  it("updates Focus size/Motion and Agent Motion independently", async () => {
+    let current: RenderScene = {
+      animals: [animal({ id: "a", label: "Focus" }), animal({ id: "agent:one", label: "Agent" })],
+      regions: [],
+      speciesProfiles: [PROFILE],
+    };
+    let invalidate: (() => void) | null = null;
+    const reader: RenderSceneReader = {
+      read: vi.fn().mockImplementation(async () => current),
+      subscribe: vi.fn().mockImplementation(async (callback) => {
+        invalidate = () => callback({ event: "focuses-changed" });
+        return () => {};
+      }),
+    };
     render(
       <App
-        focusReader={createFixtureFocusReader(sample)}
+        focusReader={createFixtureFocusReader(SAMPLE_FOCUSES)}
         focusWriter={noopFocusWriter()}
         onWriteFailure={() => {}}
-        agentSessionReader={createFixtureAgentSessionReader([session("feature-abc", "adhd-ranch")])}
-        settingsReader={defaultSettings}
+        renderSceneReader={reader}
+      />,
+    );
+    const focusSprite = await screen.findByRole("button", { name: /focus/i });
+    const agentSprite = screen.getByRole("button", { name: /agent/i });
+
+    current = {
+      ...current,
+      animals: [
+        animal({ id: "a", label: "Focus", size: { kind: "fixed", px: 144 }, motion: "resting" }),
+        animal({ id: "agent:one", label: "Agent" }),
+      ],
+    };
+    await act(async () => invalidate?.());
+    await waitFor(() => expect(focusSprite).toHaveClass("pig-sprite--resting"));
+    expect(focusSprite.querySelector(".pig-sprite-frame")).toHaveStyle({ width: "144px" });
+    expect(agentSprite).not.toHaveClass("pig-sprite--resting");
+
+    current = {
+      ...current,
+      animals: [current.animals[0], animal({ id: "agent:one", label: "Agent", motion: "resting" })],
+    };
+    await act(async () => invalidate?.());
+    await waitFor(() => expect(agentSprite).toHaveClass("pig-sprite--resting"));
+    expect(focusSprite.querySelector(".pig-sprite-frame")).toHaveStyle({ width: "144px" });
+  });
+
+  it("renders scene regions without Pen data", async () => {
+    const reader: RenderSceneReader = {
+      read: vi.fn().mockResolvedValue({
+        animals: [],
+        regions: [
+          {
+            id: "repo",
+            label: "Repository",
+            rect: { x: 40, y: 50, w: 320, h: 240 },
+            hue: 145,
+          },
+        ],
+        speciesProfiles: [PROFILE],
+      } satisfies RenderScene),
+      subscribe: vi.fn().mockResolvedValue(() => {}),
+    };
+    render(
+      <App
+        focusReader={createFixtureFocusReader([])}
+        focusWriter={noopFocusWriter()}
+        onWriteFailure={() => {}}
+        renderSceneReader={reader}
       />,
     );
 
-    await userEvent.click(await screen.findByText("feature-abc"));
-
-    expect(screen.queryByPlaceholderText("Add task…")).not.toBeInTheDocument();
+    expect(await screen.findByText("Repository")).toBeInTheDocument();
+    expect(document.querySelector(".region-box")).toHaveStyle({
+      left: "40px",
+      top: "50px",
+      width: "320px",
+      height: "240px",
+    });
   });
 });

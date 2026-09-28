@@ -1,6 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import type { DisplaySpace } from "../types/display";
 import type { PigHitRect } from "../types/pig";
 
 export type Unsubscribe = () => void;
@@ -21,10 +20,4 @@ export async function subscribeOpenFocusDetail(
   cb: (focusId: string) => void,
 ): Promise<Unsubscribe> {
   return listen<string>("open-focus-detail", (event) => cb(event.payload));
-}
-
-export async function subscribeDisplaySpace(
-  cb: (space: DisplaySpace) => void,
-): Promise<Unsubscribe> {
-  return listen<DisplaySpace>("display-space", (event) => cb(event.payload));
 }

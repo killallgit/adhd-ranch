@@ -8,10 +8,18 @@ emdash
 
 # rust
 target/
+debug/
+release/
+*.rs.bk
+*.rlib
+*.prof*
 
 # node / vite
 node_modules/
 dist/
+build/
+*.log
+.env*
 
 # tauri
 src-tauri/gen/
@@ -25,3 +33,11 @@ skills-lock.json
 
 # tauri sidecars, built from crates/hook-client
 src-tauri/binaries/
+
+# editor and OS artifacts
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+.vscode/
+.idea/

@@ -1,6 +1,8 @@
 use adhd_ranch_domain::DomainError;
 use adhd_ranch_storage::FocusStoreError;
 
+use crate::render_scene::RenderSceneError;
+
 #[derive(Debug, serde::Serialize)]
 #[serde(tag = "type", content = "message", rename_all = "snake_case")]
 pub enum CommandError {
@@ -39,5 +41,11 @@ impl From<FocusStoreError> for CommandError {
 impl From<DomainError> for CommandError {
     fn from(e: DomainError) -> Self {
         CommandError::BadRequest(e.to_string())
+    }
+}
+
+impl From<RenderSceneError> for CommandError {
+    fn from(error: RenderSceneError) -> Self {
+        Self::Internal(error.to_string())
     }
 }

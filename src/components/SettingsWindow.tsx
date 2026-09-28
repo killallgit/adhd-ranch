@@ -1,8 +1,9 @@
 import type React from "react";
 import { useState } from "react";
-import { PEN_SIZE_RANGE } from "../lib/session/pens";
 import type { MonitorInfo } from "../types/monitor";
 import type { Settings } from "../types/settings";
+
+const PEN_SIZE_RANGE = { min: 160, max: 960 } as const;
 
 const NOTIFICATION_SOURCES = [
   { key: "timer_expired", label: "Timer expired" },

@@ -12,6 +12,11 @@ adhd-ranch-domain = { path = "../domain" }
 adhd-ranch-storage = { path = "../storage" }
 log = "0.4"
 serde = { workspace = true }
+ts-rs = { version = "12", optional = true }
+
+[features]
+export-ts = ["dep:ts-rs"]
 
 [dev-dependencies]
+serde_json = { workspace = true }
 tempfile = "3"
