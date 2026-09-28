@@ -140,8 +140,8 @@ task check
 Expected outcome: formatting, Clippy debug/release checks, Biome, unused-code checks, TypeScript,
 all Rust and Vitest tests, and generated-type drift all pass with a clean generated-types diff.
 
-Because this feature changes Rust/Tauri paths, the existing Windows GitHub Actions job is also a
-required PR signal.
+Windows CI is deferred while the app remains a prototype. Its packaging workflow remains available
+for manual dispatch but is not a required PR signal.
 
 The feature is not complete if focused tests pass but `task check` fails.
 

@@ -163,14 +163,13 @@ requires the simplest design.
 
 **Decision**: Add Rust projection, serialization, collision-id, size-curve, region-layout,
 Species-profile, and scene-service tests plus focused TypeScript sampler, Focus-selection,
-movement-adapter, and App tests. Each slice runs focused tests and `task check`. Rust/Tauri paths
-trigger the existing Windows CI job; no unsupported local cross-compilation is required.
+movement-adapter, and App tests. Each slice runs focused tests and `task check`. Windows validation
+is deferred while the app remains a prototype; the Windows workflow remains manually dispatchable.
 
 **Rationale**: `Taskfile.yaml:142` defines `task check` as lint, typecheck, Rust/frontend tests, and
-generated-contract drift. CI runs it on macOS for every PR. The Windows workflow is path-filtered
-to exactly the Rust/Tauri paths this plan changes, so it becomes a required CI signal. Existing
-tests already cover movement, dragging, timer visuals, regions, stale selection, and Agent clicks;
-new assertions prove backend ownership and the boundary itself rather than only visible behavior.
+generated-contract drift. CI runs it on macOS for every PR. Existing tests already cover movement,
+dragging, timer visuals, regions, stale selection, and Agent clicks; new assertions prove backend
+ownership and the boundary itself rather than only visible behavior.
 
 **Alternatives considered**:
 

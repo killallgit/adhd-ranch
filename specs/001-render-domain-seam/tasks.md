@@ -147,15 +147,14 @@ description: "Dependency-ordered implementation tasks for the Rust-owned render 
 - [X] T045 [P] Update the current implementation map and renderer boundary description in `docs/architecture.md`, citing accepted `docs/adr/0001-two-apps-over-one-renderer.md` and `docs/adr/0003-rust-owned-render-scene.md` without modifying their accepted decisions
 - [X] T046 Run the prohibited-dependency, obsolete-symbol, and Pig-policy searches from `specs/001-render-domain-seam/quickstart.md`; resolve every production-code match in `crates/commands/src/focus_animals.rs`, `crates/commands/src/agent_animals.rs`, `src/lib/animalSize.ts`, `src/lib/animalMovement.ts`, `src/lib/regions.ts`, and `src/hooks/useAnimalMovement.ts`
 - [X] T047 Run `cargo test -p adhd-ranch-commands`, focused Vitest commands, `task gen-types:check`, and the full `task check` gate from `Taskfile.yaml`; verify `git diff --check` and a clean generated-types diff
-- [X] T048 Perform the running-app smoke test in `specs/001-render-domain-seam/quickstart.md`, first checking port 1420, and record any platform-only failure or Windows CI requirement in `specs/001-render-domain-seam/tasks.md`
+- [X] T048 Perform the running-app smoke test in `specs/001-render-domain-seam/quickstart.md`, first checking port 1420, and record any platform-only failures in `specs/001-render-domain-seam/tasks.md`
 
 **T048 smoke record (2026-09-27, macOS)**: Port 1420 was clear before launch. `task dev`
 built and started both Vite on port 1420 and the debug Tauri binary without runtime startup errors;
 the test processes were then stopped and port 1420 was verified clear again. The automated Rust,
 hook, and App integration tests cover mixed-domain rendering, Focus-only interaction, independent
 Motion/size changes, and region rendering. A live mixed Claude-session visual check requires an
-active hook session, and the existing Windows GitHub Actions job remains a required PR signal for
-the changed Rust/Tauri paths.
+active hook session. Windows CI is intentionally deferred while the app remains a prototype.
 
 ---
 
