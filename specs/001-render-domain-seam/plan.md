@@ -75,7 +75,8 @@ Motion, Harness, screen, or stored entity is introduced.
 | VI. Evidence Is Not Authority | PASS | Requirements come from the constitution, accepted ADR-0001, current `main`, and present owner direction. Issues 051/057/058 are evidence only; stale ADR action checkboxes do not override current code. |
 | Product constraints | PASS | Tauri IPC remains the only frontend/core boundary; the read model is generated from Rust; Pig physical policy is not relabeled as generic Animal behavior; no per-frame transport or speculative compatibility layer is added. The approved specification explicitly narrows this prototype slice's platform acceptance gate to macOS and defers Windows verification. |
 
-**Gate result**: PASS. No exception or complexity justification is required.
+**Gate result**: PASS. The owner-approved delivery-packaging exception is documented in
+`spec.md`; no architecture or implementation-complexity exception is required.
 
 ## Project Structure
 
@@ -290,7 +291,7 @@ remains.
 | Domain independence | PASS | Rust producers share only `Animal`/scene values; selection is Focus-only; Species, Harness, and source domain remain orthogonal. |
 | Functional core and explicit edges | PASS | Rust projections, size policy, dedupe, layout, and Species policy are pure; Tauri is the read edge; subscriptions/rAF/pointer work stays in the webview. |
 | Explicit integrations | PASS | No integration behavior is in scope. |
-| Small observable slices | PASS | Three ordered slices each have one completion promise, focused regression tests, and the full gate. |
+| Small observable slices | PASS with approved delivery exception | Three ordered review ranges each have one completion promise and focused regression tests; PR #88 packages them atomically under the feature-scoped exception, with one synchronized full gate. |
 | Artifact authority | PASS | The plan records the stale checkboxes, relies on verified current code, and does not promote historical issue text. |
 | Simplicity | PASS | The existing commands crate gains one read-model service and generated contract; no new crate, registry, per-frame protocol, or speculative enforcement mechanism is introduced. |
 

@@ -225,7 +225,7 @@ Then: T038 -> T039; T039 + T040 -> T041; T041 + T042 -> T043 -> T044
 1. Complete Setup and Foundation.
 2. Complete US1 through T028.
 3. Stop and validate the mixed Focus/Agent scene independently.
-4. Do not claim the full ADR complete until US2, US3, and Phase 6 pass.
+4. Do not claim the full ADR complete until US2, US3, Phase 6, and Phase 7 pass.
 
 ### Three reviewable vertical slices
 
@@ -238,7 +238,11 @@ atomically in PR #88 because the generated contract, application cutover, and re
 renderer authority form one replacement. Review PR #88 in the three ranges above. This exception
 is limited to this feature and does not relax the normal small-PR rule.
 
-Each slice must synchronize with current `main`, restate its completion promise in the PR, cite the source Spec Kit tasks, pass its focused tests and `task check`, and stay narrow enough for a roughly fifteen-minute human review.
+Normally, each slice must synchronize with current `main`, restate its completion promise in its
+PR, cite the source Spec Kit tasks, pass its focused tests and `task check`, and stay narrow enough
+for a roughly fifteen-minute human review. Under the approved PR #88 exception, the three ranges
+above remain separate review guides with focused phase checkpoints, while the assembled replacement
+uses one post-convergence synchronization, full `task check`, and CI gate.
 
 ## Notes
 
