@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { StrictMode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { TimerDropdown } from "./TimerDropdown";
 
@@ -22,6 +23,21 @@ function renderDropdown(overrides: Partial<React.ComponentProps<typeof TimerDrop
 }
 
 describe("TimerDropdown", () => {
+  it("reloads once per opening in StrictMode", async () => {
+    const props = dropdownProps({ onOpen: vi.fn() });
+    render(
+      <StrictMode>
+        <TimerDropdown {...props} />
+      </StrictMode>,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "edit timer" }));
+    await userEvent.click(screen.getByRole("button", { name: "edit timer" }));
+    await userEvent.click(screen.getByRole("button", { name: "edit timer" }));
+
+    expect(props.onOpen).toHaveBeenCalledTimes(2);
+  });
+
   it("starts the default 30 minute chip when Enter is pressed", async () => {
     const props = renderDropdown();
 

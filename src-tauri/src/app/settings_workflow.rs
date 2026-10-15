@@ -116,7 +116,13 @@ where
         }
     }
 
-    pub fn update(&self, next: Settings) -> Result<(), SettingsWorkflowError> {
+    pub fn update(&self, mut next: Settings) -> Result<(), SettingsWorkflowError> {
+        // Timer presets have their own edit command; preferences may carry a stale copy.
+        next.timers = self.runtime.current()?.timers;
+        self.apply(next)
+    }
+
+    fn apply(&self, next: Settings) -> Result<(), SettingsWorkflowError> {
         let previous = self.runtime.current()?;
         self.persistence.persist(&next)?;
         self.runtime.commit(next.clone())?;
@@ -138,7 +144,7 @@ where
     ) -> Result<adhd_ranch_domain::TimerPresets, SettingsWorkflowError> {
         let mut next = self.runtime.current()?;
         next.timers = next.timers.edit(edit);
-        self.update(next.clone())?;
+        self.apply(next.clone())?;
         Ok(next.timers)
     }
 }
@@ -587,6 +593,38 @@ mod tests {
         assert!(matches!(error, SettingsWorkflowError::Persist(_)));
         assert_eq!(runtime.settings(), original);
         assert!(effects.calls().is_empty());
+    }
+
+    #[test]
+    fn stale_preferences_cannot_overwrite_new_timer_edits() {
+        use adhd_ranch_domain::{TimerPresetEdit, TimerPresets};
+
+        for edit in [
+            TimerPresetEdit::Add(25),
+            TimerPresetEdit::Remove(15),
+            TimerPresetEdit::Clear,
+        ] {
+            let original = Settings {
+                timers: TimerPresets::from_minutes([15]),
+                ..Settings::default()
+            };
+            let persistence = Arc::new(RecordingPersistence::new());
+            let runtime = Arc::new(RecordingRuntime::new(original.clone()));
+            let workflow = SettingsWorkflow::new(
+                persistence.clone(),
+                runtime.clone(),
+                RecordingEffects::default(),
+            );
+            let saved = workflow.edit_timer_presets(edit).unwrap();
+            let mut stale = original;
+            stale.widget.confirm_delete = false;
+
+            workflow.update(stale).unwrap();
+
+            assert_eq!(runtime.settings().timers, saved);
+            assert_eq!(persistence.persisted().last().unwrap().timers, saved);
+            assert!(!runtime.settings().widget.confirm_delete);
+        }
     }
 
     #[test]

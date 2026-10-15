@@ -96,11 +96,8 @@ export function TimerDropdown({
         aria-label={ariaLabel}
         aria-expanded={open}
         onClick={() => {
-          setOpen((value) => {
-            const next = !value;
-            if (next) onOpen?.();
-            return next;
-          });
+          if (!open) onOpen?.();
+          setOpen(!open);
         }}
       >
         {timer ? formatTimer(timer) : <span aria-hidden="true">◷</span>}
