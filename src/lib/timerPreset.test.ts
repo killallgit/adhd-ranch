@@ -1,18 +1,42 @@
 import { describe, expect, it } from "vitest";
-import { isCustomValid, resolvePreset } from "./timerPreset";
+import {
+  forgetTimerMinute,
+  isCustomValid,
+  minutesToPreset,
+  rememberTimerMinute,
+} from "./timerPreset";
 
-describe("resolvePreset", () => {
-  it("returns null for none", () => {
-    expect(resolvePreset("none", 10)).toBeNull();
+describe("minutesToPreset", () => {
+  it("returns null when no timer is selected", () => {
+    expect(minutesToPreset(null)).toBeNull();
   });
 
-  it("returns named presets verbatim", () => {
-    expect(resolvePreset("Eight", 10)).toBe("Eight");
-    expect(resolvePreset("ThirtyTwo", 10)).toBe("ThirtyTwo");
+  it("wraps a minute count", () => {
+    expect(minutesToPreset(15)).toEqual({ Custom: 15 });
+  });
+});
+
+describe("rememberTimerMinute", () => {
+  it("appends a new duration", () => {
+    expect(rememberTimerMinute([15], 45)).toEqual([15, 45]);
   });
 
-  it("wraps custom minutes", () => {
-    expect(resolvePreset("custom", 15)).toEqual({ Custom: 15 });
+  it("leaves built-ins and duplicates out of the list", () => {
+    const saved = [15];
+    expect(rememberTimerMinute(saved, 10)).toBe(saved);
+    expect(rememberTimerMinute(saved, 15)).toBe(saved);
+    expect(rememberTimerMinute(saved, 0)).toBe(saved);
+  });
+});
+
+describe("forgetTimerMinute", () => {
+  it("removes one saved duration", () => {
+    expect(forgetTimerMinute([15, 45], 15)).toEqual([45]);
+  });
+
+  it("returns the same list when the duration is absent", () => {
+    const saved = [15];
+    expect(forgetTimerMinute(saved, 45)).toBe(saved);
   });
 });
 

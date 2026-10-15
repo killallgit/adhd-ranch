@@ -11,14 +11,13 @@ function NewFocusApp() {
   const {
     title,
     description,
-    timerSelection,
-    customMinutes,
+    selectedMinutes,
+    savedTimers,
     submitting,
     error,
     setTitle,
     setDescription,
-    setTimerSelection,
-    setCustomMinutes,
+    setSelectedMinutes,
     handleSubmit,
     handleCancel,
   } = useNewFocusWindow(focusWriter);
@@ -27,14 +26,13 @@ function NewFocusApp() {
     <NewFocusWindow
       title={title}
       description={description}
-      timerSelection={timerSelection}
-      customMinutes={customMinutes}
+      selectedMinutes={selectedMinutes}
+      savedTimers={savedTimers}
       submitting={submitting}
       error={error}
       onTitleChange={setTitle}
       onDescriptionChange={setDescription}
-      onTimerSelectionChange={setTimerSelection}
-      onCustomMinutesChange={setCustomMinutes}
+      onSelectMinutes={setSelectedMinutes}
       onSubmit={handleSubmit}
       onCancel={() => void handleCancel()}
     />

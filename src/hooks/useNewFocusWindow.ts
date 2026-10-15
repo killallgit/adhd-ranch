@@ -1,36 +1,21 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect, useState } from "react";
 import type { FocusWriter } from "../api/focusWriter";
-import { type PresetSelection, isCustomValid, resolvePreset } from "../lib/timerPreset";
+import { useSavedTimerMinutes } from "../hooks/useSavedTimerMinutes";
+import { minutesToPreset } from "../lib/timerPreset";
 
-export interface NewFocusWindowState {
-  readonly title: string;
-  readonly description: string;
-  readonly timerSelection: PresetSelection;
-  readonly customMinutes: number;
-  readonly submitting: boolean;
-  readonly error: string | null;
-  readonly setTitle: (v: string) => void;
-  readonly setDescription: (v: string) => void;
-  readonly setTimerSelection: (v: PresetSelection) => void;
-  readonly setCustomMinutes: (v: number) => void;
-  readonly handleSubmit: (e: React.FormEvent<HTMLFormElement>) => Promise<void>;
-  readonly handleCancel: () => Promise<void>;
-}
-
-export function useNewFocusWindow(focusWriter: FocusWriter): NewFocusWindowState {
+export function useNewFocusWindow(focusWriter: FocusWriter) {
+  const savedTimers = useSavedTimerMinutes();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [timerSelection, setTimerSelection] = useState<PresetSelection>("none");
-  const [customMinutes, setCustomMinutes] = useState(10);
+  const [selectedMinutes, setSelectedMinutes] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const resetForm = () => {
     setTitle("");
     setDescription("");
-    setTimerSelection("none");
-    setCustomMinutes(10);
+    setSelectedMinutes(null);
     setError(null);
   };
 
@@ -44,8 +29,7 @@ export function useNewFocusWindow(focusWriter: FocusWriter): NewFocusWindowState
       if (e.key === "Escape") {
         setTitle("");
         setDescription("");
-        setTimerSelection("none");
-        setCustomMinutes(10);
+        setSelectedMinutes(null);
         setError(null);
         void getCurrentWindow().hide();
       }
@@ -54,14 +38,27 @@ export function useNewFocusWindow(focusWriter: FocusWriter): NewFocusWindowState
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  useEffect(() => {
+    let stop: (() => void) | undefined;
+    let cancelled = false;
+    void getCurrentWindow()
+      .onFocusChanged(({ payload: focused }) => {
+        if (focused) savedTimers.reload();
+      })
+      .then((unlisten) => {
+        if (cancelled) unlisten();
+        else stop = unlisten;
+      });
+    return () => {
+      cancelled = true;
+      stop?.();
+    };
+  }, [savedTimers.reload]);
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (title.trim().length === 0) {
       setError("title is required");
-      return;
-    }
-    if (timerSelection === "custom" && !isCustomValid(customMinutes)) {
-      setError("custom timer must be at least 1 minute");
       return;
     }
     setSubmitting(true);
@@ -70,7 +67,7 @@ export function useNewFocusWindow(focusWriter: FocusWriter): NewFocusWindowState
       const outcome = await focusWriter.createFocus({
         title: title.trim(),
         description: description.trim(),
-        timer_preset: resolvePreset(timerSelection, customMinutes),
+        timer_preset: minutesToPreset(selectedMinutes),
       });
       if (outcome.ok) {
         await hideWindow();
@@ -89,14 +86,13 @@ export function useNewFocusWindow(focusWriter: FocusWriter): NewFocusWindowState
   return {
     title,
     description,
-    timerSelection,
-    customMinutes,
+    selectedMinutes,
+    savedTimers,
     submitting,
     error,
     setTitle,
     setDescription,
-    setTimerSelection,
-    setCustomMinutes,
+    setSelectedMinutes,
     handleSubmit,
     handleCancel,
   };

@@ -1,34 +1,53 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { type PresetSelection, isCustomValid, resolvePreset } from "../lib/timerPreset";
+import { DEFAULT_TIMER_MINUTES, isBuiltinTimerMinute, minutesToPreset } from "../lib/timerPreset";
 import type { FocusTimer, TimerPreset } from "../types/timer";
 import { TimerPresetPicker } from "./TimerPresetPicker";
 
 export interface TimerDropdownProps {
   readonly timer?: FocusTimer | null;
   readonly ariaLabel: string;
+  readonly savedMinutes: readonly number[];
   readonly onStart: (preset: TimerPreset) => void;
+  readonly onAddSaved: (minutes: number) => void;
+  readonly onRemoveSaved: (minutes: number) => void;
+  readonly onClearSaved: () => void;
+  readonly onOpen?: () => void;
   readonly onClear?: () => void;
 }
 
-export function TimerDropdown({ timer, ariaLabel, onStart, onClear }: TimerDropdownProps) {
+export function TimerDropdown({
+  timer,
+  ariaLabel,
+  savedMinutes,
+  onStart,
+  onAddSaved,
+  onRemoveSaved,
+  onClearSaved,
+  onOpen,
+  onClear,
+}: TimerDropdownProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const pointerCommitRef = useRef(false);
+  const drafting = useRef(false);
   const [open, setOpen] = useState(false);
-  const [selection, setSelection] = useState<PresetSelection>("Eight");
-  const [customMinutes, setCustomMinutes] = useState(10);
-  const [error, setError] = useState<string | null>(null);
+  const [selectedMinutes, setSelectedMinutes] = useState(DEFAULT_TIMER_MINUTES);
+  const [draftNonce, setDraftNonce] = useState(0);
+
+  const onDraftChange = useCallback((adding: boolean) => {
+    drafting.current = adding;
+  }, []);
 
   const start = useCallback(() => {
-    if (selection === "custom" && !isCustomValid(customMinutes)) {
-      setError("custom timer must be at least 1 minute");
-      return;
-    }
-    const preset = resolvePreset(selection, customMinutes);
+    const preset = minutesToPreset(selectedMinutes);
     if (preset === null) return;
-    setError(null);
     onStart(preset);
     setOpen(false);
-  }, [customMinutes, onStart, selection]);
+  }, [onStart, selectedMinutes]);
+
+  const cancelDraft = useCallback(() => {
+    setDraftNonce((nonce) => nonce + 1);
+    setOpen(false);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -36,6 +55,10 @@ export function TimerDropdown({ timer, ariaLabel, onStart, onClear }: TimerDropd
       const target = e.target;
       if (!(target instanceof Node)) return;
       if (rootRef.current?.contains(target)) return;
+      if (drafting.current) {
+        cancelDraft();
+        return;
+      }
       pointerCommitRef.current = true;
       start();
       window.setTimeout(() => {
@@ -44,7 +67,7 @@ export function TimerDropdown({ timer, ariaLabel, onStart, onClear }: TimerDropd
     }
     window.addEventListener("pointerdown", handlePointerDown, true);
     return () => window.removeEventListener("pointerdown", handlePointerDown, true);
-  }, [open, start]);
+  }, [cancelDraft, open, start]);
 
   return (
     <div
@@ -54,11 +77,16 @@ export function TimerDropdown({ timer, ariaLabel, onStart, onClear }: TimerDropd
         const next = e.relatedTarget;
         if (!open || (next instanceof Node && e.currentTarget.contains(next))) return;
         if (pointerCommitRef.current) return;
+        if (drafting.current) {
+          cancelDraft();
+          return;
+        }
         start();
       }}
       onKeyDown={(e) => {
         if (!open || e.key !== "Enter") return;
         e.preventDefault();
+        if (drafting.current) return;
         start();
       }}
     >
@@ -68,8 +96,8 @@ export function TimerDropdown({ timer, ariaLabel, onStart, onClear }: TimerDropd
         aria-label={ariaLabel}
         aria-expanded={open}
         onClick={() => {
-          setOpen((value) => !value);
-          setError(null);
+          if (!open) onOpen?.();
+          setOpen(!open);
         }}
       >
         {timer ? formatTimer(timer) : <span aria-hidden="true">◷</span>}
@@ -77,16 +105,24 @@ export function TimerDropdown({ timer, ariaLabel, onStart, onClear }: TimerDropd
       {open && (
         <div className="timer-dropdown-menu">
           <TimerPresetPicker
-            selection={selection}
-            customMinutes={customMinutes}
+            savedMinutes={savedMinutes}
+            selectedMinutes={selectedMinutes}
             allowNone={false}
-            onSelectionChange={(value) => {
-              setSelection(value);
-              if (error) setError(null);
+            draftNonce={draftNonce}
+            onDraftChange={onDraftChange}
+            onSelect={(minutes) => {
+              if (minutes !== null) setSelectedMinutes(minutes);
             }}
-            onCustomMinutesChange={(value) => {
-              setCustomMinutes(value);
-              if (error) setError(null);
+            onAdd={onAddSaved}
+            onRemove={(minutes) => {
+              onRemoveSaved(minutes);
+              if (selectedMinutes === minutes) setSelectedMinutes(DEFAULT_TIMER_MINUTES);
+            }}
+            onClearSaved={() => {
+              onClearSaved();
+              if (!isBuiltinTimerMinute(selectedMinutes)) {
+                setSelectedMinutes(DEFAULT_TIMER_MINUTES);
+              }
             }}
           />
           <div className="timer-dropdown-actions">
@@ -106,11 +142,6 @@ export function TimerDropdown({ timer, ariaLabel, onStart, onClear }: TimerDropd
               </button>
             )}
           </div>
-          {error && (
-            <p className="timer-dropdown-error" role="alert">
-              {error}
-            </p>
-          )}
         </div>
       )}
     </div>

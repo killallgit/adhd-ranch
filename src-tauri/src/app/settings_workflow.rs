@@ -116,7 +116,13 @@ where
         }
     }
 
-    pub fn update(&self, next: Settings) -> Result<(), SettingsWorkflowError> {
+    pub fn update(&self, mut next: Settings) -> Result<(), SettingsWorkflowError> {
+        // Timer presets have their own edit command; preferences may carry a stale copy.
+        next.timers = self.runtime.current()?.timers;
+        self.apply(next)
+    }
+
+    fn apply(&self, next: Settings) -> Result<(), SettingsWorkflowError> {
         let previous = self.runtime.current()?;
         self.persistence.persist(&next)?;
         self.runtime.commit(next.clone())?;
@@ -130,6 +136,16 @@ where
         self.effects.refresh_runtime_consumers(&next)?;
         self.effects.rebuild_tray()?;
         Ok(())
+    }
+
+    pub fn edit_timer_presets(
+        &self,
+        edit: adhd_ranch_domain::TimerPresetEdit,
+    ) -> Result<adhd_ranch_domain::TimerPresets, SettingsWorkflowError> {
+        let mut next = self.runtime.current()?;
+        next.timers = next.timers.edit(edit);
+        self.apply(next.clone())?;
+        Ok(next.timers)
     }
 }
 
@@ -504,6 +520,111 @@ mod tests {
         assert_eq!(persistence.persisted(), vec![settings_with_agents(true)]);
         assert_eq!(runtime.settings(), settings_with_agents(true));
         assert_eq!(effects.calls(), vec!["widget", "agents", "runtime", "tray"]);
+    }
+
+    #[test]
+    fn timer_edits_from_separate_windows_preserve_each_others_changes() {
+        use adhd_ranch_domain::{TimerPresetEdit, TimerPresets};
+
+        let original = settings_with_max_focuses(9);
+        let persistence = Arc::new(RecordingPersistence::new());
+        let runtime = Arc::new(RecordingRuntime::new(original.clone()));
+        let effects = Arc::new(RecordingEffects::default());
+        let first = SettingsWorkflow::new(persistence.clone(), runtime.clone(), effects.clone());
+        let second = SettingsWorkflow::new(persistence.clone(), runtime.clone(), effects);
+
+        first.edit_timer_presets(TimerPresetEdit::Add(25)).unwrap();
+        second.edit_timer_presets(TimerPresetEdit::Add(45)).unwrap();
+        let saved = first.edit_timer_presets(TimerPresetEdit::Add(15)).unwrap();
+
+        assert_eq!(saved, TimerPresets::from_minutes([25, 45, 15]));
+        assert_eq!(
+            runtime.settings(),
+            Settings {
+                timers: saved,
+                ..original
+            }
+        );
+        assert_eq!(persistence.persisted().last(), Some(&runtime.settings()));
+    }
+
+    #[test]
+    fn timer_edits_remove_and_clear_the_latest_saved_minutes() {
+        use adhd_ranch_domain::{TimerPresetEdit, TimerPresets};
+
+        let original = Settings {
+            timers: TimerPresets::from_minutes([15, 25]),
+            ..Settings::default()
+        };
+        let runtime = Arc::new(RecordingRuntime::new(original));
+        let workflow = SettingsWorkflow::new(
+            RecordingPersistence::new(),
+            runtime.clone(),
+            RecordingEffects::default(),
+        );
+
+        let remaining = workflow
+            .edit_timer_presets(TimerPresetEdit::Remove(15))
+            .unwrap();
+        assert_eq!(remaining, TimerPresets::from_minutes([25]));
+
+        let cleared = workflow.edit_timer_presets(TimerPresetEdit::Clear).unwrap();
+        assert_eq!(cleared, TimerPresets::default());
+        assert_eq!(runtime.settings().timers, cleared);
+    }
+
+    #[test]
+    fn failed_timer_edit_preserves_runtime_settings_and_skips_effects() {
+        use adhd_ranch_domain::TimerPresetEdit;
+
+        let original = Settings::default();
+        let runtime = Arc::new(RecordingRuntime::new(original.clone()));
+        let effects = Arc::new(RecordingEffects::default());
+        let workflow = SettingsWorkflow::new(
+            RecordingPersistence::failing(),
+            runtime.clone(),
+            effects.clone(),
+        );
+
+        let error = workflow
+            .edit_timer_presets(TimerPresetEdit::Add(25))
+            .unwrap_err();
+
+        assert!(matches!(error, SettingsWorkflowError::Persist(_)));
+        assert_eq!(runtime.settings(), original);
+        assert!(effects.calls().is_empty());
+    }
+
+    #[test]
+    fn stale_preferences_cannot_overwrite_new_timer_edits() {
+        use adhd_ranch_domain::{TimerPresetEdit, TimerPresets};
+
+        for edit in [
+            TimerPresetEdit::Add(25),
+            TimerPresetEdit::Remove(15),
+            TimerPresetEdit::Clear,
+        ] {
+            let original = Settings {
+                timers: TimerPresets::from_minutes([15]),
+                ..Settings::default()
+            };
+            let persistence = Arc::new(RecordingPersistence::new());
+            let runtime = Arc::new(RecordingRuntime::new(original.clone()));
+            let workflow = SettingsWorkflow::new(
+                persistence.clone(),
+                runtime.clone(),
+                RecordingEffects::default(),
+            );
+            let saved = workflow.edit_timer_presets(edit).unwrap();
+            let mut stale = original;
+            stale.widget.confirm_delete = false;
+
+            workflow.update(stale).unwrap();
+
+            assert_eq!(runtime.settings().timers, saved);
+            assert_eq!(persistence.persisted().last().unwrap().timers, saved);
+            assert!(!runtime.settings().widget.confirm_delete);
+        }
     }
 
     #[test]

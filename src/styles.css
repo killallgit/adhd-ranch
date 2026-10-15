@@ -349,12 +349,74 @@ body,
   display: flex;
   flex-direction: column;
   gap: 6px;
-  width: 150px;
+  width: max-content;
+  min-width: 168px;
+  max-width: 240px;
   padding: 8px;
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 7px;
   background: #1d1d20;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+}
+
+.timer-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-inline-size: 0;
+}
+
+.timer-chip,
+.timer-chip-remove,
+.timer-saved-clear,
+.timer-chip-draft button {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 5px;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  line-height: 1;
+  padding: 4px 6px;
+}
+
+.timer-chip[aria-pressed="true"] {
+  color: #ffd166;
+  border-color: rgba(255, 209, 102, 0.55);
+}
+
+.timer-saved {
+  display: inline-flex;
+}
+
+.timer-saved .timer-chip {
+  border-radius: 5px 0 0 5px;
+}
+
+.timer-chip-remove {
+  border-left: none;
+  border-radius: 0 5px 5px 0;
+  opacity: 0.75;
+  padding-inline: 4px;
+}
+
+.timer-chip-draft {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.timer-chip-draft input {
+  width: 4.5em;
+}
+
+.timer-saved-clear {
+  align-self: flex-start;
 }
 
 .timer-dropdown-menu select,

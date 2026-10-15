@@ -13,7 +13,7 @@ pub fn write_settings(path: &Path, settings: &Settings) -> io::Result<()> {
 mod tests {
     use adhd_ranch_domain::{
         AgentsConfig, Caps, DisplayConfig, NotificationSettings, PenConfig, TimerExpiredSource,
-        Widget,
+        TimerPresets, Widget,
     };
     use tempfile::TempDir;
 
@@ -38,6 +38,7 @@ mod tests {
             displays: DisplayConfig::default(),
             agents: AgentsConfig { enabled: true },
             pens: PenConfig { max_size: 480 },
+            timers: TimerPresets::default(),
         };
         write_settings(&path, &settings).unwrap();
         let raw = std::fs::read_to_string(&path).unwrap();
@@ -65,6 +66,7 @@ mod tests {
             },
             agents: AgentsConfig::default(),
             pens: PenConfig { max_size: 480 },
+            timers: TimerPresets::from_minutes([25]),
         };
         write_settings(&path, &original).unwrap();
 
@@ -81,5 +83,6 @@ mod tests {
         assert!(final_settings.widget.always_on_top);
         assert_eq!(final_settings.displays.enabled_indices, vec![0, 2]);
         assert_eq!(final_settings.pens.max_size, 480);
+        assert_eq!(final_settings.timers.saved_minutes, vec![25]);
     }
 }

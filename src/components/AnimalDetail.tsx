@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { SavedTimerMinutes } from "../hooks/useSavedTimerMinutes";
 import type { Focus } from "../types/focus";
 import type { TimerPreset } from "../types/timer";
 import { TimerDropdown } from "./TimerDropdown";
@@ -23,6 +24,7 @@ export interface AnimalDetailProps {
   readonly onClearTimer: (focusId: string) => void;
   readonly onStartTaskTimer: (focusId: string, index: number, preset: TimerPreset) => void;
   readonly onClearTaskTimer: (focusId: string, index: number) => void;
+  readonly savedTimers: SavedTimerMinutes;
 }
 
 const CARD_W = 340;
@@ -46,6 +48,7 @@ export function AnimalDetail({
   onClearTimer,
   onStartTaskTimer,
   onClearTaskTimer,
+  savedTimers,
 }: AnimalDetailProps) {
   const [taskInput, setTaskInput] = useState("");
   const [titleDraft, setTitleDraft] = useState(focus.title);
@@ -160,6 +163,11 @@ export function AnimalDetail({
               key={focus.id}
               timer={focus.timer}
               ariaLabel={`edit focus timer: ${focus.title}`}
+              savedMinutes={savedTimers.minutes}
+              onOpen={savedTimers.reload}
+              onAddSaved={savedTimers.add}
+              onRemoveSaved={savedTimers.remove}
+              onClearSaved={savedTimers.clear}
               onStart={(preset) => onStartTimer(focus.id, preset)}
               onClear={() => onClearTimer(focus.id)}
             />
@@ -204,6 +212,7 @@ export function AnimalDetail({
                 onClearTask={onClearTask}
                 onStartTaskTimer={onStartTaskTimer}
                 onClearTaskTimer={onClearTaskTimer}
+                savedTimers={savedTimers}
               />
             ))}
           </ul>
@@ -234,6 +243,7 @@ interface TaskEditorProps {
   readonly onClearTask: (index: number) => void;
   readonly onStartTaskTimer: (focusId: string, index: number, preset: TimerPreset) => void;
   readonly onClearTaskTimer: (focusId: string, index: number) => void;
+  readonly savedTimers: SavedTimerMinutes;
 }
 
 function TaskEditor({
@@ -245,6 +255,7 @@ function TaskEditor({
   onClearTask,
   onStartTaskTimer,
   onClearTaskTimer,
+  savedTimers,
 }: TaskEditorProps) {
   const [draft, setDraft] = useState(task.text);
 
@@ -289,6 +300,11 @@ function TaskEditor({
         key={task.id}
         timer={task.timer}
         ariaLabel={`edit task timer: ${task.text}`}
+        savedMinutes={savedTimers.minutes}
+        onOpen={savedTimers.reload}
+        onAddSaved={savedTimers.add}
+        onRemoveSaved={savedTimers.remove}
+        onClearSaved={savedTimers.clear}
         onStart={(preset) => onStartTaskTimer(focusId, index, preset)}
         onClear={() => onClearTaskTimer(focusId, index)}
       />

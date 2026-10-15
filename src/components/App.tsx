@@ -9,6 +9,7 @@ import { type ReportWriteFailure, useFocusController } from "../hooks/useFocusCo
 import { useFocusSelection } from "../hooks/useFocusSelection";
 import { usePolledReader } from "../hooks/usePolledReader";
 import { useRenderScene } from "../hooks/useRenderScene";
+import { useSavedTimerMinutes } from "../hooks/useSavedTimerMinutes";
 import { useViewport } from "../hooks/useViewport";
 import { sampleAnimalSize } from "../lib/animalSize";
 import type { Focus } from "../types/focus";
@@ -40,6 +41,7 @@ export function App({ focusReader, focusWriter, onWriteFailure, renderSceneReade
   const animalsById = new Map(scene.animals.map((animal) => [animal.id, animal]));
   const { selected: selectedFocus, request, close } = useFocusSelection(focuses);
   const confirmDelete = useConfirmDelete();
+  const savedTimers = useSavedTimerMinutes();
   const {
     animals: movement,
     startDrag,
@@ -182,6 +184,7 @@ export function App({ focusReader, focusWriter, onWriteFailure, renderSceneReade
           onClearTimer={handleClearTimer}
           onStartTaskTimer={handleStartTaskTimer}
           onClearTaskTimer={handleClearTaskTimer}
+          savedTimers={savedTimers}
         />
       )}
     </div>
