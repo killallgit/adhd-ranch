@@ -54,8 +54,16 @@ export function NewFocusWindow({
         disabled={submitting}
         onSelect={onSelectMinutes}
         onAdd={savedTimers.add}
-        onRemove={savedTimers.remove}
-        onClearSaved={savedTimers.clear}
+        onRemove={(minutes) => {
+          savedTimers.remove(minutes);
+          if (selectedMinutes === minutes) onSelectMinutes(null);
+        }}
+        onClearSaved={() => {
+          savedTimers.clear();
+          if (selectedMinutes !== null && savedTimers.minutes.includes(selectedMinutes)) {
+            onSelectMinutes(null);
+          }
+        }}
       />
       <div className="new-focus-actions">
         <button type="submit" disabled={submitting}>

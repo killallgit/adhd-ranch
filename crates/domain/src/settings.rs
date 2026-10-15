@@ -107,6 +107,15 @@ pub struct TimerPresets {
     pub saved_minutes: Vec<u64>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "export-ts", derive(ts_rs::TS))]
+#[cfg_attr(feature = "export-ts", ts(export))]
+pub enum TimerPresetEdit {
+    Add(u64),
+    Remove(u64),
+    Clear,
+}
+
 impl TimerPresets {
     pub fn from_minutes(minutes: impl IntoIterator<Item = u64>) -> Self {
         let mut saved_minutes = Vec::new();
@@ -120,6 +129,18 @@ impl TimerPresets {
             saved_minutes.push(minutes);
         }
         Self { saved_minutes }
+    }
+
+    pub fn edit(&self, edit: TimerPresetEdit) -> Self {
+        match edit {
+            TimerPresetEdit::Add(minutes) => {
+                Self::from_minutes(self.saved_minutes.iter().copied().chain([minutes]))
+            }
+            TimerPresetEdit::Remove(minutes) => {
+                Self::from_minutes(self.saved_minutes.iter().copied().filter(|m| *m != minutes))
+            }
+            TimerPresetEdit::Clear => Self::default(),
+        }
     }
 }
 
@@ -510,6 +531,29 @@ mod tests {
     fn saved_timer_minutes_drop_builtins_duplicates_and_junk() {
         let s = Settings::parse_yaml("timers:\n  saved_minutes: 15,10,15,0,nope,45\n");
         assert_eq!(s.timers.saved_minutes, vec![15, 45]);
+    }
+
+    #[test]
+    fn timer_edits_keep_builtin_duplicate_and_zero_minutes_out_of_storage() {
+        let saved = TimerPresets::from_minutes([15]);
+
+        for minutes in [0, 10, 30, 60, 15] {
+            assert_eq!(saved.edit(TimerPresetEdit::Add(minutes)), saved);
+        }
+        assert_eq!(
+            saved.edit(TimerPresetEdit::Add(45)),
+            TimerPresets::from_minutes([15, 45])
+        );
+    }
+
+    #[test]
+    fn timer_edit_wire_rejects_negative_or_fractional_minutes() {
+        for value in [
+            serde_json::json!({"Add": -1}),
+            serde_json::json!({"Add": 1.5}),
+        ] {
+            assert!(serde_json::from_value::<TimerPresetEdit>(value).is_err());
+        }
     }
 
     #[test]

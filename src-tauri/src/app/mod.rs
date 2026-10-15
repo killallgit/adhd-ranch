@@ -84,6 +84,7 @@ pub fn run() {
             ui_bridge::set_pig_drag_active,
             ui_bridge::get_settings,
             ui_bridge::update_settings,
+            ui_bridge::edit_saved_timer_minutes,
             ui_bridge::get_monitors,
             ui_bridge::get_debug_overlay,
             ui_bridge::set_debug_overlay,

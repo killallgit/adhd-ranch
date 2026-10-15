@@ -7,7 +7,7 @@ use adhd_ranch_commands::{
 };
 use adhd_ranch_domain::agents::hooks::{HookFiring, HookWiring};
 use adhd_ranch_domain::session::AgentSession;
-use adhd_ranch_domain::{Focus, Settings, TimerOwner, TimerPreset};
+use adhd_ranch_domain::{Focus, Settings, TimerOwner, TimerPreset, TimerPresetEdit, TimerPresets};
 
 use tauri::{AppHandle, Emitter, Manager, State, Wry};
 
@@ -213,6 +213,19 @@ pub fn update_settings(
 ) -> Result<(), String> {
     crate::app::settings_workflow::workflow_for_app(app, Arc::clone(&state.0), path_state.0.clone())
         .update(settings)
+        .map_err(|e| format!("{e:?}"))
+}
+
+// Keep the read/edit/write in one synchronous command so windows cannot overwrite each other's edits.
+#[tauri::command]
+pub fn edit_saved_timer_minutes(
+    edit: TimerPresetEdit,
+    app: AppHandle<Wry>,
+    state: State<'_, SettingsState>,
+    path_state: State<'_, SettingsPathState>,
+) -> Result<TimerPresets, String> {
+    crate::app::settings_workflow::workflow_for_app(app, Arc::clone(&state.0), path_state.0.clone())
+        .edit_timer_presets(edit)
         .map_err(|e| format!("{e:?}"))
 }
 

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getSettings, updateSettings } from "../api/settings";
+import { editSavedTimerMinutes, getSettings } from "../api/settings";
 import { forgetTimerMinute, rememberTimerMinute } from "../lib/timerPreset";
+import type { TimerPresetEdit } from "../types/generated/TimerPresetEdit";
 
 export interface SavedTimerMinutes {
   readonly minutes: readonly number[];
@@ -13,16 +14,17 @@ export interface SavedTimerMinutes {
 export function useSavedTimerMinutes(): SavedTimerMinutes {
   const [minutes, setMinutes] = useState<readonly number[]>([]);
   const minutesRef = useRef(minutes);
-  minutesRef.current = minutes;
   const revision = useRef(0);
   const writeChain = useRef(Promise.resolve());
 
-  const persist = useCallback((next: readonly number[]) => {
+  const persist = useCallback((edit: TimerPresetEdit) => {
+    const rev = revision.current;
     writeChain.current = writeChain.current
       .then(async () => {
-        const current = await getSettings();
-        if (!current) return;
-        await updateSettings({ ...current, timers: { saved_minutes: [...next] } });
+        const current = await editSavedTimerMinutes(edit);
+        if (revision.current !== rev) return;
+        minutesRef.current = current.saved_minutes;
+        setMinutes(current.saved_minutes);
       })
       .catch((error: unknown) => {
         console.error(error);
@@ -36,7 +38,9 @@ export function useSavedTimerMinutes(): SavedTimerMinutes {
         if (revision.current !== rev) return;
         const current = await getSettings();
         if (revision.current !== rev) return;
-        setMinutes(current?.timers?.saved_minutes ?? []);
+        const next = current?.timers?.saved_minutes ?? [];
+        minutesRef.current = next;
+        setMinutes(next);
       })
       .catch((error: unknown) => {
         console.error(error);
@@ -52,8 +56,9 @@ export function useSavedTimerMinutes(): SavedTimerMinutes {
       const next = rememberTimerMinute(minutesRef.current, minute);
       if (next === minutesRef.current) return;
       revision.current += 1;
+      minutesRef.current = next;
       setMinutes(next);
-      persist(next);
+      persist({ Add: minute });
     },
     [persist],
   );
@@ -63,8 +68,9 @@ export function useSavedTimerMinutes(): SavedTimerMinutes {
       const next = forgetTimerMinute(minutesRef.current, minute);
       if (next === minutesRef.current) return;
       revision.current += 1;
+      minutesRef.current = next;
       setMinutes(next);
-      persist(next);
+      persist({ Remove: minute });
     },
     [persist],
   );
@@ -72,8 +78,9 @@ export function useSavedTimerMinutes(): SavedTimerMinutes {
   const clear = useCallback(() => {
     if (minutesRef.current.length === 0) return;
     revision.current += 1;
+    minutesRef.current = [];
     setMinutes([]);
-    persist([]);
+    persist("Clear");
   }, [persist]);
 
   return { minutes, add, remove, clear, reload };
