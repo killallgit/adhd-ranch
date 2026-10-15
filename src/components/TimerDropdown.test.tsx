@@ -3,63 +3,92 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { TimerDropdown } from "./TimerDropdown";
 
+function dropdownProps(overrides: Partial<React.ComponentProps<typeof TimerDropdown>> = {}) {
+  return {
+    ariaLabel: "edit timer",
+    savedMinutes: [] as readonly number[],
+    onStart: vi.fn(),
+    onAddSaved: vi.fn(),
+    onRemoveSaved: vi.fn(),
+    onClearSaved: vi.fn(),
+    ...overrides,
+  };
+}
+
+function renderDropdown(overrides: Partial<React.ComponentProps<typeof TimerDropdown>> = {}) {
+  const props = dropdownProps(overrides);
+  render(<TimerDropdown {...props} />);
+  return props;
+}
+
 describe("TimerDropdown", () => {
-  it("commits the selected preset when Enter is pressed", async () => {
-    const onStart = vi.fn();
-    render(<TimerDropdown ariaLabel="edit timer" onStart={onStart} />);
+  it("starts the default 30 minute chip when Enter is pressed", async () => {
+    const props = renderDropdown();
 
     await userEvent.click(screen.getByRole("button", { name: "edit timer" }));
-    await userEvent.selectOptions(screen.getByTestId("timer-preset-select"), "ThirtyTwo");
     await userEvent.keyboard("{Enter}");
 
-    expect(onStart).toHaveBeenCalledWith("ThirtyTwo");
+    expect(props.onStart).toHaveBeenCalledWith({ Custom: 30 });
   });
 
-  it("commits custom minutes when focus leaves the dropdown", async () => {
-    const onStart = vi.fn();
+  it("starts the selected chip when focus leaves the dropdown", async () => {
+    const props = dropdownProps();
     render(
       <>
-        <TimerDropdown ariaLabel="edit timer" onStart={onStart} />
+        <TimerDropdown {...props} />
         <button type="button">outside</button>
       </>,
     );
 
     await userEvent.click(screen.getByRole("button", { name: "edit timer" }));
-    await userEvent.selectOptions(screen.getByTestId("timer-preset-select"), "custom");
-    const input = screen.getByTestId("custom-timer-input");
-    await userEvent.clear(input);
-    await userEvent.type(input, "25");
+    await userEvent.click(screen.getByRole("button", { name: "60 minutes" }));
     await userEvent.click(screen.getByRole("button", { name: "outside" }));
 
-    expect(onStart).toHaveBeenCalledWith({ Custom: 25 });
+    expect(props.onStart).toHaveBeenCalledTimes(1);
+    expect(props.onStart).toHaveBeenCalledWith({ Custom: 60 });
   });
 
-  it("commits only once when an outside click also blurs the dropdown", async () => {
-    const onStart = vi.fn();
+  it("does not start when an outside click dismisses an unconfirmed duration", async () => {
+    const props = dropdownProps();
     render(
       <>
-        <TimerDropdown ariaLabel="edit timer" onStart={onStart} />
+        <TimerDropdown {...props} />
         <button type="button">outside</button>
       </>,
     );
 
     await userEvent.click(screen.getByRole("button", { name: "edit timer" }));
-    await userEvent.selectOptions(screen.getByTestId("timer-preset-select"), "ThirtyTwo");
+    await userEvent.click(screen.getByRole("button", { name: "add timer" }));
+    await userEvent.type(screen.getByLabelText("custom timer minutes"), "25");
     await userEvent.click(screen.getByRole("button", { name: "outside" }));
 
-    expect(onStart).toHaveBeenCalledTimes(1);
-    expect(onStart).toHaveBeenCalledWith("ThirtyTwo");
+    expect(props.onStart).not.toHaveBeenCalled();
+    expect(props.onAddSaved).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText("custom timer minutes")).not.toBeInTheDocument();
+  });
+
+  it("saves a new duration and starts it", async () => {
+    const props = renderDropdown();
+
+    await userEvent.click(screen.getByRole("button", { name: "edit timer" }));
+    await userEvent.click(screen.getByRole("button", { name: "add timer" }));
+    await userEvent.type(screen.getByLabelText("custom timer minutes"), "25");
+    await userEvent.click(screen.getByRole("button", { name: "Add" }));
+    await userEvent.click(screen.getByRole("button", { name: "Start" }));
+
+    expect(props.onAddSaved).toHaveBeenCalledWith(25);
+    expect(props.onStart).toHaveBeenCalledTimes(1);
+    expect(props.onStart).toHaveBeenCalledWith({ Custom: 25 });
   });
 
   it("does not auto-commit when moving focus inside the dropdown", async () => {
-    const onStart = vi.fn();
-    render(<TimerDropdown ariaLabel="edit timer" onStart={onStart} />);
+    const props = renderDropdown();
 
     await userEvent.click(screen.getByRole("button", { name: "edit timer" }));
-    await userEvent.selectOptions(screen.getByTestId("timer-preset-select"), "ThirtyTwo");
+    await userEvent.click(screen.getByRole("button", { name: "60 minutes" }));
     await userEvent.click(screen.getByRole("button", { name: "Start" }));
 
-    expect(onStart).toHaveBeenCalledTimes(1);
-    expect(onStart).toHaveBeenCalledWith("ThirtyTwo");
+    expect(props.onStart).toHaveBeenCalledTimes(1);
+    expect(props.onStart).toHaveBeenCalledWith({ Custom: 60 });
   });
 });

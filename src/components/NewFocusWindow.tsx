@@ -1,17 +1,16 @@
-import type { PresetSelection } from "../lib/timerPreset";
+import type { SavedTimerMinutes } from "../hooks/useSavedTimerMinutes";
 import { TimerPresetPicker } from "./TimerPresetPicker";
 
 export interface NewFocusWindowProps {
   readonly title: string;
   readonly description: string;
-  readonly timerSelection: PresetSelection;
-  readonly customMinutes: number;
+  readonly selectedMinutes: number | null;
+  readonly savedTimers: SavedTimerMinutes;
   readonly submitting: boolean;
   readonly error: string | null;
   readonly onTitleChange: (v: string) => void;
   readonly onDescriptionChange: (v: string) => void;
-  readonly onTimerSelectionChange: (v: PresetSelection) => void;
-  readonly onCustomMinutesChange: (v: number) => void;
+  readonly onSelectMinutes: (minutes: number | null) => void;
   readonly onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
   readonly onCancel: () => void;
 }
@@ -19,14 +18,13 @@ export interface NewFocusWindowProps {
 export function NewFocusWindow({
   title,
   description,
-  timerSelection,
-  customMinutes,
+  selectedMinutes,
+  savedTimers,
   submitting,
   error,
   onTitleChange,
   onDescriptionChange,
-  onTimerSelectionChange,
-  onCustomMinutesChange,
+  onSelectMinutes,
   onSubmit,
   onCancel,
 }: NewFocusWindowProps) {
@@ -51,11 +49,13 @@ export function NewFocusWindow({
         disabled={submitting}
       />
       <TimerPresetPicker
-        selection={timerSelection}
-        customMinutes={customMinutes}
+        savedMinutes={savedTimers.minutes}
+        selectedMinutes={selectedMinutes}
         disabled={submitting}
-        onSelectionChange={onTimerSelectionChange}
-        onCustomMinutesChange={onCustomMinutesChange}
+        onSelect={onSelectMinutes}
+        onAdd={savedTimers.add}
+        onRemove={savedTimers.remove}
+        onClearSaved={savedTimers.clear}
       />
       <div className="new-focus-actions">
         <button type="submit" disabled={submitting}>

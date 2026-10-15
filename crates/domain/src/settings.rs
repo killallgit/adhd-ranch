@@ -95,6 +95,48 @@ impl PenConfig {
     }
 }
 
+/// Minute chips the timer picker always shows. They are not stored in settings.
+pub const BUILTIN_TIMER_MINUTES: [u64; 3] = [10, 30, 60];
+
+/// Extra timer durations the picker remembers. Built-ins stay out of this list so
+/// the chips do not show the same length twice.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize)]
+#[cfg_attr(feature = "export-ts", derive(ts_rs::TS))]
+#[cfg_attr(feature = "export-ts", ts(export))]
+pub struct TimerPresets {
+    pub saved_minutes: Vec<u64>,
+}
+
+impl TimerPresets {
+    pub fn from_minutes(minutes: impl IntoIterator<Item = u64>) -> Self {
+        let mut saved_minutes = Vec::new();
+        for minutes in minutes {
+            if minutes < 1
+                || BUILTIN_TIMER_MINUTES.contains(&minutes)
+                || saved_minutes.contains(&minutes)
+            {
+                continue;
+            }
+            saved_minutes.push(minutes);
+        }
+        Self { saved_minutes }
+    }
+}
+
+impl<'de> Deserialize<'de> for TimerPresets {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        struct Wire {
+            #[serde(default)]
+            saved_minutes: Vec<u64>,
+        }
+
+        Ok(Self::from_minutes(
+            Wire::deserialize(deserializer)?.saved_minutes,
+        ))
+    }
+}
+
 /// Which monitor indices have an active overlay window. Default: primary only (index 0).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "export-ts", derive(ts_rs::TS))]
@@ -123,6 +165,8 @@ pub struct Settings {
     pub agents: AgentsConfig,
     #[serde(default)]
     pub pens: PenConfig,
+    #[serde(default)]
+    pub timers: TimerPresets,
 }
 
 impl Settings {
@@ -140,8 +184,15 @@ impl Settings {
             let v = self.notifications.sources.get(k).copied().unwrap_or(true);
             notifications.push_str(&format!("  {k}: {v}\n"));
         }
+        let saved = TimerPresets::from_minutes(self.timers.saved_minutes.iter().copied());
+        let saved_minutes = saved
+            .saved_minutes
+            .iter()
+            .map(|minutes| minutes.to_string())
+            .collect::<Vec<_>>()
+            .join(",");
         format!(
-            "caps:\n  max_focuses: {}\n  max_tasks_per_focus: {}\n{notifications}widget:\n  always_on_top: {}\n  confirm_delete: {}\ndisplays:\n  enabled: {}\nagents:\n  enabled: {}\npens:\n  max_size: {}\n",
+            "caps:\n  max_focuses: {}\n  max_tasks_per_focus: {}\n{notifications}widget:\n  always_on_top: {}\n  confirm_delete: {}\ndisplays:\n  enabled: {}\nagents:\n  enabled: {}\npens:\n  max_size: {}\ntimers:\n  saved_minutes: {saved_minutes}\n",
             self.caps.max_focuses,
             self.caps.max_tasks_per_focus,
             self.widget.always_on_top,
@@ -171,6 +222,7 @@ impl Settings {
                         "displays" => "displays",
                         "agents" => "agents",
                         "pens" => "pens",
+                        "timers" => "timers",
                         _ => "",
                     };
                 }
@@ -216,6 +268,11 @@ impl Settings {
                     if let Ok(n) = value.parse() {
                         settings.pens = PenConfig::clamped(n);
                     }
+                }
+                ("timers", "saved_minutes") => {
+                    settings.timers = TimerPresets::from_minutes(
+                        value.split(',').filter_map(|part| part.trim().parse().ok()),
+                    );
                 }
                 ("displays", "enabled") => {
                     settings.displays.enabled_indices = value
@@ -341,6 +398,7 @@ mod tests {
             },
             agents: AgentsConfig { enabled: true },
             pens: PenConfig { max_size: 400 },
+            timers: TimerPresets::from_minutes([15, 45]),
         };
         assert_eq!(Settings::parse_yaml(&s.to_yaml()), s);
     }
@@ -440,5 +498,38 @@ mod tests {
     fn invalid_display_indices_ignored() {
         let s = Settings::parse_yaml("displays:\n  enabled: 0,bad,2\n");
         assert_eq!(s.displays.enabled_indices, vec![0, 2]);
+    }
+
+    #[test]
+    fn missing_timer_section_keeps_an_empty_saved_list() {
+        let s = Settings::parse_yaml("pens:\n  max_size: 480\n");
+        assert!(s.timers.saved_minutes.is_empty());
+    }
+
+    #[test]
+    fn saved_timer_minutes_drop_builtins_duplicates_and_junk() {
+        let s = Settings::parse_yaml("timers:\n  saved_minutes: 15,10,15,0,nope,45\n");
+        assert_eq!(s.timers.saved_minutes, vec![15, 45]);
+    }
+
+    #[test]
+    fn settings_json_without_timers_deserializes_to_an_empty_list() {
+        let json = serde_json::to_value(Settings::default()).unwrap();
+        let mut object = json.as_object().unwrap().clone();
+        object.remove("timers");
+
+        let s: Settings = serde_json::from_value(serde_json::Value::Object(object)).unwrap();
+
+        assert!(s.timers.saved_minutes.is_empty());
+    }
+
+    #[test]
+    fn settings_json_normalizes_saved_timer_minutes() {
+        let s: TimerPresets = serde_json::from_value(serde_json::json!({
+            "saved_minutes": [10, 15, 15, 0, 90]
+        }))
+        .unwrap();
+
+        assert_eq!(s.saved_minutes, vec![15, 90]);
     }
 }

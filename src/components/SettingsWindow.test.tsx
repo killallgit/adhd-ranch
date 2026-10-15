@@ -12,6 +12,7 @@ const SETTINGS: Settings = {
   displays: { enabled_indices: [0] },
   agents: { enabled: false },
   pens: { max_size: 320 },
+  timers: { saved_minutes: [15] },
 };
 
 function renderSettings(onUpdate: (next: Settings) => void) {
@@ -76,5 +77,17 @@ describe("SettingsWindow number rows", () => {
     expect(onUpdate).toHaveBeenLastCalledWith(
       expect.objectContaining({ caps: { max_focuses: 3, max_tasks_per_focus: 7 } }),
     );
+  });
+
+  it("keeps saved timer minutes when another setting changes", async () => {
+    const onUpdate = vi.fn();
+    renderSettings(onUpdate);
+
+    await userEvent.click(screen.getByLabelText("Confirm Before Delete"));
+
+    expect(onUpdate).toHaveBeenCalledWith({
+      ...SETTINGS,
+      widget: { ...SETTINGS.widget, confirm_delete: false },
+    });
   });
 });

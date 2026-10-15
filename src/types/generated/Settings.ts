@@ -4,6 +4,7 @@ import type { Caps } from "./Caps";
 import type { DisplayConfig } from "./DisplayConfig";
 import type { NotificationSettings } from "./NotificationSettings";
 import type { PenConfig } from "./PenConfig";
+import type { TimerPresets } from "./TimerPresets";
 import type { Widget } from "./Widget";
 
-export type Settings = { caps: Caps, notifications: NotificationSettings, widget: Widget, displays: DisplayConfig, agents: AgentsConfig, pens: PenConfig, };
+export type Settings = { caps: Caps, notifications: NotificationSettings, widget: Widget, displays: DisplayConfig, agents: AgentsConfig, pens: PenConfig, timers: TimerPresets, };

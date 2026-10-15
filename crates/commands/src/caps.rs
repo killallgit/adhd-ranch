@@ -68,7 +68,7 @@ mod tests {
     use std::sync::Mutex;
 
     use adhd_ranch_domain::focus::{Focus, FocusId, Task};
-    use adhd_ranch_domain::{Caps, NewFocus, NotificationSettings, Settings, Widget};
+    use adhd_ranch_domain::{Caps, NewFocus, NotificationSettings, Settings, TimerPresets, Widget};
     use adhd_ranch_storage::FocusStoreError;
 
     use super::*;
@@ -206,6 +206,7 @@ mod tests {
             displays: adhd_ranch_domain::DisplayConfig::default(),
             agents: adhd_ranch_domain::AgentsConfig::default(),
             pens: adhd_ranch_domain::PenConfig::default(),
+            timers: TimerPresets::default(),
         }
     }
 
