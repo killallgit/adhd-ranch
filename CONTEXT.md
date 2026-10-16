@@ -63,7 +63,7 @@ Remove a Timer from its owner. Clearing an expired Timer returns its owner to no
 _Avoid_: using "clear" for Tasks or Focuses
 
 **TimerPreset**:
-A named duration choice for a Timer: 2m, 4m, 8m, 16m, 32m, or Custom minutes.
+A named duration choice for a Timer: built-in 10m, 30m, and 60m chips, plus saved custom-minute chips.
 
 **Limit**:
 A soft threshold on how much work is open at once, such as how many Focuses exist or how many Tasks one Focus holds. Going past a Limit blocks nothing. Agent Sessions don't count toward Limits.

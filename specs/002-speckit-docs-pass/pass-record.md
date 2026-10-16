@@ -99,7 +99,26 @@ HTML entrypoint move as separate changes.
   under root `dist/`, matching Tauri's existing URLs.
 - JSON/TOML parsing, Spec Kit manifest hashes, shell syntax and command-format checks, local
   Markdown links, and `git diff --check` passed.
-- The spec 008 files match the saved archive planning apart from the 002-to-008 path renumbering.
-  Product and follow-on spec lifecycle states are unchanged.
+- The initial spec 008 carry-forward matched the saved archive planning apart from the 002-to-008
+  path renumbering. Review corrections below supersede that exact-copy claim. Product and follow-on
+  spec lifecycle states are unchanged.
 - Native desktop interaction was not rerun; the entrypoint change is covered by content, HTTP,
   production-output, and regression-gate checks.
+
+### Independent review corrections
+
+PR #90 review found contradictions in the carried-forward setup and archive plan. These are
+planning corrections, with no archive implementation or new product approval:
+
+- The orchestrator creates each worktree once; builders use the supplied existing path and branch.
+- Codex roles inherit parent permissions. Ineffective per-agent sandbox declarations were removed;
+  role boundaries remain instructions, and the existing parent permission policy is unchanged.
+- The TimerPreset glossary now matches PR #89. Issue 051 has one owning specification, with
+  spec 001 retained only as supporting context.
+- Unterminated transcript tails remain pending even after stable valid-JSON reads. The framing
+  contract, model, schema, and validation now require a newline before a record is committed.
+- Graceful shutdown drains every accepted queued job; forced termination cannot promise uncommitted
+  receipts. The validation plan includes a queue-barrier/reopen case.
+- Data-root migration explicitly detects an installed legacy wrapper as unhealthy without implicit
+  startup repair; explicit Install/Repair replaces it, with an existing-installation regression.
+- The future manual archive smoke uses temporary Ranch and Claude roots inherited by both processes.

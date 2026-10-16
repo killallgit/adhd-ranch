@@ -14,14 +14,14 @@ A spec or plan is whatever the user names. Ask for acceptance checks when it has
 - Gate: `task check`. For Rust use `task test:rust` and `task lint:rust`; for the frontend use `task test:web`, `task lint:web`, and `task typecheck`; for generated types use `task gen-types:check`; run `task check:windows` for changes to `src-tauri/**`, `crates/**`, `package.json`, `package-lock.json`, `Cargo.toml`, or `Cargo.lock` as required by the repository ship-pr skill.
 - Conventions: `CLAUDE.md` and `issues/README.md`; prefix shell commands with `rtk` as required by `/Users/ryan/.codex/RTK.md`
 - Default branch: `main`
-- Worktree and git note, quoted into every brief: Create each worktree with `git worktree add /Users/ryan/Code/killallgit/adhd-ranch/.worktrees/<lane> -b chore/<lane> main`, after adding `.worktrees/` to `.git/info/exclude` once; before the first edit, confirm you are on the branch the brief names, in the worktree it names, and use built-in file tools rather than Serena in worktree isolation, as `CLAUDE.md` requires. Branches use `<type>/<slug>` with `feat`, `chore`, `fix`, `spike`, or `hotfix` (replace `chore` in that command when another type fits); commit messages are one plain sentence, with no co-author attribution. Integrate by following `.claude/skills/ship-pr/SKILL.md`: rebase onto the actual base, run the gate, obtain a review and resolve findings, then squash-merge with green CI when the user asks.
+- Worktree and git note, quoted into every brief: The orchestrator creates each worktree with `git worktree add /Users/ryan/Code/killallgit/adhd-ranch/.worktrees/<lane> -b chore/<lane> main`, after adding `.worktrees/` to `.git/info/exclude` once; before the first edit, confirm you are on the branch the brief names, in the worktree it names, and use built-in file tools rather than Serena in worktree isolation, as `CLAUDE.md` requires. Branches use `<type>/<slug>` with `feat`, `chore`, `fix`, `spike`, or `hotfix` (replace `chore` in that command when another type fits); commit messages are one plain sentence, with no co-author attribution. Integrate by following `.claude/skills/ship-pr/SKILL.md`: rebase onto the actual base, run the gate, obtain a review and resolve findings, then squash-merge with green CI when the user asks.
 
 ## Loop
 
 1. Read the spec, the files it names, and `CLAUDE.md` and `issues/README.md`; prefix shell commands with `rtk` as required by `/Users/ryan/.codex/RTK.md`.
 2. Cut lanes that can be verified alone. Lanes that edit the same file merge, or run in sequence. Say so when the work never needed parallelism.
 3. Write any contract two lanes share and the spec leaves open, such as a wire format or a shared type, into both briefs word for word.
-4. Create a branch and worktree per lane from `main`, as the note says, and record each worktree's absolute path.
+4. Create each lane's branch and worktree once from `main`, as the note says, and pass the existing worktree's absolute path and branch to its builder.
 5. Start every independent lane's builder in one message. A dependent lane starts after the lane it needs is integrated.
 6. As each builder returns, run `task check` in its worktree.
 7. Start that lane's `reviewer` and `hall-monitor` together, briefed with the spec location, the lane's acceptance checks, the branch, and the worktree path, and none of the builder's reasoning.

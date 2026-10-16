@@ -192,6 +192,8 @@ identifiers or raw prompt, message, tool, or source-code content.
   present, agent id when present, working directory, `transcript_path`, `agent_transcript_path`,
   and receipt time. Admission MUST be bounded and non-blocking; rejected admissions MUST increment
   a content-free dropped-job counter and MUST NOT use a durable overflow inbox or delay Claude.
+  Graceful shutdown MUST close admission and drain all accepted jobs before stopping the worker;
+  forced termination cannot guarantee uncommitted receipts.
 - **FR-009**: Ranch MUST use hook-provided `transcript_path` and `agent_transcript_path` values as
   synchronization hints and MUST NOT discover sessions by crawling all of Claude's `projects/`
   directory in this feature. `SubagentStop` MUST use an archive-only transport action that never
@@ -210,8 +212,8 @@ identifiers or raw prompt, message, tool, or source-code content.
 - **FR-012**: Unknown record types and unknown fields MUST be retained in full. Typed projections
   MUST never be the sole copy of a Claude record.
 - **FR-013**: A malformed but complete transcript record MUST be retained with its parse error;
-  an incomplete trailing record MUST remain pending until it becomes complete or a final stable
-  read determines that it is the last complete value.
+  every unterminated trailing record MUST remain pending until its newline delimiter arrives,
+  even if stable reads parse it as a complete JSON value.
 - **FR-014**: Transcript synchronization MUST be incremental and idempotent across duplicate Hook
   Firings and application restarts. Every valid path hint MUST schedule bounded delayed retries;
   terminal main/subagent events MUST settle on two unchanged observations so asynchronous final

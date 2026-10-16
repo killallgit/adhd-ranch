@@ -136,8 +136,8 @@ Constraints and indexes:
 
 - Unique `(canonical_path, generation)`.
 - At most one non-superseded generation per canonical path.
-- `byte_cursor` is the first unread byte. An incomplete tail is not persisted separately and is
-  reread from that offset on the next sync.
+- `byte_cursor` is the first unread byte. An unterminated tail, even valid JSON, is not persisted
+  separately and is reread from that offset on the next sync.
 - `byte_cursor`, inserted records, and the exact boundary digest update in one transaction.
 - A canonical path may correlate to only the session id supplied by its validated Hook Firing for
   that generation; a mismatch creates a diagnostic and no read.
@@ -154,7 +154,7 @@ One immutable source record from one transcript generation.
 | `byte_length` | INTEGER | Raw byte count excluding newline delimiter |
 | `raw_sha256` | BLOB | Digest of exact `raw_json || record_delimiter` bytes |
 | `raw_json` | BLOB | Authoritative JSON/content bytes, including malformed/unknown complete records |
-| `record_delimiter` | BLOB | Exact `LF`, `CRLF`, or empty framing bytes for a stable final value |
+| `record_delimiter` | BLOB | Exact `LF` or `CRLF`; unterminated tails remain pending |
 | `parse_error` | TEXT NULL | Content-free error category |
 | `record_type` | TEXT NULL | Best-effort `type` projection |
 | `entry_uuid` | TEXT NULL | Best-effort `uuid` projection |

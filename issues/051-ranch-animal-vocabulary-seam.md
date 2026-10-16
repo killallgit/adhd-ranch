@@ -2,7 +2,7 @@
 
 ## Owning specification
 
-`specs/003-ranch-today/spec.md` — FR-004; `specs/001-render-domain-seam/spec.md` — FR-013
+`specs/003-ranch-today/spec.md` — FR-004
 
 ## What to build
 
@@ -13,7 +13,8 @@ These values describe any Animal, not Pig-specific assets or physical policy.
 
 Rename those shared TypeScript types, modules, and wrappers to Animal vocabulary. Keep the
 `update_pig_rects`, `set_pig_drag_active`, and `gather-pigs` IPC names as compatibility contracts,
-as spec 001 permits. Keep `PigSprite`, its assets, and the Rust Pig profile species-specific.
+as `specs/001-render-domain-seam/spec.md` FR-013 permits (supporting context). Keep `PigSprite`,
+its assets, and the Rust Pig profile species-specific.
 Do not repeat the scene, projection, region, or selection cutover from PR #88.
 
 ## Completion promise

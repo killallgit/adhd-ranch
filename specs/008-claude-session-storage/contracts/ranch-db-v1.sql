@@ -79,7 +79,7 @@ CREATE TABLE claude_transcript_records (
     byte_length INTEGER NOT NULL CHECK (byte_length >= 0),
     raw_sha256 BLOB NOT NULL CHECK (length(raw_sha256) = 32),
     raw_json BLOB NOT NULL,
-    record_delimiter BLOB NOT NULL CHECK (record_delimiter IN (X'', X'0A', X'0D0A')),
+    record_delimiter BLOB NOT NULL CHECK (record_delimiter IN (X'0A', X'0D0A')),
     parse_error TEXT,
     record_type TEXT,
     entry_uuid TEXT,

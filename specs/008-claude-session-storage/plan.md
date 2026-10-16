@@ -249,7 +249,10 @@ Implementation:
 - Prepare/move the root before current Settings/Focus path resolution.
 - Add database path, explicit transactional schema-v1 migration, per-connection foreign keys,
   permissions, Turso reopen, and clean-shutdown SQLite reopen/integrity/read tests.
-- Update the plugin wrapper's default path in the same slice so hooks do not split across roots.
+- Update the plugin wrapper's default path in the same slice. Detect an existing installation
+  targeting the legacy root as unhealthy without rewriting it at startup; explicit Install/Repair
+  replaces the complete managed wrapper with one targeting the new root. Prove both detection
+  before repair and successful delivery after repair using an existing-installation fixture.
 - Update README/current architecture guidance in this slice; leave historical records untouched.
 
 Proof: data-root state-matrix tests, database create/reopen/user-version tests, existing Focus and

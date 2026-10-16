@@ -51,7 +51,9 @@ Expected state matrix:
 | explicit `ADHD_RANCH_HOME` | exact override used; no default migration |
 
 Also confirm the plugin contract test expects `.adhd/adhd-ranch-hook` and
-`.adhd/agent-hooks.sock` while preserving the explicit override path.
+`.adhd/agent-hooks.sock` while preserving the explicit override path. Start with a synthetic installed
+legacy wrapper: startup reports it unhealthy without rewriting it; explicit Install/Repair replaces
+the managed wrapper, and a test firing reaches only the new-root socket.
 
 ## 3. Validate raw Hook Receipt persistence
 
@@ -72,6 +74,8 @@ Expected:
   incrementing the dropped-admission count;
 - disabling archiving at a controlled queue barrier rejects every later firing while all earlier
   accepted jobs finish exactly once with no partial transaction;
+- graceful shutdown at a controlled queue barrier closes admission and persists every accepted
+  queued job exactly once before worker exit; reopen shows no partial transactions;
 - invalid JSON is retained with a parse error and no raw content is logged;
 - an unavailable database does not change the hook client's silent failure/timeout contract.
 
@@ -89,13 +93,14 @@ cargo test -p adhd-ranch-storage transcript_generation -- --nocapture
 Expected:
 
 - every completed fixture line is byte-identical after concatenating `raw_json` and its preserved
-  `record_delimiter`, including LF, CRLF, and stable non-newline final values;
+  `record_delimiter`, including LF and CRLF;
 - main `transcript_path` and `SubagentStop.agent_transcript_path` fixtures both ingest, while the
   archive-only subagent verb leaves parent live Activity unchanged;
 - known envelope fields are indexed and unknown fields remain in the raw record;
 - the unknown `cost-state` fixture persists without a closed-enum failure;
 - a malformed complete line persists with `parse_error`;
-- a partial trailing line waits for a later append;
+- every unterminated tail waits, including a valid JSON value observed unchanged twice; a later
+  newline produces exactly one correctly framed row and no spurious empty row;
 - a row appended after the terminal hook is captured by bounded settle retries without another
   firing, and retry tests use an injected/paused clock;
 - three replays, including one database reopen, add no duplicate transcript records;
@@ -160,21 +165,25 @@ WAL/SHM sidecars after create, write, close, and reopen.
 
 ## 8. Manual local smoke test
 
-Use a temporary explicit data root so the smoke test cannot move or write real Ranch state:
+Use separate temporary Ranch and Claude roots. Start Ranch from terminal A with both exported:
 
 ```sh
-RANCH_SMOKE_ROOT="$(mktemp -d)"
-ADHD_RANCH_HOME="$RANCH_SMOKE_ROOT" task dev
+export ADHD_RANCH_HOME="$(mktemp -d)"
+export CLAUDE_CONFIG_DIR="$(mktemp -d)"
+printf 'Ranch root: %s\nClaude root: %s\n' "$ADHD_RANCH_HOME" "$CLAUDE_CONFIG_DIR"
+task dev
 ```
 
 In the app:
 
 1. Confirm Claude archiving is off by default.
 2. Read the plaintext-data disclosure and enable archiving explicitly.
-3. Run a disposable Claude session that uses the installed Ranch hooks.
-4. Confirm `$RANCH_SMOKE_ROOT/ranch.db` exists and the Agent appears only while the live hook state
+3. Install/Repair the Ranch hooks only into this temporary `CLAUDE_CONFIG_DIR`. In terminal B,
+   export both variables to the exact paths printed by terminal A, then start `claude` there with
+   a synthetic prompt. Never copy personal settings, credentials, or transcripts into the fixture.
+4. Confirm `$ADHD_RANCH_HOME/ranch.db` exists and the Agent appears only while the live hook state
    says it is present.
-5. Quit and reopen Ranch using the same explicit root. Confirm archive rows remain but no historical
+5. Quit and reopen Ranch with both variables unchanged. Confirm archive rows remain but no historical
    Agent appears until another live Hook Firing arrives.
 6. Disable archiving and confirm a subsequent Hook Firing creates no new archive receipt.
 7. Enable Developer Mode from the app menu, open Claude Archive Health, and confirm only aggregates
@@ -182,5 +191,6 @@ In the app:
 8. Restart and confirm Developer Mode and all `this run` counters are off/zero while database counts
    and last successful ingest remain.
 
-Remove the temporary directory after the app and any database shell are closed. Do not point this
-smoke test at personal Claude transcripts when capturing logs or test artifacts.
+Remove both temporary directories after Ranch, the disposable Claude session, and any database
+shell are closed. Do not point this smoke test at personal Claude transcripts when capturing logs
+or test artifacts.

@@ -76,9 +76,10 @@ without reading their content.
   `Stop`, `StopFailure`, `SessionEnd`, and `SubagentStop` use the terminal retry profile: retry until
   two consecutive `(length, mtime, boundary digest)` observations are unchanged, subject to the
   documented attempt/time cap. This lets asynchronous final rows land without polling forever.
-- On the second stable read, a non-newline tail that parses as exactly one complete JSON value may
-  be committed. Otherwise the cursor stays at its start and the condition remains content-free in
-  diagnostics.
+- Stable observations end the retry schedule; they do not prove record framing is final. Every
+  non-newline tail remains pending, even if it parses as a complete JSON value. A later newline
+  commits that value and its delimiter as one record, never a separate empty record. The cursor
+  stays at the tail start and diagnostics remain content-free.
 - Insert transcript rows and advance cursor/ordinal in one transaction.
 - `boundary_sha256` is SHA-256 over `[max(0, byte_cursor - 4096), byte_cursor)`. If the file shrinks
   below the cursor, the platform file identity changes, or that exact window no longer matches,
@@ -107,8 +108,10 @@ No record-type allowlist controls persistence.
 - Disabling archival and checking the admission gate share one linearization point. Every firing
   after disable is rejected; every job admitted before it remains worker-owned and finishes exactly
   once. Re-enabling allows only new firings and performs no historical census.
-- App shutdown asks the worker to finish its current receipt transaction and then stops; it does
-  not make the hook client wait.
+- Graceful app shutdown closes admission, drains every accepted queued job and its transactions,
+  then stops the worker. It does not make the hook client wait. Forced termination is best effort:
+  committed transactions survive, and later syncs recover transcript rows; uncommitted receipts
+  are not guaranteed.
 - Queue saturation/closure before admission increments `dropped_jobs_this_run`. An accepted-job,
   database, or transcript failure increments only its bounded content-free error category. Neither
   blocks or fails Claude; a later transcript sync can recover transcript rows, while a firing

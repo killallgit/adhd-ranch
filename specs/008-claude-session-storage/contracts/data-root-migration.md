@@ -35,6 +35,8 @@ client, or socket paths:
   `.adhd-ranch`; it ignores `ranch.db`.
 - The migration never copies, merges, deletes, or resolves conflicts file-by-file.
 - The plugin wrapper must resolve the same new default root in the release that enables this
-  migration; otherwise it could continue sending to the legacy socket.
+  migration. An existing installation targeting the legacy root is reported unhealthy and left
+  unchanged at startup. Explicit Install/Repair replaces the complete managed wrapper; regression
+  tests must cover legacy detection, no implicit repair, and new-root delivery after repair.
 - The rapid-prototype exception for the unshipped archive schema/protocol does not apply here:
   existing Focus, Timer, Settings, client, and socket state still receive this whole-root migration.
