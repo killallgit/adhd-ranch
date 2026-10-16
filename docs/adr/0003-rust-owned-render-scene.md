@@ -149,10 +149,13 @@ the second Species and second Harness make that authority harder to relocate.
 
 ## Action Items
 
-1. [ ] Define and generate the Rust-owned render-scene contract.
-2. [ ] Add independent Rust Focus and Agent Session projectors with focused tests.
-3. [ ] Add the read-only scene command and refresh it on source, settings, and DisplaySpace changes.
-4. [ ] Cut the webview over to generated scene values and delete TypeScript source projections.
-5. [ ] Move region layout and physical Pig policy to Rust; retain only frame mechanics and assets
+Implemented in [PR #88](https://github.com/killallgit/adhd-ranch/pull/88); validation is recorded in
+[the feature tasks](../../specs/001-render-domain-seam/tasks.md#phase-7-convergence).
+
+1. [x] Define and generate the Rust-owned render-scene contract.
+2. [x] Add independent Rust Focus and Agent Session projectors with focused tests.
+3. [x] Add the read-only scene command and refresh it on source, settings, and DisplaySpace changes.
+4. [x] Cut the webview over to generated scene values and delete TypeScript source projections.
+5. [x] Move region layout and physical Pig policy to Rust; retain only frame mechanics and assets
        in TypeScript.
 6. [ ] Revisit backend-owned movement only through a separately measured Animal Runtime design.

@@ -1,9 +1,8 @@
 # 059 — A hook frame that describes a state at a time
 
-## Parent PRD
+## Owning specification
 
-PRD.md §FR3 (Pig UI) and §Phase 7, and ADR-0002, which decides that a frame carries a claim about
-a state rather than announcing an edge.
+`specs/005-late-hook-frame/spec.md`
 
 ## What to build
 

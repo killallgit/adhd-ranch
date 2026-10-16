@@ -1,8 +1,8 @@
 # 061 — The change event carries the change
 
-## Parent PRD
+## Owning specification
 
-PRD.md §FR3 (Pig UI) and §Phase 7, and ADR-0002's third slice.
+`specs/003-ranch-today/spec.md` — FR-014, under ADR-0002
 
 ## What to build
 

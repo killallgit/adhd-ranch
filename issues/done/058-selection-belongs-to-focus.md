@@ -1,5 +1,7 @@
 # 058 — Selection belongs to the Focus half
 
+**Status:** Shipped. The renderer reports clicks and freezes by id through `useAnimalMovement`, and `useFocusSelection` is what decides a click means a Focus. The plan below names `usePigMovement`, which the render-scene slice replaced.
+
 ## Parent PRD
 
 PRD.md §FR3 (Pig UI) and ADR-0001.

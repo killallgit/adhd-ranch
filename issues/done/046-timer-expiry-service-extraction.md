@@ -1,6 +1,6 @@
 # 046 — Extract timer-expiry workflow out of `app/`
 
-> **Closed — superseded by 053.** `TimerExpiryWorkflow` in `crates/commands/src/timer_expiry.rs` owns tick → persist → notification requests behind an injected `NotificationSink`, with unit tests. `src-tauri/src/app/timer_expiry.rs` runs the 1s loop and adapts the returned events to Tauri emits and platform notifications. The type names differ from the target shape below.
+> **Shipped.** The completion promise is true on `main`. The landed approach is `Timers::expire_due` in `crates/commands/src/timers.rs`, with tests, and `src-tauri/src/app/timer_expiry.rs` only starts the one-second loop and adapts notifications. The write-up's `TimerExpiryService` names were not what landed.
 
 ## Parent PRD
 

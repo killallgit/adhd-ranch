@@ -2,9 +2,9 @@
 
 Issue tracking for a five-year-old. Menubar/tray desktop app — Tauri v2 + React. macOS is the primary target.
 
-A small number of buckets ("Focuses") with a few bullets each ("Tasks"). Pixel pigs roam the screen as a peripheral reminder — one pig per Focus. Click a pig to inspect or edit its Tasks. Markdown on disk is the source of truth.
+A small number of buckets ("Focuses") with a few bullets each ("Tasks"). Pixel Pig sprites roam the screen as a peripheral reminder — one Animal per Focus, and, when you turn it on, one Animal per Agent Session. Click a Focus Animal to inspect or edit its Tasks. Markdown on disk is the source of truth.
 
-See `PRD.md`, `CONTEXT.md`, and `CLAUDE.md` for the full design and the programming rules every slice must follow.
+See `specs/003-ranch-today/spec.md` for what the ranch does today, `CONTEXT.md` for names, and `CLAUDE.md` for the programming rules every slice must follow.
 
 ## Quick install (end-user)
 

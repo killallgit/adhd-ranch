@@ -1,5 +1,7 @@
 # Manual GitHub release and artifact retention
 
+> **Historical.** This note is evidence. It is not a current requirement and not an accepted decision. The constitution, accepted ADRs, and the current product specification govern where they disagree with it. See [specs/002-speckit-docs-pass/pass-record.md](../../specs/002-speckit-docs-pass/pass-record.md).
+
 ## Recommendation
 
 Use one manually dispatched workflow for the complete release transaction:

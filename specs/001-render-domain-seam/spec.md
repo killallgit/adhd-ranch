@@ -4,7 +4,7 @@
 
 **Created**: 2026-09-26
 
-**Status**: Approved for planning
+**Status**: Implemented — merged in [PR #88](https://github.com/killallgit/adhd-ranch/pull/88) on 2026-09-28
 
 **Input**: User description: "Plan implementation of accepted ADR-0001 so Focuses and Agent
 Sessions are independent applications that share only the renderer. Preserve an explicit seam for

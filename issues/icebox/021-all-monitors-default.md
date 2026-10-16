@@ -1,8 +1,8 @@
 # 021 — All monitors enabled by default on first launch
 
-## Parent PRD
+## Owning specification
 
-PRD.md §FR2 (overlay window) + Phase 3 polish
+None. Deferred. Not a requirement of `specs/003-ranch-today/spec.md`.
 
 ## Problem
 

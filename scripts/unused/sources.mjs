@@ -10,5 +10,5 @@ export function readSources(patterns) {
 
 export const RUST_SOURCES = ["src-tauri/src/**/*.rs", "crates/*/src/**/*.rs"];
 export const FRONTEND_SOURCES = ["src/**/*.ts", "src/**/*.tsx"];
-export const HTML_ENTRIES = ["*.html"];
+export const HTML_ENTRIES = ["src/*.html"];
 export const STYLESHEETS = ["src/**/*.css"];
