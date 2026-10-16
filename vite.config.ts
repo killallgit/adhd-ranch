@@ -5,7 +5,13 @@ import { defineConfig } from "vite";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+const uiRoot = resolve(__dirname, "src");
+
 export default defineConfig({
+  root: uiRoot,
+  envDir: __dirname,
+  cacheDir: resolve(__dirname, "node_modules/.vite"),
+  publicDir: false,
   plugins: [react()],
   clearScreen: false,
   server: {
@@ -13,20 +19,22 @@ export default defineConfig({
     strictPort: true,
   },
   build: {
+    outDir: resolve(__dirname, "dist"),
+    emptyOutDir: true,
     rollupOptions: {
       input: {
-        main: resolve(__dirname, "index.html"),
-        newFocus: resolve(__dirname, "new-focus.html"),
-        settings: resolve(__dirname, "settings.html"),
-        agentDebug: resolve(__dirname, "agent-debug.html"),
-        installHooks: resolve(__dirname, "install-hooks.html"),
+        main: resolve(uiRoot, "index.html"),
+        newFocus: resolve(uiRoot, "new-focus.html"),
+        settings: resolve(uiRoot, "settings.html"),
+        agentDebug: resolve(uiRoot, "agent-debug.html"),
+        installHooks: resolve(uiRoot, "install-hooks.html"),
       },
     },
   },
   test: {
     globals: true,
     environment: "jsdom",
-    setupFiles: ["./vitest.setup.ts"],
-    include: ["src/**/*.test.{ts,tsx}", "scripts/**/*.test.mjs"],
+    setupFiles: [resolve(__dirname, "vitest.setup.ts")],
+    include: ["**/*.test.{ts,tsx}", "../scripts/**/*.test.mjs"],
   },
 });
