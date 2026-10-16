@@ -1,9 +1,8 @@
 # 062 — One hook client path, and reclaim the orphans
 
-## Parent PRD
+## Owning specification
 
-PRD.md §FR6 (Configuration) and §Phase 7, and ADR-0002's fourth action item — the only one with a
-live bug attached rather than a design change.
+`specs/007-one-hook-delivery/spec.md`
 
 ## What to build
 

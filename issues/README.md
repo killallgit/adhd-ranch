@@ -11,9 +11,7 @@ Each issue is a self-contained vertical slice that one person or coding agent ca
 These are not required before 031. Pick one when we choose to spend a slice on internal seams or future-proofing.
 
 - [056](056-task-timer-binding.md) — Task Timers drift when Tasks are hand-edited
-- [051](051-ranch-animal-vocabulary-seam.md) — Animal vocabulary for the movement layer (blocked by 057, per ADR-0001)
-- [057](057-animal-render-contract.md) — Animal as a render contract (ADR-0001; unblocks 051 and 058)
-- [058](058-selection-belongs-to-focus.md) — Selection belongs to the Focus half (blocked by 057)
+- [051](051-ranch-animal-vocabulary-seam.md) — Animal vocabulary for the movement layer (render contract shipped; `Pig*` names remain)
 - [059](059-self-describing-hook-frame.md) — A hook frame that describes a state at a time (ADR-0002; unblocks 060 and 061)
 - [060](060-session-staleness-sweep.md) — A session that stops speaking stops working (blocked by 059)
 - [061](061-hook-change-events.md) — The change event carries the change (blocked by 059)
@@ -27,7 +25,6 @@ Closed without implementation:
 
 - 042 — Unify cap-state behind a single `CapStatus` projection. Premise was wrong: both consumers already read the same `cap_state` projection.
 - 045 — Symmetric `fixtureReader<T>` + caps fixture parity. Helper too thin to warrant abstraction; test-wrapper deletion folded into 039.
-- 046 — Timer expiry workflow module. Superseded by 053, which moved the workflow into `crates/commands`.
 - 047 — Storage transaction seam for Proposal lifecycle. The Proposal queue and HTTP API were removed.
 
 ### Icebox (deferred)
@@ -84,7 +81,7 @@ If any box can't be ticked, the issue is **not** done. Flag the human; don't sil
 ## Issue file shape
 
 ```
-## Parent PRD
+## Owning specification
 ## What to build
 ## Completion promise   ← single sentence, observable, non-negotiable
 ## Acceptance criteria  ← checkboxes that prove the promise

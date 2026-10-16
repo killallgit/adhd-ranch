@@ -8,7 +8,7 @@ A desktop ranch you can see from the corner of your eye: each Focus the user hol
 
 ## Language
 
-> Terms below are under review in an active domain-modeling session. Definitions will be rewritten as each term is settled.
+> Settled names for the ranch. Specifications, issues, and UI copy use these words. The current product specification does not redefine them.
 
 ### Grouping
 

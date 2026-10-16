@@ -1,5 +1,7 @@
 # 057 — Animal as a render contract
 
+**Status:** Shipped. The completion promise holds on `main` via the Rust-owned render scene (ADR-0003). The plan below is the frontend-only approach this file originally specified; that approach was not the one that landed.
+
 ## Parent PRD
 
 PRD.md §FR3 (Pig UI) and ADR-0001, which moves the seam between the ranch's two halves from the

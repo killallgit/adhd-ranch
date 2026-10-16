@@ -1,8 +1,8 @@
 # 056 — Task Timers drift when Tasks are hand-edited
 
-## Parent PRD
+## Owning specification
 
-PRD.md §FR3 (Task timers), issues 052 and 053. Raised while designing 054.
+`specs/004-task-timer-hand-edits/spec.md`
 
 ## What to build
 

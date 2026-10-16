@@ -103,28 +103,28 @@ layout, and physical policy; TypeScript owns synchronous frame mechanics and pre
 ## Core interaction loop
 
 1. **Animals roam the screen.** One generated Animal per visible Focus or enabled Agent Session. The Rust Pig profile supplies the current 60px/s speed, 3–8 s turns, friction, minimum-speed floor, footprint, toss cap, and frame cadence. `PigSprite` retains the 4-direction pixel-art presentation (016). Hit-box is 16px larger than the sampled sprite size (018).
-2. **Click a pig.** Pig freezes. `AnimalDetail` card opens near the pig: editable Focus title, duplicate and delete buttons, scrollable Task list (check off, edit text, `✗` to clear), and an "Add task…" input at the bottom. Clock/time controls on the Focus title and each Task open compact timer dropdowns. Click-outside or Escape closes; pig resumes (019, 052).
-3. **Drag a pig.** Click-and-hold then move > 4px enters drag mode — pig follows cursor. Release sends pig flying in that direction; friction decelerates it; bounces at region edges. Pure click (< 4px movement) still opens AnimalDetail (020).
-4. **Clear a task.** Tap `✗` → `delete_task` Tauri command → markdown updated → pig's task list reflects change.
+2. **Click a Focus Animal.** It freezes. `AnimalDetail` opens near it: editable Focus title, duplicate and delete buttons, scrollable Task list (Complete, edit text, Delete), and an "Add task…" input at the bottom. Clock/time controls on the Focus title and each Task open compact timer dropdowns. Click-outside or Escape closes; the Animal resumes (019, 052). An Agent Session Animal is not selectable.
+3. **Drag an Animal.** Click-and-hold then move > 4px enters drag mode — the Animal follows the cursor. Release sends it flying in that direction; friction decelerates it; bounces at region edges. Pure click (< 4px movement) on a Focus Animal still opens AnimalDetail (020).
+4. **Delete a Task.** Tap `✗` → `delete_task` Tauri command → markdown updated → the Animal's Task list reflects the change.
 5. **Add a task.** Type in "Add task…" input in AnimalDetail → Enter → `append_task` Tauri command → markdown updated.
-6. **Create a Focus.** *(014)* Tray → "+ New Focus" → small webview form → `create_focus` → new pig spawns. Timer dropdown (No timer / 2m / 4m / 8m / 16m / 32m / Custom) optionally attaches a `FocusTimer` (028). Focus and Task timers can later be started or cleared from `AnimalDetail` (052).
-7. **Delete a Focus.** *(015, 027)* Tray → Focus submenu → "Delete…", or the delete button in `AnimalDetail` → `delete_focus` → pig disappears. Asks for confirmation when `widget.confirm_delete` is on.
+6. **Create a Focus.** *(014, #89)* Tray → "+ New Focus" → small webview form → `create_focus` → a new Animal appears. The form offers None, built-in 10/30/60 minute chips, and saved custom durations. Focus and Task Timers can later be started, restarted, or cleared from `AnimalDetail`. Custom chips persist in `settings.yaml` under `timers.saved_minutes`; `edit_saved_timer_minutes` applies add/remove/clear operations to current settings in one synchronous command. Ordinary preference updates preserve those saved durations. Removing a chip does not clear a running Timer.
+7. **Delete a Focus.** *(015, 027)* Tray → Focus submenu → "Delete…", or the delete button in `AnimalDetail` → `delete_focus` → the Animal disappears. Asks for confirmation when `widget.confirm_delete` is on.
 8. **Configure displays.** *(017, 049)* Preferences → Displays — check/uncheck monitors. Enabled monitors share one spanning overlay window; Animals spawn in the primary display region and move only inside normalized visible monitor regions. Persists in `settings.yaml`. The display module owns monitor geometry, and React owns movement over the emitted DisplaySpace model.
-9. **Change settings.** *(026, 032, 050)* Tray → "Settings…" or app menu → "Preferences…" opens the Preferences window. `update_settings` runs the settings workflow: persist `settings.yaml`, commit the in-memory settings, apply widget changes, reapply overlays when displays changed, refresh long-lived settings consumers, and rebuild the tray. Caps and notification toggles take effect without a restart.
+9. **Change settings.** *(026, 032, 050)* Tray → "Settings…" or app menu → "Preferences…" opens the Preferences window. Preferences is the macOS menu label for the window that edits Settings. `update_settings` runs the settings workflow: persist `settings.yaml`, commit the in-memory settings, apply widget changes, reapply overlays when displays changed, refresh long-lived settings consumers, and rebuild the tray. Limits and notification toggles take effect without a restart.
 
 ## Application
 
 Single Tauri v2 desktop app written in Rust (core + frontend webview). macOS is the primary target; the release workflow also builds unsigned Windows and Linux packages. Surfaces:
 
 1. **Transparent overlay window** — spans the enabled displays, always-on-top, no decorations. Renders pixel pig sprites via React. Click-through for non-pig areas via a Rust polling thread (Tauri `cursor_position()` every 16ms) that toggles `window.set_ignore_cursor_events`.
-2. **Tray menu** — Gather Pigs, "Agents as Animals", "Install Hooks…", "+ New Focus", one submenu per Focus (with Delete), an Expired submenu, Settings…, and Quit (plus Open Overlay DevTools in debug builds). The tray icon turns red when over-cap.
+2. **Tray menu** — Gather, "Agents as Animals", "Install Hooks…", "+ New Focus", one submenu per Focus (with Delete), an Expired submenu, Settings…, and Quit (plus Open Overlay DevTools in debug builds). The tray icon turns red when the ranch is Over Limit. The menu label is still "Gather Pigs" because Pig is the only Species.
 3. **New Focus, Preferences, and Install Hooks windows** — small webviews opened from the tray or app menu. Install Hooks has an explicit user-scoped install button and copyable shell commands as a fallback.
 4. **Agent Hooks window** — an always-on-top webview opened from Window → "Agent Hooks…"; shows the agent hook wiring, the live Agent Sessions, and recent hook firings.
 
 Responsibilities owned by the app:
 
 - Read/write per-Focus markdown files (frontmatter + body).
-- Watch `~/.adhd-ranch/focuses/` via `notify` crate; reflect external edits live (pig count updates within 1s).
+- Watch `~/.adhd-ranch/focuses/` via `notify` crate; reflect external edits live (the Animal count updates within 1s).
 - Run a 1s timer-expiry loop (`Timers::expire_due`) that persists expired timers and sends notifications. The UI picks up the change through the focuses watcher.
 - Enforce caps + emit overload alerts (`tauri-plugin-notification`).
 - Poll mouse position in a background thread; maintain shared pig bounding boxes; toggle click-through.
@@ -136,18 +136,18 @@ No network API or Ranch CLI. The UI reaches Rust only through Tauri IPC. Rust in
 1. **User** — pig detail UI, Preferences UI, tray/new-focus UI, or hand-edit markdown.
 2. **Timer expiry loop** — marks timers `Expired`.
 
-## Caps & overload alerting
+## Limits
 
-Hard limits:
+Soft thresholds. The settings file still uses the key `caps`.
 
 - `MAX_FOCUSES` (default: 5)
 - `MAX_TASKS_PER_FOCUS` (default: 7)
 
-App enforces caps at write time. When a write would exceed a cap, it succeeds but flips an over-cap flag; the tray icon turns red; system notification fires once per `under → over` transition. Goes away on transition back to under.
+The app enforces Limits at write time. When a write would pass a Limit, it succeeds and the ranch is Over Limit; the tray icon turns red; a system notification fires once per `under → over` transition. The warning goes away on the transition back under. Agent Sessions do not count.
 
 ## Agents as Animals
 
-An opt-in overlay mode that draws one Animal per running Claude Code session alongside the Focus pigs. It is off by default and controlled by `agents.enabled` in `settings.yaml`.
+An opt-in overlay mode that draws one Animal per running Claude Code session alongside the Focus Animals. It is off by default and controlled by `agents.enabled` in `settings.yaml`. Pig is still the Species for both.
 
 - **Toggle.** The tray's "Agents as Animals" check item flips `agents.enabled` through the settings workflow (persist, commit, effects, tray rebuild). Turning it off clears live sessions and ignores subsequent Hook Firings; the Claude plugin remains installed. Turning it on opens the Install Hooks dialog when Claude does not list a complete, enabled user-scoped Ranch plugin. A failed status read is logged rather than treated as proof of absence; the toggle never repairs the plugin.
 - **Hook install.** Claude Code owns the user-scoped `adhd-ranch-hooks@adhd-ranch` plugin. Ranch never registers or removes direct Claude settings hooks on startup or toggle. The marketplace lives in this repository at `.claude-plugin/marketplace.json`; the plugin lives under `plugins/adhd-ranch-hooks/`. The tray's "Install Hooks…" dialog explicitly invokes Claude's CLI: add the marketplace if missing, install or enable the plugin at user scope, then validate the installed manifest, exact five event-to-action mappings, wrapper path/content/executable bit, and Claude's strict plugin schema. A complete existing install is untouched. An incomplete install is repaired only after this explicit click: refresh the marketplace and update the plugin, with a user-scoped reinstall if updating cannot repair the cache. The separate `claude_plugin` module owns this lifecycle; the dialog also shows fresh-shell commands for a first-time install. The plugin has an explicit version, which must be bumped for a new marketplace release; Claude's strict validator warns on an unversioned manifest. Existing Claude sessions need `/reload-plugins` or a restart. Plugin `hooks/hooks.json` runs a wrapper under `${CLAUDE_PLUGIN_ROOT}`; the wrapper finds Ranch's data root and invokes the stable local client there.
@@ -191,5 +191,5 @@ Settings changed through the app are persisted and applied immediately. Manual f
 
 ## Scope
 
-- **Current**: User creates Focuses from the app or by hand-editing. Pigs roam the overlay, show Tasks, and reflect markdown changes. Focus and Task timers, caps, and multi-display overlay work. Optional agent pigs for running Claude Code sessions.
+- **Current**: The person creates Focuses from the app or by hand-editing. Animals roam the overlay. A Focus Animal shows Tasks and reflects markdown changes. Focus and Task Timers, Limits, and the multi-display overlay work. Optional Agent Session Animals for running Claude Code sessions. Pig is the only Species.
 - **Not built**: external aggregators (Jira, GitHub), sync, schema migrations.

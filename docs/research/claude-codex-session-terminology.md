@@ -1,5 +1,7 @@
 # Claude Code and Codex session terminology
 
+> **Historical.** This note is evidence. It is not a current requirement and not an accepted decision. The constitution, accepted ADRs, and the current product specification govern where they disagree with it. See [specs/002-speckit-docs-pass/pass-record.md](../../specs/002-speckit-docs-pass/pass-record.md).
+
 This is a glossary of how Claude Code and OpenAI Codex name their own session concepts. Its purpose is to let adhd-ranch reuse each tool's terms when it starts tracking sessions from them. It records findings only and makes no recommendation.
 
 Sources and versions, checked 2026-09-14:

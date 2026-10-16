@@ -1,9 +1,8 @@
 # 060 — A session that stops speaking stops working
 
-## Parent PRD
+## Owning specification
 
-PRD.md §FR3 (Pig UI) and §Phase 7, and ADR-0002's second slice: the store gets a way to notice
-what it has lost.
+`specs/006-unheard-turn-ends/spec.md`
 
 ## What to build
 

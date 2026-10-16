@@ -1,8 +1,8 @@
 # 031 — Notification source settings registry
 
-## Parent PRD
+## Owning specification
 
-PRD.md §FR6 (configuration)
+`specs/003-ranch-today/spec.md` — FR-008
 
 ## What to build
 

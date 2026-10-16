@@ -1,8 +1,8 @@
 # 022 — Wrangle pig + wrangle all
 
-## Parent PRD
+## Owning specification
 
-PRD.md §FR3 (pig UI)
+None. Deferred. Not a requirement of `specs/003-ranch-today/spec.md`.
 
 ## Problem
 

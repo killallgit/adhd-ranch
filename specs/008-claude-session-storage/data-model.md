@@ -1,0 +1,319 @@
+# Data Model: Claude Session Archive
+
+## Boundary
+
+`ranch.db` owns durable Claude integration evidence only in this feature. Focus Markdown, timer
+sidecars, Settings YAML, and the in-memory `AgentSession` roster keep their current authorities.
+Raw Claude payload bytes are authoritative. Every parsed column is a rebuildable index.
+
+Schema version 1 is ordinary relational Turso/SQLite with exactly the four Claude-specific tables
+below. It has no graph engine, generic node/edge layer, graph API, or shared cross-tool entities.
+
+## Claude's observed source structures
+
+### Hook input envelope
+
+Fields documented as common across Claude hook events:
+
+| Field | Shape | Archive treatment |
+|------|-------|-------------------|
+| `session_id` | string | Session correlation key; nullable only when the payload is malformed |
+| `prompt_id` | UUID string, optional before first prompt | Indexed nullable correlation key |
+| `transcript_path` | absolute path string | Validated synchronization hint; never treated as trusted without canonicalization |
+| `agent_transcript_path` | absolute path string on `SubagentStop` | Validated subagent synchronization hint |
+| `cwd` | absolute path string | Session metadata and Pen input, preserved in raw payload |
+| `scratchpad_dir` | path string, optional | Raw-only in this slice |
+| `permission_mode` | enum string, event-dependent | Raw-only in this slice |
+| `effort` | object, event-dependent | Raw-only in this slice |
+| `hook_event_name` | string | Indexed event discriminator |
+| `agent_id`, `agent_type` | optional subagent identifiers | Raw payload; `agent_id` may be indexed when present |
+| event-specific fields | object members | Preserved raw; normalized only when a future consumer requires them |
+
+### Transcript record envelope
+
+Message-bearing records observed by the available typed corpus include `user`, `assistant`,
+`system`, `attachment`, and `progress`. Metadata records include permission mode, prompts, titles,
+agent identity/color/settings, tags, summaries, PR links, mode, worktree state, content replacement,
+file-history and attribution snapshots, queue operations, context-collapse markers, bridge/session
+markers, and artifact coordination. Current local data also contains `cost-state`, demonstrating
+that the known set is not closed.
+
+Common or broadly useful fields are mapped as nullable indexes:
+
+| Source JSON field | Column | Notes |
+|------------------|--------|-------|
+| `type` | `record_type` | No closed enum constraint |
+| `uuid` | `entry_uuid` | Absent on many metadata rows |
+| `parentUuid` | `parent_uuid` | Nullable at roots and compaction boundaries |
+| `logicalParentUuid` | `logical_parent_uuid` | Preserves logical ancestry across compaction when present |
+| `sessionId` | `record_session_id` | Kept separate from the hook-correlated archive session |
+| `session_id` | `record_session_id_snake` | Separate projection; may differ on resumed/internal records |
+| `timestamp` | `recorded_at` | Source timestamp, stored as text without reinterpretation |
+| `promptId` | `prompt_id` | Correlates records with hook/telemetry prompt identity |
+| `agentId` | `agent_id` | Subagent/sidechain identity |
+| `isSidechain` | `is_sidechain` | Nullable integer boolean |
+| `message.role` | `message_role` | Nullable string, not a constrained enum |
+| `message.id` | `message_id` | Nullable message identity; not assumed unique per record |
+| `message.model` | `model` | Nullable model identifier |
+
+All remaining fields stay inside `raw_json`.
+
+## Database entities
+
+### `claude_archive_sessions`
+
+One durable Claude-specific row per hook-observed Claude session.
+
+| Column | Type | Rules |
+|--------|------|-------|
+| `session_id` | TEXT | Primary key; non-empty after trimming |
+| `first_seen_at` | TEXT | Required RFC3339 receipt time |
+| `last_seen_at` | TEXT | Required; monotonic by receipt order |
+| `ended_at` | TEXT NULL | Latest observed SessionEnd time; historical only, not liveness authority |
+| `first_cwd` | TEXT NULL | First valid hook cwd |
+| `latest_cwd` | TEXT NULL | Latest valid hook cwd |
+| `latest_transcript_path` | TEXT NULL | Latest validated path hint |
+| `title` | TEXT NULL | Best-effort hook/transcript projection |
+| `model` | TEXT NULL | Best-effort hook/transcript projection |
+| `last_hook_event` | TEXT NULL | Latest received event name |
+
+Validation:
+
+- This row MUST NOT be converted directly into the harness-neutral live `AgentSession`.
+- SessionEnd records an observation; resume may update the row later without deleting history.
+- Missing or invalid session ids do not create a session row; their Hook Receipts are still kept.
+
+### `claude_hook_receipts`
+
+One immutable row per delivery successfully admitted to the bounded archive worker queue while
+archival is enabled. Queue rejection is counted diagnostically but creates no receipt.
+
+| Column | Type | Rules |
+|--------|------|-------|
+| `receipt_id` | INTEGER | Primary key generated by the database |
+| `received_at` | TEXT | Required RFC3339 Ranch receipt time |
+| `transport_action` | TEXT | Existing Ranch verb/action, retained for transport diagnostics |
+| `session_id` | TEXT NULL | Foreign key when parseable |
+| `hook_event_name` | TEXT NULL | Source event from payload |
+| `prompt_id` | TEXT NULL | Prompt correlation id |
+| `agent_id` | TEXT NULL | Subagent identity when present |
+| `cwd` | TEXT NULL | Source working directory |
+| `transcript_path` | TEXT NULL | Exact payload value; validation status is separate |
+| `agent_transcript_path` | TEXT NULL | Exact subagent payload value; validation status is separate |
+| `payload_sha256` | BLOB | SHA-256 digest of exact payload bytes |
+| `raw_payload` | BLOB | Exact UTF-8 JSON bytes from the transport, excluding frame header |
+| `parse_error` | TEXT NULL | Content-free parse/validation category; never embeds prompt text |
+
+Indexes: `(session_id, received_at)`, `(hook_event_name, received_at)`, `prompt_id`, and
+`payload_sha256`.
+
+Duplicate deliveries intentionally produce separate `receipt_id` values. The digest allows later
+projections to identify equivalence without destroying receipt evidence.
+
+### `claude_transcript_sources`
+
+One physical transcript path generation and its committed incremental-read cursor.
+
+| Column | Type | Rules |
+|--------|------|-------|
+| `source_id` | INTEGER | Primary key |
+| `session_id` | TEXT | Required foreign key to archive session |
+| `source_kind` | TEXT | `main` or `subagent` |
+| `agent_id` | TEXT NULL | Subagent identity when supplied; NULL for main source |
+| `canonical_path` | TEXT | Required canonical regular file within configured Claude `projects/` root |
+| `generation` | INTEGER | Starts at 1 and increments for the same path after replacement/truncation |
+| `file_identity` | TEXT NULL | Platform-available device/inode or equivalent identity |
+| `opened_at` | TEXT | First sync time for this generation |
+| `last_synced_at` | TEXT | Latest successful cursor commit |
+| `superseded_at` | TEXT NULL | Set when another generation replaces this one |
+| `byte_cursor` | INTEGER | First unread byte; non-negative |
+| `next_ordinal` | INTEGER | Next record ordinal; non-negative |
+| `observed_length` | INTEGER | File length at last successful sync |
+| `observed_mtime` | INTEGER NULL | Platform timestamp used only as a change hint |
+| `boundary_sha256` | BLOB NULL | SHA-256 of `[max(0, byte_cursor - 4096), byte_cursor)` |
+
+Constraints and indexes:
+
+- Unique `(canonical_path, generation)`.
+- At most one non-superseded generation per canonical path.
+- `byte_cursor` is the first unread byte. An incomplete tail is not persisted separately and is
+  reread from that offset on the next sync.
+- `byte_cursor`, inserted records, and the exact boundary digest update in one transaction.
+- A canonical path may correlate to only the session id supplied by its validated Hook Firing for
+  that generation; a mismatch creates a diagnostic and no read.
+
+### `claude_transcript_records`
+
+One immutable source record from one transcript generation.
+
+| Column | Type | Rules |
+|--------|------|-------|
+| `source_id` | INTEGER | Foreign key to transcript source |
+| `ordinal` | INTEGER | Zero-based order within the generation |
+| `byte_offset` | INTEGER | Source offset of the first raw byte |
+| `byte_length` | INTEGER | Raw byte count excluding newline delimiter |
+| `raw_sha256` | BLOB | Digest of exact `raw_json || record_delimiter` bytes |
+| `raw_json` | BLOB | Authoritative JSON/content bytes, including malformed/unknown complete records |
+| `record_delimiter` | BLOB | Exact `LF`, `CRLF`, or empty framing bytes for a stable final value |
+| `parse_error` | TEXT NULL | Content-free error category |
+| `record_type` | TEXT NULL | Best-effort `type` projection |
+| `entry_uuid` | TEXT NULL | Best-effort `uuid` projection |
+| `parent_uuid` | TEXT NULL | Best-effort `parentUuid` projection |
+| `logical_parent_uuid` | TEXT NULL | Best-effort `logicalParentUuid` projection |
+| `record_session_id` | TEXT NULL | Best-effort `sessionId` projection |
+| `record_session_id_snake` | TEXT NULL | Best-effort `session_id` projection |
+| `recorded_at` | TEXT NULL | Best-effort `timestamp` projection |
+| `prompt_id` | TEXT NULL | Best-effort prompt id projection |
+| `agent_id` | TEXT NULL | Best-effort agent id projection |
+| `is_sidechain` | INTEGER NULL | `0`, `1`, or NULL |
+| `message_role` | TEXT NULL | Best-effort `message.role` |
+| `message_id` | TEXT NULL | Best-effort `message.id` |
+| `model` | TEXT NULL | Best-effort `message.model` |
+
+Primary key: `(source_id, ordinal)`. Additional unique guard: `(source_id, byte_offset)`.
+
+Indexes: `record_type`, `entry_uuid`, `parent_uuid`, `logical_parent_uuid`, `prompt_id`, `agent_id`,
+`message_id`, `(record_session_id, recorded_at)`, and `(record_session_id_snake, recorded_at)`.
+
+### Schema version
+
+`PRAGMA user_version` is the database schema version. Each bundled migration:
+
+1. checks the current version;
+2. runs inside one transaction;
+3. creates or changes only the next version;
+4. updates `user_version` last;
+5. rolls back completely on failure.
+
+The migration SQL contains explicit `BEGIN IMMEDIATE`/`COMMIT` bounds because Turso's batch API
+does not create a transaction. Every newly opened writer connection separately enables and verifies
+`PRAGMA foreign_keys = ON`.
+
+Version 1 contains only the four Claude archive tables and their indexes.
+
+While this archive remains unshipped rapid-prototype state, the current version-1 contract may be
+replaced in lockstep and fixture/developer archive databases may be recreated; no reader, writer, or
+migration for earlier prototype snapshots is required. The current schema still bootstraps and
+fails transactionally. This exception does not apply to the whole-root migration or existing Focus,
+Timer, and Settings data.
+
+### Archive preference
+
+Stored in `settings.yaml`, not `ranch.db`, because it is user-editable application configuration:
+
+```yaml
+claude:
+  archive_enabled: false
+  config_dir: null
+```
+
+Missing `archive_enabled` means false. `config_dir` is optional; when absent, Ranch uses the
+inherited `CLAUDE_CONFIG_DIR`, then the platform Claude default. This preference does not replace
+`agents.enabled`; live rendering and durable Claude retention are independent choices.
+
+### `ArchiveHealthSnapshot` (read model, not a table)
+
+One immutable, aggregate-only projection published by the archive worker after bootstrap and each
+successful commit. It is rebuilt from the current database at startup and is never persisted as a
+fifth entity.
+
+| Field | Shape | Rules |
+|-------|-------|-------|
+| `availability` | `ready`, `empty`, or `unavailable` | `empty` means the database is readable and all four counts are zero |
+| `schema_version` | integer NULL | Current `user_version`; NULL only when unavailable |
+| `database_bytes` | non-negative integer | Sum of existing `ranch.db`, `ranch.db-wal`, and `ranch.db-shm` metadata lengths |
+| `session_count` | non-negative integer NULL | Exact aggregate table count; NULL when unavailable |
+| `receipt_count` | non-negative integer NULL | Exact aggregate table count; NULL when unavailable |
+| `source_count` | non-negative integer NULL | Exact aggregate table count; NULL when unavailable |
+| `record_count` | non-negative integer NULL | Exact aggregate table count; NULL when unavailable |
+| `last_successful_ingest_at` | RFC3339 string NULL | Latest committed Hook Receipt or transcript-batch time |
+| `dropped_jobs_this_run` | non-negative integer | Rejected queue admissions since process start |
+| `errors_this_run` | ordered list of category/count | Finite content-free operational categories since process start |
+
+The persisted half is initialized with one aggregate query. Afterward it changes only after a
+successful archive transaction. `last_successful_ingest_at` is the maximum committed receipt time
+or transcript source `last_synced_at`, not a Claude source timestamp. Runtime counters reset on
+every launch. Queue saturation increments only `dropped_jobs_this_run`; accepted-job failures
+increment an error category and do not retroactively become dropped jobs. Per-record `parse_error`
+values are database facts, not runtime error counters.
+
+The Tauri/webview projection MUST NOT contain session ids, paths, ordinals, digests, raw rows,
+prompts, messages, tool data, or source content. Internal content-free diagnostics may still use
+the identifiers allowed by the ingestion contract; that is a separate channel.
+
+### `DeveloperModeState` (process state, not a setting)
+
+One injected boolean owned by the Tauri composition root. It starts `false` on every process launch,
+is changed only by the explicit app-menu toggle, is never written to `settings.yaml`, and controls
+whether the Archive Health menu item/window is available. Disabling it closes the health window but
+does not alter archive ingestion or archive consent.
+
+## Relationships
+
+```text
+Claude Archive Session (1)
+├── (0..*) Claude Hook Receipt
+└── (0..*) Claude Transcript Source
+             └── (0..*) Claude Transcript Record
+
+Archive Preference ──enables new writes only──> Archive Worker
+Live Agent Session ──separate in-memory projection──> Render Scene
+Archive Worker ──publishes aggregates only──> Archive Health Snapshot
+Developer Mode State ──reveals temporarily──> Archive Health Window
+```
+
+## State transitions
+
+### Data-root preparation
+
+```text
+explicit ADHD_RANCH_HOME ──> use exact root; no migration
+new root only            ──> use new root
+legacy root only         ──> atomic rename ──> use new root
+neither root             ──> create new root
+both roots               ──> conflict; no writes
+```
+
+### Transcript source generation
+
+```text
+unseen path ──validated──> generation 1 active
+active ──append──> same generation, cursor advances transactionally
+active ──partial tail──> same generation, cursor remains at tail start; retry rereads bytes
+active ──replacement/truncation──> old generation superseded + new generation active
+active ──missing/lagging file──> unchanged; bounded delayed retry remains scheduled
+```
+
+### Archive preference
+
+```text
+missing/off ──explicit user opt-in──> on
+on ──user disables──> off (new admission stops; accepted queue drains; rows retained)
+off ──user re-enables──> on (new receipts resume; no historical census)
+```
+
+The admission gate and preference update have one linearization point: every firing after the
+disable transition is rejected, while every job admitted before it remains worker-owned and
+finishes exactly once.
+
+### Developer Mode
+
+```text
+app launch ──> off; Archive Health item absent
+off ──explicit menu toggle──> on; item appended
+on ──menu toggle──> off; item removed and health window closed
+process restart ──> off regardless of prior state
+```
+
+## Validation rules
+
+- Canonical transcript path must be absolute, a regular file, and below the canonical configured
+  Claude `projects/` root after resolving symlinks. Root order is explicit `claude.config_dir`,
+  app-inherited `CLAUDE_CONFIG_DIR`, then the platform default; the hook hint never defines it.
+- Hook payloads remain bounded by the existing transport limit. Transcript records do not inherit
+  that hook-frame limit; reads stream by line and transaction batch.
+- Diagnostics may include session id, path, byte offset, record type, digest, and error category,
+  but never raw prompt, message, tool input, or tool output.
+- The archive worker is the only writer to these tables in version 1.
+- Foreign keys are enabled for every connection.
+- Database and sidecar permissions are user-only where supported.
