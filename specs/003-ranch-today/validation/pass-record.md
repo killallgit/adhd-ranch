@@ -1,6 +1,6 @@
 # Ranch Today Validation Pass
 
-**Date**: 2026-10-17 | **State**: Convergence attempt incomplete; Linux package attempt failed; native acceptance remains open; no shipped completion claimed.
+**Date**: 2026-10-17 | **State**: Platform package proof complete; v0.1.5 published; six native validation tasks remain open; no full native acceptance claimed.
 
 Runtime source commit: `a48525d9a89555bf9bc925a20d626c0dc634b4ce` (local main equals origin/main after a successful fetch). Tests run in a temporary detached worktree at that commit. The working checkout contains only unrelated/documentation edits, preserved in place. The clarified 003 documents guide this pass but remain Draft.
 
@@ -121,7 +121,7 @@ Every tracked entry is assessed. UNVERIFIED means some required native/platform/
 | FR-013 | OBSERVATION | T014/T019: positional drift, [US4](us4.md), follow-on 004/056. |
 | FR-014 | OBSERVATION | T016/T019: arrival-order/refetch drift, [US5](us5.md), follow-ons 005/059 and 061. |
 | FR-015 | OBSERVATION | T016/T019: retained legacy entries/current stable plugin client, [US5](us5.md), follow-on 007/062. |
-| FR-016 | UNVERIFIED | T020/T029: fresh macOS and Windows x64/ARM64 packages passed; Linux package attempt failed at dependency linking under emulation. Native platform acceptance remains open; see the convergence execution below. |
+| FR-016 | PASS (package/source scope) | T029: v0.1.5 macOS universal, Windows x64/ARM64, and Linux x64 packages passed; Windows hook delivery remains unsupported by the reviewed source. See [release package proof](#release-package-proof-t029). Native behavior remains outside this package claim. |
 | FR-017 | UNVERIFIED | T006/T020: [native attention scenario](us1.md) not performed. |
 | FR-018 | PASS (source scope) | T020: no sync, multi-user, or external work-import capability found. |
 | FR-019 | PASS (source scope) | T010/T018/T020: IPC/writer ownership reviewed; no network API, slash command, or integration work writer found. |
@@ -135,7 +135,7 @@ Every tracked entry is assessed. UNVERIFIED means some required native/platform/
 | SC-005 | UNVERIFIED | T017–T018: [controlled Agent proof](us5.md) passed; actual native visibility/non-editability journey absent. |
 | SC-006 | UNVERIFIED | T020: no packaged-process network observation. |
 
-No unmapped entries. Four source-scoped PASS entries, three observations, and 21 entries with remaining proof gaps; all six success criteria remain UNVERIFIED end-to-end. Source/runtime discrepancies are linked to existing follow-on issues above. Unavailable observations are a manual validation backlog in [quickstart](../quickstart.md), not newly demonstrated product defects.
+No unmapped entries. Five scoped PASS entries (four source-only, plus FR-016 package/source proof), three observations, and 20 entries with remaining proof gaps; all six success criteria remain UNVERIFIED end-to-end. Source/runtime discrepancies are linked to existing follow-on issues above. Unavailable observations are a manual validation backlog in [quickstart](../quickstart.md), not newly demonstrated product defects.
 
 ## Completion limits
 
@@ -207,3 +207,26 @@ The owner explicitly authorized continuing through PR, independent review, merge
 003 describes the existing product and adds no runtime implementation. Its known limitations remain observations with separately scoped follow-ons; this release does not implement the Draft 004–008 proposals or claim full 003 acceptance. The specification remains Draft. The shipping change contains only 003 planning/evidence documents and the release changelog; all unrelated dirty files are preserved outside its isolated branch.
 
 Constitution I–IV and VI retain the prior controls: unchanged local-data and integration contracts, independent domains, generated boundaries, explicit installation, and unchanged authority. For V, documentation delivery will require independent review, a green automated gate/PR CI, and merge. The owner has deferred product-level native acceptance; those criteria remain unverified rather than waived or marked complete. Release packaging must still succeed on every configured target before the existing workflow publishes.
+
+
+## Release package proof (T029)
+
+**PASS — T029 complete.** [v0.1.5](https://github.com/killallgit/adhd-ranch/releases/tag/v0.1.5) was published at `2026-10-17T22:20:57Z` from `a6029d6ce2ac9c0e635975f252b0b8a0233e074b`. [Release run 39074102546](https://github.com/killallgit/adhd-ranch/actions/runs/39074102546) completed successfully: macOS universal DMG, Windows x64 NSIS, Windows ARM64 NSIS, and native Ubuntu 22.04 x64 AppImage/deb jobs all passed, including provenance attestations. Checksum generation, publication, and the existing release-asset retention job also passed.
+
+The unchanged release workflow runs `npm ci --no-audit --no-fund` and the existing Tauri package commands with a generated `release-version.json` containing `0.1.5`: macOS uses `--target universal-apple-darwin --bundles dmg`; Windows uses the x64/ARM64 MSVC targets with `--bundles nsis`; Linux uses `--bundles appimage,deb`. These are package builds, not compile-only evidence. The earlier matching non-publishing Windows smoke builds are retained above. No new pipeline, linker override, dependency change, or relaxed gate was introduced.
+
+The release source differs from the original assessed runtime `a48525d9a89555bf9bc925a20d626c0dc634b4ce` only in baseline documentation and changelog. `git diff --exit-code` across `crates/`, `src/`, `src-tauri/`, manifests/lockfiles, `Taskfile.yaml`, and `.github/workflows/` passed. The version override changes package metadata; assessed runtime/build source is unchanged. The native Linux success supersedes the missing package proof, without erasing the failed emulated attempt or claiming its crash cause is proven.
+
+Downloaded all five packages and `SHA256SUMS.txt` with `gh release download v0.1.5`. Python SHA-256 verification matched every package, and the manifest covered exactly the five downloaded packages:
+
+| Package | Bytes | SHA-256 |
+|---|---|---|
+| `Adhd.Ranch_0.1.5_darwin_universal.dmg` | 8,359,578 | `96c6733e92333b8da1f72a84bb10fddf195d01317ceaea524b8720894c8ae413` |
+| `Adhd.Ranch_0.1.5_linux_amd64.AppImage` | 84,457,976 | `b85edd2f85f73354f0f55d7bf288e803c413cf993291540b49b34a3228c576ad` |
+| `Adhd.Ranch_0.1.5_linux_amd64.deb` | 6,447,450 | `4591f12d2189a3a97fd751bd865ad41bdadef7d73472fb822f7131229d3a0110` |
+| `Adhd.Ranch_0.1.5_windows_arm64-setup.exe` | 2,574,296 | `8cb05e9024764b916aba6a4f3d589eb0e51c7743cfd37cd74e82d57c87dfd9e7` |
+| `Adhd.Ranch_0.1.5_windows_x64-setup.exe` | 2,847,131 | `49e9f50f196a8e085934e767ac22af5fd2077e7efef5d97b84ea76ecac006b4b` |
+
+Delivery: [PR #92](https://github.com/killallgit/adhd-ranch/pull/92) merged after independent review, correction of CodeRabbit's Linux-proof finding, and [current-head CI](https://github.com/killallgit/adhd-ranch/actions/runs/39073736207). Fresh local `rtk task check` passed (exit 0, 136.05 seconds), and [merged-main CI](https://github.com/killallgit/adhd-ranch/actions/runs/39073944179) passed before release dispatch. This proof update changes documentation only and reuses those unchanged-runtime results.
+
+T023–T028 remain open for the owner's deferred native/live testing. All six SCs remain unverified end to end; package builds do not establish UI behavior, notifications, live Claude delivery, or runtime network behavior. The specification remains Draft and FR-013–FR-015 remain known observations. No product acceptance or ADR-conformance waiver is claimed.
