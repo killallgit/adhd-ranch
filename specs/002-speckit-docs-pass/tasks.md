@@ -198,3 +198,8 @@ One implementer should finish the stories in order P1, then P2, then P3. The par
 - Do not edit `specs/001-render-domain-seam/**`
 - Leave `specs/003-ranch-today/spec.md` at status Draft
 - Commit after each phase checkpoint
+
+
+## Phase 7: Convergence
+
+- [X] T029 Correct the remaining user-guide terminology in `README.md`: use Complete/Delete for Task actions, reserve Clear for Timers, and use Limit/Over Limit in prose while preserving literal settings keys and actual menu labels. Record the settlement against `CONTEXT.md` and `specs/003-ranch-today/spec.md` in `specs/002-speckit-docs-pass/pass-record.md` per FR-010 and US3/AC3 (partial).
