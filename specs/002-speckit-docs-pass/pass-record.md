@@ -60,6 +60,7 @@
 - `CONTEXT.md`: the banner said the language was under review. The entries are settled. Higher authority: the glossary entries and ADR-0001.
 - `CHANGELOG.md` `[0.1.4]`: the entry says hook install writes Claude's `settings.json` and that a dead session has nothing to go stale. Left in place. It is the note for that release, not a current requirement. Current behavior is FR-014 and FR-015 in `specs/003-ranch-today/spec.md`.
 - `CLAUDE.md`: no sentence contradicted the current specification. No edit.
+- `README.md` (T029): corrected Task actions to Complete/Delete, reserved Clear for Timers, and replaced caps with Limit/Over Limit in prose while preserving settings keys and actual menu labels. Higher authority: `CONTEXT.md` (Complete, Delete, Clear, Limit, Over Limit); current description: `specs/003-ranch-today/spec.md` FR-002 and FR-007.
 
 ## Unresolved
 

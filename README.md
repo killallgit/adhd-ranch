@@ -22,11 +22,11 @@ See `specs/003-ranch-today/spec.md` for what the ranch does today, `CONTEXT.md` 
 
 1. Open the tray menu. Click **+ New Focus** and give it a title, an optional description, and an optional timer.
 2. A pig appears for each Focus and wanders on the overlay.
-3. Click a pig to open its detail card. Rename, duplicate, or delete the Focus; add, edit, check off, or clear Tasks.
-4. Click the clock/time control on the Focus title or on any Task to start, restart, or clear a timer. Focus timers also drive animal growth and expired-focus alerts.
+3. Click a pig to open its detail card. Rename, duplicate, or delete the Focus; add, edit, Complete, or Delete Tasks.
+4. Click the clock/time control on the Focus title or on any Task to start, restart, or Clear a Timer. Focus timers also drive animal growth and expired-focus alerts.
 5. Drag a pig to move it; release to toss it. Tray → **Gather Pigs** pulls every pig back onto the primary display.
 6. Hand-edit `~/.adhd-ranch/focuses/<slug>/focus.md` whenever you want — the watcher reflects changes within a second. Adding `- [ ] something` adds a task, `- [x]` marks it done, deleting a line removes it.
-7. Tray → **Settings…** opens Preferences: caps, always-on-top, delete confirmation, enabled displays, and notification toggles.
+7. Tray → **Settings…** opens Preferences: Limits, always-on-top, delete confirmation, enabled displays, and notification toggles.
 
 ### Claude Code animals (optional, macOS/Linux)
 
@@ -40,7 +40,7 @@ Follow Claude's reload prompt if an already-open session has not activated the p
 
 ## Limits + alerts
 
-Default caps: **5 Focuses**, **7 Tasks per Focus**. Going over still works (your markdown wins), but the tray icon turns red and the app sends a one-shot system notification per `under → over` transition.
+Default Limits: **5 Focuses**, **7 Tasks per Focus**. Going Over Limit still saves your markdown, but the tray icon turns red and the app sends one system notification when the ranch becomes Over Limit.
 
 Override defaults in `~/.adhd-ranch/settings.yaml`:
 
@@ -75,7 +75,7 @@ pens:
     <slug>/timer.json   optional Focus countdown timer sidecar
     <slug>/task-timers.json
                         optional Task countdown timer sidecar, indexed to task order
-  settings.yaml         optional caps + notification/widget/display config
+  settings.yaml         optional Limits + notification/widget/display config
 ```
 
 The app makes no network calls and exposes no network API. The UI talks to Rust through Tauri IPC.
