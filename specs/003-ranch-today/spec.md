@@ -8,6 +8,27 @@
 
 **Input**: This specification converts the product requirements document into the current description of what the ranch does today. It stays Draft until the owner approves it.
 
+## Clarifications
+
+### Session 2026-10-17
+
+- Q: Should known bugs and limitations in Ranch Today be observations that later features may fix, or required behavior that future changes must preserve? → A: Record known limitations as observations of the current product; follow-on specifications may fix them.
+
+## Constitution Compliance Check
+
+This check applies to the scope and requirements of this Draft baseline; it does not certify that every current runtime path conforms.
+
+| Principle | Scope check |
+|---|---|
+| I — User-owned local state | FR-001–FR-003 preserve canonical local files, explicit user edits, safe optional sidecars, and timer-only expiry writes; FR-012 excludes outbound product network, telemetry, and model calls. |
+| II — Independent domains | FR-005, FR-007, and FR-010 keep Agent Sessions separate from Focus editing, Timers, and Limits; domains meet through the accepted flat Animal render contract. |
+| III — Functional core, typed edges | The baseline retains the existing pure domain rules, I/O adapters, Tauri IPC, and generated Rust-to-TypeScript contracts without proposing implementation changes. |
+| IV — Explicit integrations | FR-010–FR-011 require opt-in visibility and explicit installation/repair; configuration health and observed delivery are separate evidence. |
+| V — Observable completion | The plan and tasks validate existing behavior through current automated gates and native observations; failed or unverified criteria cannot support a completion claim. |
+| VI — Evidence and authority | This spec remains Draft. Source observations and known limitations do not override the constitution or Accepted ADRs; Draft follow-ons are context, not additional requirements. |
+
+ADR-0002's accepted transport direction is not fully implemented today. FR-014 records that gap, not an approved alternative or exception; follow-on work must reconcile lower-level artifacts with accepted decisions before implementation.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Glance and know what is open (Priority: P1)
@@ -71,17 +92,19 @@ The person edits a Focus file in their own editor. The overlay catches up within
 **Acceptance Scenarios**:
 
 1. **Given** a Focus file, **When** the person adds or Completes a checkbox line and saves, **Then** the Animal's Task list matches the file.
-2. **Given** a Task Timer sidecar stores Timers by Task position, **When** the person reorders or inserts Tasks by hand, **Then** a Timer can sit on a different Task than the one it was attached to.
+**Current limitation:** Task Timers are stored by Task position, so a hand-edit that reorders or inserts Tasks can move a Timer onto another Task. This records current behavior; a follow-on specification may fix it.
 
 ---
 
 ### User Story 5 - See an agent without tracking it as work (Priority: P3)
 
-The person can turn on Agents as Animals. Each running Claude Code Agent Session appears as an Animal. Those Animals are not Focuses: the person did not create them, they are not editable, they do not count toward Limits, and they disappear from the screen when the setting is turned off. The Claude plugin stays installed.
+The person can turn on Agents as Animals. While enabled, each ongoing Claude Code Agent Session the ranch has observed through Hook Firings appears as an Animal. Those Animals are not Focuses: the person did not create them, they are not editable, they do not count toward Limits, and they disappear from the screen when the setting is turned off. The Claude plugin stays installed.
+
+**Current limitation:** A session already running when the ranch starts listening stays unseen until it sends a Hook Firing. The ranch does not enumerate running sessions at startup. This is an observation that a follow-on specification may change.
 
 **Why this priority**: Agent activity is a second thing the person may want to see. It must not become user-owned work.
 
-**Independent Test**: Turn Agents as Animals on with one Claude Code session running. An Animal appears that cannot be opened as a Focus. Turn the setting off. That Animal is gone and the Focus Animals remain.
+**Independent Test**: With the ranch listening and Agents as Animals on, have one ongoing Claude Code session emit a Hook Firing that establishes or updates the session. Its Animal appears and cannot be opened as a Focus. Turn the setting off. That Animal is gone and the Focus Animals remain.
 
 **Acceptance Scenarios**:
 
@@ -94,7 +117,7 @@ The person can turn on Agents as Animals. Each running Claude Code Agent Session
 
 - The first launch creates one example Focus so the ranch is not empty. A marker stops that example from returning after the person deletes every Focus.
 - A missing or corrupt Timer sidecar is treated as no Timer. It does not block the Focus file.
-- Going Over Limit still saves the Focus or Task. The tray icon turns red, and one notification fires for that crossing.
+- Going Over Limit still saves the Focus or Task. The tray icon turns red. If the relevant notification is enabled, it fires once for that crossing; if disabled, no notification fires.
 - Only the primary display is enabled until the person enables more in Settings. Animals do not wander through gaps between displays.
 - Settings changed in the app apply without a restart. A hand-edit of the settings file applies on the next launch.
 - On Windows the ranch builds and stores data under the platform data directory. It does not receive Hook Firings there.
@@ -120,9 +143,11 @@ The person can turn on Agents as Animals. Each running Claude Code Agent Session
 
 ### Limits
 
-- **FR-013**: Task Timers MUST stay indexed to Task position. A hand-edit that reorders or inserts Tasks can move a Timer onto another Task. That drift is not repaired today.
-- **FR-014**: A Hook Firing that arrives late MUST still be eligible to apply. The ranch MUST NOT yet tell a turn that ended from a turn that died as two different Firings. A session change MUST be learned by reading the session list again.
-- **FR-015**: The ranch MUST NOT remove an older direct hook entry left in Claude's settings by a previous build. New hook delivery MUST go through the Claude plugin and the stable client under the Ranch data directory.
+FR-013 through FR-015 describe current limitations as observations. Follow-on specifications may change this behavior.
+
+- **FR-013**: Task Timers are currently indexed to Task position. A hand-edit that reorders or inserts Tasks can move a Timer onto another Task. That drift is not repaired today.
+- **FR-014**: A Hook Firing that arrives late is currently eligible to apply. The ranch does not yet tell a turn that ended from a turn that died as two different Firings. A session change is learned by reading the session list again.
+- **FR-015**: The ranch currently leaves an older direct hook entry in Claude's settings when a previous build wrote it. New hook delivery goes through the Claude plugin and the stable client under the Ranch data directory.
 - **FR-016**: macOS MUST be the design target. Windows and Linux packages MUST still build. Hook delivery MUST NOT be available on Windows.
 - **FR-017**: The ranch MUST NOT demand attention except through a notification the person has turned on, or through a window the person opened.
 
@@ -151,8 +176,8 @@ The person can turn on Agents as Animals. Each running Claude Code Agent Session
 - **SC-001**: A person can name their open Focuses by looking at the overlay, without opening another tool.
 - **SC-002**: A person can add, Complete, and Delete a Task, and start or Clear a Timer, from the Focus Animal's card, and the Focus file matches.
 - **SC-003**: A hand-edit of a Focus file shows on the overlay within about a second.
-- **SC-004**: Going past a Limit still saves, warns once, and does not count Agent Sessions.
-- **SC-005**: With Agents as Animals off, no Agent Session Animal is shown. With it on, those Animals are visible and cannot be edited as Focuses.
+- **SC-004**: Going past a Limit still saves and turns the tray icon red. If the relevant notification is enabled, it fires once for that crossing; if disabled, no notification fires. Agent Sessions do not count toward Limits.
+- **SC-005**: With Agents as Animals off, no Agent Session Animal is shown. With it on, ongoing sessions observed through Hook Firings are visible and cannot be edited as Focuses.
 - **SC-006**: The running app makes no outbound product network call.
 
 ## Sources

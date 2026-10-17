@@ -4,6 +4,25 @@ All notable changes to adhd-ranch. Follows [Keep a Changelog](https://keepachang
 
 ---
 
+## [0.1.5] — 2026-10-17
+
+### Added
+
+- Save custom timer durations as reusable chips shared across Focus and Task timer pickers. Saved durations survive restart; removing a chip leaves running timers and the built-in 10/30/60-minute choices intact (PR #89).
+- Install or repair the Claude Code hook plugin from Ranch through an explicit Install Hooks action. Agent visibility remains opt-in; toggling it off leaves the plugin installed (PRs #85–#86).
+
+### Changed
+
+- Rust now owns the flat Animal render scene and species profile, keeping Focus and Agent Session projections independent (PR #88).
+- Document the current Ranch baseline, its existing automated proof, and the native acceptance checks still awaiting owner testing (`specs/003-ranch-today/`).
+
+### Known limitations and testing
+
+- Task Timers are bound to Task position; external insertion or reordering can move a timer to another Task.
+- Late hook frames can still apply, missed session endings can leave stale observations, and older direct Claude hook entries are not removed automatically.
+- Windows packages include the app but do not support hook delivery.
+- Native UI, display, notifications, live Claude delivery, and packaged runtime network acceptance remain pending owner testing after release. Automated and package-build checks do not certify those scenarios.
+
 ## [0.1.4] — 2026-09-20
 
 ### Added
