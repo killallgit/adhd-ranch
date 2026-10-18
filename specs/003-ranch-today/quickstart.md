@@ -1,6 +1,6 @@
 # Validation Guide: Ranch Today
 
-**Status**: Draft guide, not an execution report. Planning inspected source and test definitions only. See [contract coverage](contracts/current-behavior.md) and [data model](data-model.md).
+**Status**: Draft guide, updated 2026-10-18, not an execution report. Planning inspected source and test definitions only. See [contract coverage](contracts/current-behavior.md) and [data model](data-model.md).
 
 ## Prerequisites and isolation
 
@@ -42,11 +42,26 @@ A later shipping slice must pass `rtk task check`: lint, typecheck, tests, gener
 
 ## Native scenarios
 
-For each scenario record pass/fail/unverified, platform, commit, and evidence. On first fixture launch expect one example Focus. Delete it and restart: its marker prevents reappearance. Create two clearly named Focuses for further checks.
+Native/live testing remains deferred by the owner. These are instructions for the later test pass, not actions performed by this planning command. Existing [pass-record](validation/pass-record.md) results and task completion states remain historical; they do not prove the clarified criteria.
+
+For each scenario record pass/fail/unverified, platform, commit, and evidence. Run V0 against the corrected startup source before creating the two clearly named synthetic Focuses used by V1–V7. Automatic creation of an example Focus/Task is now a failed FR-001 / FR-019 / US1/AC5 observation, not an undecided policy or behavior to preserve.
+
+### V0 — Resume saved work without seeding
+
+Use a fresh isolated data/configuration root for each case. All launches use the same environment setup above and Agents as Animals off; stop Ranch completely between launches. These checks require the planned startup correction. Current source is expected to fail empty-root seeding until that correction is implemented.
+
+1. **Empty root, no marker:** launch and restart. Expect zero Focus Animals and no example Focus/Task files. An empty storage directory and ordinary logs are permitted; startup must not create `.example-focus-seeded`.
+2. **Empty work root, legacy marker:** place a synthetic `.example-focus-seeded` under the fixture `focuses/` directory before launch. Repeat. Expect no seeded work and unchanged marker contents; the marker does not control startup behavior.
+3. **Saved work and Settings:** explicitly create synthetic Focuses and mixed completed/uncompleted Tasks, set nondefault Settings, and include a normal saved Focus named Welcome to ADHD Ranch. Before restarting, record file inventory/content and stable work identities. Restart with marker absent, then present. Expect the same work/Settings, no extra example, no deletion of the old example, and no new/modified marker. Compare canonical Markdown and Settings bytes before/after. Do not infer restoration of open cards, Animal positions, or old Agent sessions.
+4. **Saved Timers:** include a Running Focus/Task Timer with a distant deadline, an Expired Timer, and a Timer that becomes due while Ranch is closed. Record `started_at`, `duration_secs`, status, and work text/completion before restart. After restart, future Timers continue from the saved timestamps; Expired remains Expired; the due Timer expires through the existing worker. Start/duration and Markdown must not reset or change. A normal Running → Expired status write is permitted, not evidence of startup seeding. Repeat the launch to check no restart/reset.
+
+Record source revision, platform, fixture case, launch/restart actions, actual UI/file outcomes, and pass/fail/unverified in `validation/us1.md` and `validation/pass-record.md`, linked to US1/AC4–AC5 and FR-001/FR-019. Link Timer proof to `validation/us2.md` / V1. Missing native execution leaves startup acceptance open. Storage unit tests alone do not establish actual host startup.
+
+The implementation removes seed-preservation tests because their required behavior is superseded; retain the existing storage/Timer tests and this replacement acceptance matrix. Run fresh `rtk task check` and `rtk task check:windows` on synchronized corrected source. Do not use old v0.1.5 results to claim the new runtime passed. No new test harness or source-text assertion is planned.
 
 ### V1 — Files, card, and Timers
 
-Rename and duplicate a Focus; compare files and Animals. Add/edit two Tasks, Complete/undo one, then Delete it. Inspect fixture `focuses/<id>/focus.md`: Complete checks a retained line, Delete removes it. Blank Task input must not create a Task.
+Rename a Focus. For duplication, give the source a description, ordered Tasks with mixed completion states, and both Focus and Task Timers. Duplicate and inspect both files and Animals: the independent copy gets fresh identity and creation time, retains description and Task text/order/completion, has title `<source title> copy`, and has no Focus or Task Timers; the source remains unchanged. Duplicate the original again while that title is occupied to check the numeric suffix starting at 2 for identity collisions (FR-002 / US2/AC6). Add/edit two Tasks, Complete/undo one, then Delete it. Inspect fixture `focuses/<id>/focus.md`: Complete checks a retained line, Delete removes it. Blank Task input must not create a Task.
 
 Start/restart/Clear Focus and Task Timers and inspect their owning sidecars; Clear retains work. Check built-ins 10/30/60 and shared custom chips across pickers/restart. Remove saved chips during a running Timer: Timer and built-ins remain.
 
@@ -54,11 +69,11 @@ Use short custom Timers to observe Focus growth then expiry (ghostly/resting/awa
 
 ### V2 — Hand edits and durability
 
-Append a nonempty checkbox in fixture Markdown; time save-to-card visibility. Complete a checkbox externally and repeat. Record actual elapsed time against SC-003's approximately one-second outcome; debounce is not a measurement. Restart and verify work, Timers, and saved Settings survive. Hand-edited Settings apply on restart, not by live Settings-file watching.
+Keep the corresponding Focus card already open and visible. Successfully save a valid local Focus file after appending a nonempty checkbox; then separately Complete a checkbox and repeat. For each change, measure from successful save completion to the corresponding Task row visibly matching the saved file. Record the timing method, both endpoints on a common time base, precision/uncertainty, and elapsed time. Each measured change must take **at most 1.0 second** (SC-003); a slower result fails that observation. If timing precision cannot establish the bound or the preconditions are unavailable, leave it unverified. Watcher debounce and source inspection are not end-to-end measurements. Restart and verify work, Timers, and saved Settings survive. Hand-edited Settings apply on restart, not by live Settings-file watching.
 
 ### V3 — Ambient overlay and displays
 
-Name the open Focuses from visible labels. Confirm one Pig per Focus, drag/toss, and Gather to primary. Click empty overlay space: the underlying app receives it. Close a Focus card by outside click/Escape. Work in another app: Ranch must not raise a window or take attention on its own.
+Name the open Focuses from visible labels. Confirm one Pig per Focus and check the motion matrix: absent or Running Focus Timer → Walking; Expired Focus Timer → Resting. Task Timer state must not control motion. Check drag/toss and Gather to primary. Click an Animal to open its Focus card; use card controls to verify they receive interaction. Click empty overlay space outside every Animal and the card: the underlying app receives the click and the card closes. Reopen and close with Escape. **Known source mismatch:** the current open-card whole-overlay hit region/backdrop consumes the outside click. Record the actual native result separately; do not mark simultaneous pass-through and closure passed merely because closure works. This guide does not authorize a runtime fix. Work in another app: Ranch must not raise a window or take attention on its own.
 
 Verify primary-only defaults; with multiple displays, enable another and check movement stays in visible regions rather than gaps. Mark that portion unverified without appropriate hardware. Native click-through, attention, visual usefulness, and ghosting need observations beyond component tests.
 
@@ -82,8 +97,8 @@ Observe a packaged Ranch process using platform process-scoped network inspectio
 
 ### V7 — Known limitations
 
-Record FR-013 positional drift, FR-014 transport/event gaps, and FR-015 retained legacy entries as source/fixture observations. Do not require reproducing them in personal data or fail future work because an approved feature fixes them. Explicitly report ADR-0002/current-code drift; [research](research.md) links follow-ons. No fixes are included in this baseline pass.
+Record FR-013 positional drift, FR-014 transport/event gaps, and FR-015 retained legacy entries as source/fixture observations. Do not require reproducing them in personal data or fail future work because an approved feature fixes them. Also record whether the no-seeding correction is implemented and passes V0; automatic creation remains a Constitution I / FR-019 failure until corrected, while past seed tests remain historical evidence only. Explicitly report ADR-0002/current-code drift; [research](research.md) links follow-ons. Only the bounded startup correction is planned; FR-013–FR-015 and open-card click-through fixes are excluded.
 
 ## Completion evidence
 
-Record commit, platform, commands/exit statuses, native observations, unverified checks, and linked discrepancies in later task/issue evidence. Map all six SCs using the contract. Source inspection and past CI are not fresh success. Stop after baseline evidence is reconciled; runtime changes require separately approved scope, gates, review, and merge.
+Record commit, platform, commands/exit statuses, native observations, unverified checks, and linked discrepancies in later task/issue evidence. Map all six SCs using the contract. Source inspection and past CI are not fresh success. Retain existing task history, append unchecked startup correction/proof tasks after T029, and map US1/AC4–AC5 plus V0 before execution; do not turn a checked earlier evidence assessment into new native proof. Stop after baseline evidence is reconciled; the startup correction requires its fresh gates, review, and merge, with native acceptance left open until proved. Other runtime changes require separately defined scope.
