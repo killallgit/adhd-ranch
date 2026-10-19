@@ -48,7 +48,7 @@ For each scenario record pass/fail/unverified, platform, commit, and evidence. R
 
 ### V0 — Resume saved work without seeding
 
-Use a fresh isolated data/configuration root for each case. All launches use the same environment setup above and Agents as Animals off; stop Ranch completely between launches. These checks require the planned startup correction. Current source is expected to fail empty-root seeding until that correction is implemented.
+Use a fresh isolated data/configuration root for each case. All launches use the same environment setup above and Agents as Animals off; stop Ranch completely between launches. Run V0 against the corrected startup source. V0 must pass; automatic creation of an example Focus/Task is a failure. Native execution remains pending until actual V0 evidence is recorded.
 
 1. **Empty root, no marker:** launch and restart. Expect zero Focus Animals and no example Focus/Task files. An empty storage directory and ordinary logs are permitted; startup must not create `.example-focus-seeded`.
 2. **Empty work root, legacy marker:** place a synthetic `.example-focus-seeded` under the fixture `focuses/` directory before launch. Repeat. Expect no seeded work and unchanged marker contents; the marker does not control startup behavior.

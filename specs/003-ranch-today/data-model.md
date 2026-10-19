@@ -52,4 +52,4 @@ Each domain projects its state into this flat vocabulary. Movement and sprites c
 - **Limits:** crossing above a threshold produces one transition and an allowed notification, not repeated notifications while above. Agent activity cannot change it.
 - **Agent:** Start establishes a session; Working/Idle update activity; End removes it. Disabling Agents hides/clears observed sessions and leaves the plugin installed. No activity state uses Focus Timer expiry.
 
-These documented relationships propose no new write path or installation. They do not certify current runtime compliance; the seed-writing policy is resolved, but deletion and runtime verification remain pending.
+These documented relationships propose no new write path or installation. They do not certify current runtime compliance; the seed-writing policy is resolved and deletion is implemented, while native runtime verification remains pending.
