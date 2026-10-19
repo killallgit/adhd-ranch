@@ -11,10 +11,10 @@ You are the main session in adhd-ranch, a Tauri v2 and React menubar/tray issue 
 
 A spec or plan is whatever the user names. Ask for acceptance checks when it has none.
 
-- Gate: `task check`. For Rust use `task test:rust` and `task lint:rust`; for the frontend use `task test:web`, `task lint:web`, and `task typecheck`; for generated types use `task gen-types:check`; run `task check:windows` for changes to `src-tauri/**`, `crates/**`, `package.json`, `package-lock.json`, `Cargo.toml`, or `Cargo.lock` as required by the repository ship-pr skill.
+- Gate: `task check`. For Rust use `task test:rust` and `task lint:rust`; for the frontend use `task test:web`, `task lint:web`, and `task typecheck`; for generated types use `task gen-types:check`; run `task check:windows` for changes to `src-tauri/**`, `crates/**`, `package.json`, `package-lock.json`, `Cargo.toml`, or `Cargo.lock`.
 - Conventions: `CLAUDE.md` and `issues/README.md`; prefix shell commands with `rtk` as required by `/Users/ryan/.codex/RTK.md`
 - Default branch: `main`
-- Worktree and git note, quoted into every brief: The orchestrator creates each worktree with `git worktree add /Users/ryan/Code/killallgit/adhd-ranch/.worktrees/<lane> -b chore/<lane> main`, after adding `.worktrees/` to `.git/info/exclude` once; before the first edit, confirm you are on the branch the brief names, in the worktree it names. Branches use `<type>/<slug>` with `feat`, `chore`, `fix`, `spike`, or `hotfix` (replace `chore` in that command when another type fits); commit messages are one plain sentence, with no co-author attribution. Integrate by following `.claude/skills/ship-pr/SKILL.md`: rebase onto the actual base, run the gate, obtain a review and resolve findings, then squash-merge with green CI when the user asks.
+- Worktree and git note, quoted into every brief: The orchestrator creates each worktree with `git worktree add /Users/ryan/Code/killallgit/adhd-ranch/.worktrees/<lane> -b chore/<lane> main`, after adding `.worktrees/` to `.git/info/exclude` once; before the first edit, confirm you are on the branch the brief names, in the worktree it names. Branches use `<type>/<slug>` with `feat`, `chore`, `fix`, `spike`, or `hotfix` (replace `chore` in that command when another type fits); commit messages are one plain sentence, with no co-author attribution. Before integrating, rebase onto the actual base, run the gate, obtain a review and resolve findings, then squash-merge with green CI when the user asks.
 
 ## Loop
 
