@@ -2,7 +2,9 @@
 
 **Feature context**: `003-ranch-today` | **Date**: 2026-10-18 | **Spec**: [spec.md](spec.md)
 
-**Checkout branch**: `main` at `7900cc445ac224464e254b31d4914b0a52055270` (feature context returned by setup: `003-ranch-today`)
+**Planning baseline**: `main` at `7900cc445ac224464e254b31d4914b0a52055270` (feature context: `003-ranch-today`).
+
+**Implementation status**: Startup correction implemented in `550643a` on `fix/resume-saved-work`. T030–T033, automated gates, and independent review are complete. Native startup proof (T034) and final native/delivery reconciliation (T035) remain pending; see [the execution record](validation/pass-record.md#startup-correction-execution--2026-10-18-t030t035).
 
 **Status**: Draft. The specification remains Draft; these artifacts support owner review and do not promote it to approved authority.
 
@@ -12,7 +14,7 @@
 
 Establish a reviewable baseline for the existing local-first desktop product: Focus and Task editing, Timers, ambient Animals, tray and Settings, hand-edited Markdown, and optional Claude Code observations. Reuse existing code and tests, document current contracts, and prepare a repeatable validation pass. Add one bounded runtime correction selected by the owner: remove automatic startup example creation and use the existing persisted-state loading paths. No dependencies, storage migration, new IPC, onboarding UI, or archive work is proposed.
 
-FR-013–FR-015 remain observations, not behavior to preserve. Automatic first-launch example creation is a current implementation violation of Constitution I / FR-001 / FR-019. The owner has now selected its remedy: no startup seeding, no reset of saved work or Timers. This plan defines that correction and grants no exception. ADR-0002's accepted transport direction is not fully implemented in current code; [research](research.md) records that discrepancy without approving it or absorbing its follow-on work into 003.
+FR-013–FR-015 remain observations, not behavior to preserve. Automatic first-launch example creation violated Constitution I / FR-001 / FR-019 at the planning baseline. The owner-selected remedy—no startup seeding and no reset of saved work or Timers—is implemented in `550643a`; native proof remains pending. This plan grants no exception. ADR-0002's accepted transport direction is not fully implemented in current code; [research](research.md) records that discrepancy without approving it or absorbing its follow-on work into 003.
 
 ## Technical Context
 
@@ -40,20 +42,20 @@ These gates assess the proposed startup correction and baseline validation desig
 
 | Principle / gate | Before research | After design |
 |---|---|---|
-| I — User-owned local state | ERROR in current runtime: automatic startup example creation writes work without an authoring action. | PASS for the corrective design: remove that writer; reuse saved-state reads; preserve old work/markers and normal timer-only expiry. Runtime proof remains pending. |
+| I — User-owned local state | ERROR at the planning baseline: automatic startup example creation wrote work without an authoring action. | PASS for the corrective design, implemented in `550643a`: the writer is removed; saved-state reads and normal timer-only expiry remain. Automated gates/review passed; native startup proof remains pending. |
 | II — Independent domains | PASS: preserve the accepted renderer seam. | PASS: Agent activity remains separate from Focus Timers, editing, and Limits. |
 | III — Functional core, typed edges | PASS: reuse existing layers and generated contracts. | PASS: delete the seed adapter and its composition references; no replacement abstraction, schema, or generated-type edit. |
 | IV — Explicit integrations | PASS: no installation during planning. | PASS: isolated delivery proof; optional live check; configuration health is not delivery. |
 | V — Observable small slices | PASS: baseline evidence only. | PASS: one startup correction with explicit source/proof boundaries, plus four baseline validation slices; new runtime code requires a fresh gate, review, and merge. |
 | VI — Evidence and authority | PASS: keep the spec Draft and classify sources. | PASS: distinguish accepted ADR direction, observed code, and draft follow-ons; document existing transport and seed-writing drift. |
 
-**Gate result:** PASS for the proposed startup correction design: the owner has selected a remedy consistent with Constitution I, with no exception needed. The current runtime still fails the no-seeding rule until the deletion is implemented and verified; the policy decision alone does not close C1. Phase 0/1 planning is complete for this bounded correction. The spec remains Draft; this command does not implement or ship it. Outside-click behavior and ADR-0002 drift remain separate unresolved work and are not bundled into the startup correction.
+**Gate result:** PASS for the startup correction design and its implementation in `550643a`: the unauthorized startup writer is removed, with fresh automated gates and independent review recorded under T030–T033. Native startup acceptance (T034) and final native/delivery reconciliation (T035) remain open; source removal and passing component tests do not establish that proof. The specification remains Draft. Outside-click behavior and ADR-0002 drift remain separate unresolved work and are not bundled into this correction.
 
 **Clarified behavior assessment (source inspection, not native proof):**
 
 | Clarification | Assessment / next boundary |
 |---|---|
-| Startup | Policy resolved: load existing work/Settings; start empty if none exists; never seed, reset work, or restart Timers. Remove the seed call/module without deleting existing example Focuses or marker files. Normal expiry remains active. Current runtime correction and native proof are pending. |
+| Startup | Implemented in `550643a`: the seed call/module is removed; existing work/Settings loading and normal Timer expiry remain. T030–T033 and independent review are complete. Native proof of empty startup and saved-state preservation remains open in T034; final native/delivery reconciliation remains open in T035. |
 | Outside-card click-through | Existing whole-overlay hit region/backdrop consumes outside clicks while closing the card. This differs from FR-004/FR-005 and US1/AC2. A separate runtime slice must design bounded Animal/card hit regions and an outside-click observation mechanism that does not swallow the underlying app’s click; current cursor polling alone observes position, not clicks. Native proof and relevant platform gates are required. No new global-input permission or platform mechanism is selected here. |
 | Motion | Existing projection matches absent/Running → Walking and Expired → Resting, independent of Task Timers; native verification remains open. |
 | Duplication | Existing workflow matches the clarified successful-copy semantics; new US2/AC6 still requires native evidence. |
