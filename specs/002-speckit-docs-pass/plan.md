@@ -51,7 +51,7 @@ A pass record in this feature directory inventories every required source, class
 
 **Gate result**: PASS. No exception is required.
 
-`specs/002-speckit-docs-pass/spec.md` remains Draft in the file. Planning does not promote it. The product specification this pass writes also stays Draft until the owner approves that file. Until that approval, Principle VI says the Draft product spec is not yet the governing requirements authority. The pass still writes it, marks the PRD historical, and points readers at it as the current description, which is what FR-002 and US1 require on paper.
+`specs/002-speckit-docs-pass/spec.md` remains Draft in the file. Planning does not promote it. The product specification this pass writes also stays Draft until the owner approves that file. Until that approval, Principle VI says the Draft product spec is not yet the governing requirements authority. The pass still writes it, deletes `PRD.md` after the carry-forward citations exist, and points readers at that Draft spec as the current description. That description is what FR-002 and US1 require on paper.
 
 ## Project Structure
 
@@ -98,7 +98,7 @@ issues/061-*.md
 issues/062-*.md
 issues/done/<moved>.md               # only files moved here, plus a shipped or closed note
 issues/icebox/*.md                   # stay deferred; no promotion
-README.md                            # a contradicting pointer only
+README.md                            # contradicting sentences only
 CHANGELOG.md                         # a contradicting sentence only, if one exists
 CLAUDE.md                            # a contradicting sentence only, if one exists
 ```
@@ -109,7 +109,7 @@ A follow-on spec, if the gap test in [research.md](research.md) passes for a rem
 
 Application and host code (`src/`, `src-tauri/`, `crates/`), package and Cargo manifests, `Taskfile*`, generated types, `specs/001-render-domain-seam/**`, accepted ADR bodies, `.specify/feature.json`, and `.specify/memory/constitution.md`.
 
-**Structure Decision**: Keep the conversion inside the existing Spec Kit and issue layout. The product specification gets the next free number, `003`, so a later `/speckit-specify` allocates `004` or higher. This feature's directory holds the pass record and stays the directory named by `.specify/feature.json`. Finished issues stay in `issues/done/`. Deferred issues stay in `issues/icebox/`. No new documentation tree, site, or issue tracker is introduced.
+**Structure Decision**: Keep the conversion inside the existing Spec Kit and issue layout. The product specification gets `003`. A follow-on spec from this pass takes the next prefix that no directory under `specs/` already uses. A later `/speckit-specify` does the same, so it does not reuse `003` or any follow-on prefix this pass created. This feature's directory holds the pass record and stays the directory named by `.specify/feature.json`. Finished issues stay in `issues/done/`. Deferred issues stay in `issues/icebox/`. No new documentation tree, site, or issue tracker is introduced.
 
 ## Design and Delivery Strategy
 

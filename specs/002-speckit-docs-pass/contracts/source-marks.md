@@ -21,7 +21,7 @@ None. Deferred. Not a requirement of `specs/003-ranch-today/spec.md`.
 Insert immediately under the title of each file in `docs/research/`:
 
 ```markdown
-> **Historical.** This note is evidence. It is not a current requirement and not an accepted decision. The constitution, accepted ADRs, and the current product specification govern where they disagree with it. See [specs/002-speckit-docs-pass/pass-record.md](../../specs/002-speckit-docs-pass/pass-record.md).
+> **Historical.** This note is evidence. It is not a current requirement and not an accepted decision. The constitution, accepted ADRs, and the current product specification (after owner approval) govern where they disagree with it. Draft specifications are context only. See [specs/002-speckit-docs-pass/pass-record.md](../../specs/002-speckit-docs-pass/pass-record.md).
 ```
 
 ## Finished issue archive

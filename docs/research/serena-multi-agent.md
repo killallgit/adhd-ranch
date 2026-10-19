@@ -1,6 +1,6 @@
 # Serena across multiple agents and worktrees
 
-> **Historical.** This note is evidence. It is not a current requirement and not an accepted decision. The constitution, accepted ADRs, and the current product specification govern where they disagree with it. See [specs/002-speckit-docs-pass/pass-record.md](../../specs/002-speckit-docs-pass/pass-record.md).
+> **Historical.** This note is evidence. It is not a current requirement and not an accepted decision. The constitution, accepted ADRs, and the current product specification (after owner approval) govern where they disagree with it. Draft specifications are context only. See [specs/002-speckit-docs-pass/pass-record.md](../../specs/002-speckit-docs-pass/pass-record.md).
 
 How to configure the Serena MCP server for this repo, and what breaks when agents run in git worktrees. Written after testing the failure directly; the negative results are recorded so nobody repeats them.
 

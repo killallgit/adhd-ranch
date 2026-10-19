@@ -62,6 +62,8 @@
 - `CLAUDE.md`: no sentence contradicted the current specification. No edit.
 - `README.md` (T029): corrected Task actions to Complete/Delete, reserved Clear for Timers, and replaced caps with Limit/Over Limit in prose while preserving settings keys and actual menu labels. Higher authority: `CONTEXT.md` (Complete, Delete, Clear, Limit, Over Limit); current description: `specs/003-ranch-today/spec.md` FR-002 and FR-007.
 
+- Analysis C1/C2/I1: qualified the research banners and their task/contract wording so Draft specifications remain context, added this feature specification's constitution compliance check, and aligned the plan's README edit boundary with T029. Higher authority: `.specify/memory/constitution.md` Principle VI and Governance; scope: this feature's FR-010 and SC-004.
+
 ## Unresolved
 
 None.

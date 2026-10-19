@@ -87,7 +87,7 @@ A reader who opens an old issue, a research note, or the architecture descriptio
 
 ### Key Entities
 
-- **Current product specification**: The single description of what the ranch does today, what it will not do, and the limits a reader can check. It replaces the product requirements document as the requirements authority.
+- **Current product specification**: The single description of what the ranch does today, what it will not do, and the limits a reader can check. It stays Draft until the owner approves it, and only then becomes the requirements authority.
 - **Follow-on specification**: A separate description of undone, user-visible behavior that the current specification does not already cover. It exists only when that gap is real.
 - **Issue**: One slice of work with one observable promise. Active issues are still to do. Deferred, finished, and closed-without-building issues are not active requirements.
 - **Domain glossary**: The settled names for the ranch's ideas. The specification uses these names and does not redefine them.
@@ -105,6 +105,13 @@ A reader who opens an old issue, a research note, or the architecture descriptio
 - **SC-004**: Zero silent conflicts remain between the current specification, the glossary, accepted decision records, and the architecture description. Every disagreement found is either corrected in the lower-authority document or present on a visible unresolved list.
 - **SC-005**: The product requirements document is absent from the working tree. 100% of finished issue write-ups and research notes remain findable and are identifiable as historical.
 - **SC-006**: After the pass, a person using the ranch can do the same things they could do before it. The pass changes documents only.
+
+## Constitution Compliance Check
+
+- **I–IV — PASS:** The documentation-only scope leaves user state, domain boundaries, runtime architecture, and integrations unchanged (FR-012).
+- **V — PASS:** US1–US3 define observable reader checks. The delivery plan requires `task check` and retains issues as the shipping units.
+- **VI — PASS:** FR-001 and FR-002 require source classification and revalidation; FR-008 preserves existing authorities. This specification and the product/follow-on specifications remain Draft until owner approval. Draft specifications do not govern.
+- **Exceptions:** None.
 
 ## Assumptions
 
