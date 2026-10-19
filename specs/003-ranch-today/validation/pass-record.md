@@ -230,3 +230,40 @@ Downloaded all five packages and `SHA256SUMS.txt` with `gh release download v0.1
 Delivery: [PR #92](https://github.com/killallgit/adhd-ranch/pull/92) merged after independent review, correction of CodeRabbit's Linux-proof finding, and [current-head CI](https://github.com/killallgit/adhd-ranch/actions/runs/39073736207). Fresh local `rtk task check` passed (exit 0, 136.05 seconds), and [merged-main CI](https://github.com/killallgit/adhd-ranch/actions/runs/39073944179) passed before release dispatch. This proof update changes documentation only and reuses those unchanged-runtime results.
 
 T023–T028 remain open for the owner's deferred native/live testing. All six SCs remain unverified end to end; package builds do not establish UI behavior, notifications, live Claude delivery, or runtime network behavior. The specification remains Draft and FR-013–FR-015 remain known observations. No product acceptance or ADR-conformance waiver is claimed.
+
+
+## Startup correction execution — 2026-10-18 (T030–T035)
+
+**Scope:** owner-selected no startup seeding, resumption from saved work/Settings, and empty start without work. Native testing remains explicitly deferred. The owner approved proceeding past the reviewer-owned `checklists/baseline.md` gate (0/30 checked); its markers remain unchanged. This does not waive native acceptance or mark requirements review complete.
+
+**T030 — PASS, preparation:** fetched origin successfully; local main and origin/main both identified `7900cc445ac224464e254b31d4914b0a52055270`. Created isolated branch `fix/resume-saved-work` from origin/main and carried only current 003 artifacts; unrelated main-checkout edits remain in place. Created `issues/063-resume-saved-work.md` with the narrow completion promise, scope and acceptance criteria. No app launch, personal fixture/configuration copy, plugin installation, migration, or lifecycle-status promotion occurred.
+
+Input SHA-256 values below identify the clarified pre-implementation artifact versions; later task markers/results are execution updates.
+
+| Artifact | SHA-256 |
+|---|---|
+| `specs/003-ranch-today/spec.md` | `3394925e405a83374a6938256349b4de1f8b39a31204f80a9c1c600d5a527fd8` |
+| `specs/003-ranch-today/plan.md` | `d29f546e9af6f39fa286c815e29b061a70ba86a8ca08eb92c73dcd542b1a6960` |
+| `specs/003-ranch-today/tasks.md` | `b409aec098728e93abe7782a1f1d7913e51d012f7614d8529a1471c392f64723` |
+| `specs/003-ranch-today/research.md` | `ee2fa20e592ca3b893dad8080f3dc3bf30cbe8b22b89ee5e0f1bd648e2290939` |
+| `specs/003-ranch-today/data-model.md` | `e87e80bd60e1ab63b7efcb7574fa9ac25ae7f583436099e2feadd019bfc0114e` |
+| `specs/003-ranch-today/contracts/current-behavior.md` | `95ebf6cd09494ef11fde3fc7d4a2fc908f61896fa0700d73d0928e39d8aebfef` |
+| `specs/003-ranch-today/quickstart.md` | `c22ce702fad5bfd71ca7c70e0e6d35a46a0f1a4cd5d947302e49fffcde625a3d` |
+
+**Setup verification:** existing `.gitignore` covers Rust/Node output, generated sidecars, logs, environment files, editor/OS files and temporary files. No Docker, ESLint, Prettier, Terraform or Helm setup applies. The npm package is private, so no publishing ignore is needed. No ignore/configuration changes are required; worktrees use the local Git exclude. Existing files, schemas, manifests and generated contracts are unchanged by preparation.
+
+**Constitution:** the startup deletion is the selected remedy for I, not an exception or a claim of current runtime compliance. II–IV retain existing boundaries. V requires fresh corrected-source gates and actual V0 proof; old v0.1.5 results do not establish the new runtime. VI retains Draft status and historical evidence. T034/T035 remain open while required native/delivery evidence is absent.
+
+**T031 — PASS, implementation:** removed the sole startup seed call and module declaration, then deleted `src-tauri/src/app/seed.rs`. Its two tests asserted automatic creation and its marker-based persistence, behavior now explicitly superseded by the owner. No replacement function, writer, flag, migration, cleanup, or test suppression was added. Existing storage, Settings, Timer start/expiry, IPC, renderer and Agent code are unchanged. No saved work or marker file was inspected or modified.
+
+**T032 — PASS, architecture:** replaced the obsolete first-launch seed statement in `docs/architecture.md` with saved-state loading, empty startup, preservation of existing examples/markers, and Timer continuity with normal expiry. This documents the implemented deletion, not native acceptance.
+
+**T033 — PASS, fresh corrected-source gates:** `rtk task check`, exit 0, 114.68 seconds; `rtk task check:windows`, exit 0, 38.03 seconds, on macOS arm64 and the synchronized startup branch based on `7900cc445ac224464e254b31d4914b0a52055270`. A second fetch confirmed origin/main unchanged after the gates, so no rebase or redundant rerun was needed. Normal Rust suites passed 333 tests (the prior 335 minus the two deliberately retired seed-behavior tests); Vitest passed 170 tests across 26 files. Generated-export/drift checks passed separately. Host debug/release linting, frontend build/lint/typecheck, unused-code checks, IPC/CSS checks, and Windows x64 cross-target compilation passed. No gate was weakened, suppressed, or narrowed.
+
+Windows emitted the existing unused `script` warning at `src-tauri/src/app/claude_plugin/contract.rs:84` and the cross-check's intentional placeholder-sidecar notice. `git diff --exit-code origin/main -- src-tauri/src/app/claude_plugin/contract.rs` confirmed the warning's owner is unchanged by this correction. Windows cross-compilation is not installer/package or native Windows proof.
+
+Runtime source identity for these results: base commit above plus deletion of `src-tauri/src/app/seed.rs` and exactly two removed lines in `src-tauri/src/app/mod.rs`. No other runtime source changed. The resulting `mod.rs` SHA-256 is `534b045b7b8641750170d3e0db820b8f610a617702b1f62d9c26e6c31e82618a`. Manifests, lockfiles, and generated contracts matched origin/main after both gates. The existing storage/Timer tests retain their assertions; their passing results are component evidence, not execution of actual native startup.
+
+**Independent review — PASS:** a fresh reviewer inspected the corrected source, caller search, preserved readers/expiry, issue contract, and evidence scope. No actionable correctness/security/architecture findings. Review did not run builds or claim native proof. Subsequent edits update evidence, status wording and the historical link for the deleted seed file only; runtime code is unchanged.
+
+**Completion boundary:** T030–T033 are complete. T023–T028, T034 V0 native launch/restart, and T035 final native/delivery reconciliation remain unchecked. No app launch, screen capture, user-data/legacy-marker access, plugin installation, PR, merge, new package build or release occurred in this implementation pass. No native FR/SC or full issue completion is promoted; issue 063 stays open. The reviewer-owned custom checklist remains 0/30 checked under the owner's explicit proceed override.

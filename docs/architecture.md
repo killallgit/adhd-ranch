@@ -47,7 +47,7 @@ created_at: 2026-04-30T12:00:00Z
 - `task-timers.json` sidecar: JSON array of optional `FocusTimer` values. Array index matches the parsed task index; deleting a Task removes the matching timer entry. Expiry writes update the indexed timer to `status: Expired` atomically. Corrupted or missing task timer sidecars degrade to no task timers.
 - User hand-edits anywhere; file watcher reflects changes.
 - Atomic write via tmpfile + rename, serialized by an exclusive lock file per target.
-- First launch seeds one example Focus. A marker file stops it from coming back after the user clears every Focus.
+- Startup loads saved Focuses, Tasks, Timers, and Settings without creating example work. With no saved work, the ranch starts empty. Existing example Focuses and legacy `.example-focus-seeded` files remain untouched; Timers keep their saved start/duration and follow normal expiry, including time elapsed while the app was closed.
 
 ## Timers
 

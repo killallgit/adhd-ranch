@@ -4,7 +4,6 @@ mod claude_hook;
 mod claude_plugin;
 pub mod menu;
 pub mod paths;
-pub mod seed;
 pub mod settings_workflow;
 pub mod timer_expiry;
 pub mod tray;
@@ -130,7 +129,6 @@ pub fn run() {
             Arc::new(|| uuid::Uuid::now_v7().to_string()),
             Arc::clone(&settings_provider),
         ));
-        seed::ensure_example_focus(&commands, &focuses_root)?;
 
         let cap_monitor = Arc::new(OverCapMonitor::new());
         let notifier = Arc::new(TauriCapNotifier::new(app.handle().clone()));
