@@ -1,6 +1,5 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { createRef } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { Settings } from "../types/settings";
 import { SettingsWindow } from "./SettingsWindow";
@@ -37,7 +36,6 @@ function renderSettings(
       onUpdate={onUpdate}
       onSetDebugOverlay={() => {}}
       onToggleDevtools={() => {}}
-      containerRef={createRef<HTMLDivElement>()}
     />,
   );
 }
@@ -147,5 +145,48 @@ describe("SettingsWindow notification registry", () => {
     expect(screen.getByLabelText("Always on Top")).not.toBeChecked();
     expect(screen.getByLabelText("Max pen size")).toHaveValue(320);
     expect(screen.getByLabelText("Debug Overlay")).not.toBeChecked();
+  });
+});
+
+describe("SettingsWindow keyboard access", () => {
+  it("keeps every display and the last debug control in the keyboard sequence", async () => {
+    const monitors = Array.from({ length: 12 }, (_, idx) => ({
+      idx,
+      label: `A long monitor label for display ${idx}`,
+    }));
+    const notificationSources = [
+      ...SOURCES,
+      { key: "future_source", label: "A future notification" },
+    ];
+    render(
+      <SettingsWindow
+        settings={SETTINGS}
+        notificationSources={notificationSources}
+        monitors={monitors}
+        debugOverlay={false}
+        devtoolsOpen={false}
+        onUpdate={() => {}}
+        onSetDebugOverlay={() => {}}
+        onToggleDevtools={() => {}}
+      />,
+    );
+
+    for (const control of screen.getAllByRole("spinbutton").slice(0, 2)) {
+      await userEvent.tab();
+      expect(control).toHaveFocus();
+    }
+    const remaining = [
+      screen.getByLabelText("Always on Top"),
+      screen.getByLabelText("Confirm Before Delete"),
+      screen.getByLabelText("Max pen size"),
+      ...monitors.map((monitor) => screen.getByLabelText(monitor.label)),
+      ...notificationSources.map((source) => screen.getByLabelText(source.label)),
+      screen.getByLabelText("Debug Overlay"),
+      screen.getByLabelText("DevTools"),
+    ];
+    for (const control of remaining) {
+      await userEvent.tab();
+      expect(control).toHaveFocus();
+    }
   });
 });

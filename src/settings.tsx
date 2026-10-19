@@ -1,12 +1,10 @@
-import { LogicalSize, getCurrentWindow } from "@tauri-apps/api/window";
-import React, { useEffect, useRef } from "react";
+import React from "react";
 import ReactDOM from "react-dom/client";
 import { SettingsWindow } from "./components/SettingsWindow";
 import { useSettingsWindow } from "./hooks/useSettingsWindow";
 import "./styles.css";
 
 function SettingsApp() {
-  const containerRef = useRef<HTMLDivElement | null>(null);
   const {
     settings,
     monitors,
@@ -18,21 +16,8 @@ function SettingsApp() {
     toggleDevtoolsOpen,
   } = useSettingsWindow();
 
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const win = getCurrentWindow();
-    const observer = new ResizeObserver(() => {
-      const h = Math.ceil(el.getBoundingClientRect().height);
-      win.setSize(new LogicalSize(380, h)).catch(console.error);
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
   return (
     <SettingsWindow
-      containerRef={containerRef}
       settings={settings}
       monitors={monitors}
       notificationSources={notificationSources}

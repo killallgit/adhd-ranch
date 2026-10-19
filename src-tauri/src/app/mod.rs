@@ -4,6 +4,7 @@ mod claude_hook;
 mod claude_plugin;
 pub mod menu;
 pub mod paths;
+mod settings_window;
 pub mod settings_workflow;
 pub mod timer_expiry;
 pub mod tray;
@@ -282,26 +283,8 @@ fn now_unix_secs() -> i64 {
 }
 
 pub fn open_settings_window<R: tauri::Runtime>(app: &AppHandle<R>) {
-    if let Some(win) = app.get_webview_window("settings") {
-        if win.is_visible().unwrap_or(false) {
-            let _ = win.set_focus();
-            return;
-        }
-        // Label still registered but window is closed — destroy to free it
-        let _ = win.destroy();
-    }
-    match WebviewWindowBuilder::new(app, "settings", WebviewUrl::App("settings.html".into()))
-        .title("Preferences")
-        .inner_size(380.0, 300.0)
-        .min_inner_size(380.0, 100.0)
-        .decorations(true)
-        .resizable(false)
-        .build()
-    {
-        Ok(win) => {
-            let _ = win.show();
-        }
-        Err(e) => log::error!("open_settings_window: {e}"),
+    if let Err(e) = settings_window::open(app) {
+        log::error!("open_settings_window: {e}");
     }
 }
 
