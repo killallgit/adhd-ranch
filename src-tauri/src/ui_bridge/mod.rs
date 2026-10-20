@@ -7,7 +7,10 @@ use adhd_ranch_commands::{
 };
 use adhd_ranch_domain::agents::hooks::{HookFiring, HookWiring};
 use adhd_ranch_domain::session::AgentSession;
-use adhd_ranch_domain::{Focus, Settings, TimerOwner, TimerPreset, TimerPresetEdit, TimerPresets};
+use adhd_ranch_domain::{
+    all_sources, Focus, NotificationSourceDescriptor, Settings, TimerOwner, TimerPreset,
+    TimerPresetEdit, TimerPresets,
+};
 
 use tauri::{AppHandle, Emitter, Manager, State, Wry};
 
@@ -200,6 +203,17 @@ pub fn set_pig_drag_active(active: bool, state: State<'_, DragLockState>) {
 }
 
 #[tauri::command]
+pub fn list_notification_sources() -> Vec<NotificationSourceDescriptor> {
+    all_sources()
+        .iter()
+        .map(|source| NotificationSourceDescriptor {
+            key: source.key().to_string(),
+            label: source.label().to_string(),
+        })
+        .collect()
+}
+
+#[tauri::command]
 pub fn get_settings(state: State<'_, SettingsState>) -> Settings {
     state.0.lock().map(|s| s.clone()).unwrap_or_default()
 }
@@ -282,4 +296,19 @@ pub fn get_devtools_open(app: AppHandle<Wry>) -> bool {
 #[tauri::command]
 pub fn get_devtools_open() -> bool {
     false
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn notification_descriptors_follow_the_domain_registry() {
+        let descriptors = super::list_notification_sources();
+        let sources = adhd_ranch_domain::all_sources();
+
+        assert_eq!(descriptors.len(), sources.len());
+        for (descriptor, source) in descriptors.iter().zip(sources) {
+            assert_eq!(descriptor.key, source.key());
+            assert_eq!(descriptor.label, source.label());
+        }
+    }
 }

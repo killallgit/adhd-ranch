@@ -82,6 +82,7 @@ pub fn run() {
             ui_bridge::update_pig_rects,
             ui_bridge::set_pig_drag_active,
             ui_bridge::get_settings,
+            ui_bridge::list_notification_sources,
             ui_bridge::update_settings,
             ui_bridge::edit_saved_timer_minutes,
             ui_bridge::get_monitors,
