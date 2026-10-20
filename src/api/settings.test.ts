@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TimerPresetEdit } from "../types/generated/TimerPresetEdit";
-import { editSavedTimerMinutes } from "./settings";
+import { editSavedTimerMinutes, listNotificationSources } from "./settings";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 
@@ -28,5 +28,22 @@ describe("editSavedTimerMinutes", () => {
     vi.mocked(invoke).mockRejectedValue(error);
 
     await expect(editSavedTimerMinutes({ Add: 25 })).rejects.toBe(error);
+  });
+});
+
+describe("listNotificationSources", () => {
+  it("returns registry descriptors from IPC without filtering future keys", async () => {
+    const sources = [{ key: "future_source", label: "A future notification" }];
+    vi.mocked(invoke).mockResolvedValue(sources);
+
+    expect(await listNotificationSources()).toEqual(sources);
+    expect(invoke).toHaveBeenCalledWith("list_notification_sources");
+  });
+
+  it("propagates registry read failures", async () => {
+    const error = new Error("unavailable");
+    vi.mocked(invoke).mockRejectedValue(error);
+
+    await expect(listNotificationSources()).rejects.toBe(error);
   });
 });

@@ -10,6 +10,7 @@ function SettingsApp() {
   const {
     settings,
     monitors,
+    notificationSources,
     debugOverlay,
     devtoolsOpen,
     update,
@@ -34,6 +35,7 @@ function SettingsApp() {
       containerRef={containerRef}
       settings={settings}
       monitors={monitors}
+      notificationSources={notificationSources}
       debugOverlay={debugOverlay}
       devtoolsOpen={devtoolsOpen}
       onUpdate={update}

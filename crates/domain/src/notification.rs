@@ -7,6 +7,14 @@ pub trait NotificationSource {
     fn label(&self) -> &'static str;
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "export-ts", derive(ts_rs::TS))]
+#[cfg_attr(feature = "export-ts", ts(export))]
+pub struct NotificationSourceDescriptor {
+    pub key: String,
+    pub label: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "export-ts", derive(ts_rs::TS))]
 #[cfg_attr(feature = "export-ts", ts(export))]

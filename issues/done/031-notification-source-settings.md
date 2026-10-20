@@ -41,14 +41,22 @@ Notification toggles in Preferences are driven by the Rust `NotificationSource` 
 
 ## Acceptance criteria
 
-- [ ] A command/API returns notification source descriptors from `all_sources()`
-- [ ] `SettingsWindow` no longer contains a hardcoded `NOTIFICATION_SOURCES` list
-- [ ] "Timer expired", "Too many focuses", and "Too many tasks in a focus" toggles still render with current settings values
-- [ ] Toggling any source updates `settings.yaml` and takes effect immediately (no restart needed)
-- [ ] Adding a second or later `NotificationSource` requires no changes to `SettingsWindow`
-- [ ] Existing Settings sections (General, Widget, Displays, Debug) are unaffected
-- [ ] `task check` green
+- [x] A command/API returns notification source descriptors from `all_sources()`
+- [x] `SettingsWindow` no longer contains a hardcoded `NOTIFICATION_SOURCES` list
+- [x] "Timer expired", "Too many focuses", and "Too many tasks in a focus" toggles still render with current settings values
+- [x] Toggling any source updates `settings.yaml` and takes effect immediately (no restart needed)
+- [x] Adding a second or later `NotificationSource` requires no changes to `SettingsWindow`
+- [x] Existing Settings sections (General, Widget, Displays, Debug) are unaffected
+- [x] `task check` green
 
 ## Blocked by
 
 050 — settings update workflow and runtime freshness. 029 and 032 are done.
+
+## Validation
+
+Automated acceptance passed: the registry projection, API/hook wiring, current labels and values, and arbitrary-descriptor rendering/toggling are covered by focused tests. Existing settings workflow, flat YAML round-trip, and latest-settings notification tests passed, covering persistence and immediate runtime application without changing the settings schema.
+
+`task check` and `task check:windows` passed. Implementation review returned PASS; the rules review was clean.
+
+Native Preferences interaction, actual settings-file changes from native toggles, and OS notification delivery were not observed. These checks establish automated behavior, not native GUI verification.

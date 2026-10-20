@@ -22,7 +22,7 @@ pub use monitor::MonitorInfo;
 pub use new_focus::NewFocus;
 pub use notification::{
     all_sources, FocusesOverCapSource, NotificationSettings, NotificationSource,
-    TaskTimerExpiredSource, TasksOverCapSource, TimerExpiredSource,
+    NotificationSourceDescriptor, TaskTimerExpiredSource, TasksOverCapSource, TimerExpiredSource,
 };
 pub use parse::{parse_focus_md, ParseError};
 pub use pig_rect::{PigRect, RectUpdater};

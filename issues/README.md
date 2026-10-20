@@ -4,11 +4,11 @@ Each issue is a self-contained vertical slice that one person or coding agent ca
 
 ## Priority queue
 
-- [031](031-notification-source-settings.md) — Notification source settings registry (GH #31)
+No feature issues queued.
 
 ### Architecture queue (deepening)
 
-These are not required before 031. Pick one when we choose to spend a slice on internal seams or future-proofing.
+Pick one when we choose to spend a slice on internal seams or future-proofing.
 
 - [056](056-task-timer-binding.md) — Task Timers drift when Tasks are hand-edited
 - [051](051-ranch-animal-vocabulary-seam.md) — Animal vocabulary for the movement layer (render contract shipped; `Pig*` names remain)

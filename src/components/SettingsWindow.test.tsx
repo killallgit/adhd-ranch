@@ -15,10 +15,22 @@ const SETTINGS: Settings = {
   timers: { saved_minutes: [15] },
 };
 
-function renderSettings(onUpdate: (next: Settings) => void) {
+const SOURCES = [
+  { key: "timer_expired", label: "Timer expired" },
+  { key: "task_timer_expired", label: "Task timer expired" },
+  { key: "focuses_over_cap", label: "Too many focuses" },
+  { key: "tasks_over_cap", label: "Too many tasks in a focus" },
+];
+
+function renderSettings(
+  onUpdate: (next: Settings) => void,
+  settings = SETTINGS,
+  notificationSources = SOURCES,
+) {
   render(
     <SettingsWindow
-      settings={SETTINGS}
+      settings={settings}
+      notificationSources={notificationSources}
       monitors={[]}
       debugOverlay={false}
       devtoolsOpen={false}
@@ -89,5 +101,51 @@ describe("SettingsWindow number rows", () => {
       ...SETTINGS,
       widget: { ...SETTINGS.widget, confirm_delete: false },
     });
+  });
+});
+
+describe("SettingsWindow notification registry", () => {
+  it("renders registered labels with explicit values and enabled defaults", () => {
+    renderSettings(vi.fn(), {
+      ...SETTINGS,
+      notifications: { sources: { timer_expired: false, focuses_over_cap: true } },
+    });
+
+    expect(screen.getByLabelText("Timer expired")).not.toBeChecked();
+    expect(screen.getByLabelText("Task timer expired")).toBeChecked();
+    expect(screen.getByLabelText("Too many focuses")).toBeChecked();
+    expect(screen.getByLabelText("Too many tasks in a focus")).toBeChecked();
+  });
+
+  it.each([true, false])(
+    "toggles an injected future source from %s and preserves settings",
+    async (enabled) => {
+      const onUpdate = vi.fn();
+      const settings = {
+        ...SETTINGS,
+        notifications: { sources: { timer_expired: false, future_source: enabled } },
+      };
+      renderSettings(onUpdate, settings, [
+        ...SOURCES,
+        { key: "future_source", label: "A future notification" },
+      ]);
+
+      await userEvent.click(screen.getByLabelText("A future notification"));
+
+      expect(onUpdate).toHaveBeenCalledWith({
+        ...settings,
+        notifications: { sources: { timer_expired: false, future_source: !enabled } },
+      });
+    },
+  );
+
+  it("does not invent notification rows before the registry loads", () => {
+    renderSettings(vi.fn(), SETTINGS, []);
+
+    expect(screen.queryByLabelText("Timer expired")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Max focuses")).toHaveValue(5);
+    expect(screen.getByLabelText("Always on Top")).not.toBeChecked();
+    expect(screen.getByLabelText("Max pen size")).toHaveValue(320);
+    expect(screen.getByLabelText("Debug Overlay")).not.toBeChecked();
   });
 });

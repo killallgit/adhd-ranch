@@ -1,20 +1,15 @@
 import type React from "react";
 import { useState } from "react";
+import type { NotificationSourceDescriptor } from "../types/generated/NotificationSourceDescriptor";
 import type { MonitorInfo } from "../types/monitor";
 import type { Settings } from "../types/settings";
 
 const PEN_SIZE_RANGE = { min: 160, max: 960 } as const;
 
-const NOTIFICATION_SOURCES = [
-  { key: "timer_expired", label: "Timer expired" },
-  { key: "task_timer_expired", label: "Task timer expired" },
-  { key: "focuses_over_cap", label: "Too many focuses" },
-  { key: "tasks_over_cap", label: "Too many tasks in a focus" },
-] as const;
-
 interface SettingsWindowProps {
   readonly settings: Settings | null;
   readonly monitors: MonitorInfo[];
+  readonly notificationSources: readonly NotificationSourceDescriptor[];
   readonly debugOverlay: boolean;
   readonly devtoolsOpen: boolean;
   readonly onUpdate: (next: Settings) => void;
@@ -94,6 +89,7 @@ function toggleDisplayIndex(indices: readonly number[], idx: number): number[] {
 export function SettingsWindow({
   settings,
   monitors,
+  notificationSources,
   debugOverlay,
   devtoolsOpen,
   onUpdate,
@@ -182,7 +178,7 @@ export function SettingsWindow({
 
           <section className="settings-section">
             <h2 className="settings-section-title">Notifications</h2>
-            {NOTIFICATION_SOURCES.map(({ key, label }) => (
+            {notificationSources.map(({ key, label }) => (
               <ToggleRow
                 key={key}
                 label={label}
