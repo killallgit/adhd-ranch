@@ -379,6 +379,70 @@ mod tests {
     }
 
     #[test]
+    fn older_complete_plugin_is_upgraded_before_success() {
+        for enabled in [true, false] {
+            let dir = tempfile::tempdir().unwrap();
+            let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("../plugins/adhd-ranch-hooks");
+            for relative in [
+                ".claude-plugin/plugin.json",
+                "hooks/hooks.json",
+                "scripts/send-hook",
+            ] {
+                let destination = dir.path().join(relative);
+                std::fs::create_dir_all(destination.parent().unwrap()).unwrap();
+                std::fs::copy(source.join(relative), destination).unwrap();
+            }
+            let manifest_path = dir.path().join(".claude-plugin/plugin.json");
+            let current_manifest = std::fs::read(&manifest_path).unwrap();
+            let mut old_manifest: serde_json::Value =
+                serde_json::from_slice(&current_manifest).unwrap();
+            old_manifest["version"] = serde_json::json!("0.1.0");
+            std::fs::write(&manifest_path, serde_json::to_vec(&old_manifest).unwrap()).unwrap();
+            let marketplace = source.parent().unwrap().parent().unwrap();
+            let mut plugin_enabled = enabled;
+            let mut updated = false;
+
+            install_user_with(
+                |args| {
+                    match args {
+                        ["plugin", "list", "--json"] => {
+                            return Ok(serde_json::to_vec(&serde_json::json!([{
+                                "id": PLUGIN_ID,
+                                "scope": "user",
+                                "enabled": plugin_enabled,
+                                "installPath": dir.path()
+                            }]))
+                            .unwrap())
+                        }
+                        ["plugin", "marketplace", "list", "--json"] => {
+                            return Ok(serde_json::to_vec(&serde_json::json!([{
+                                "name": MARKETPLACE_NAME,
+                                "repo": MARKETPLACE_SOURCE,
+                                "installLocation": marketplace
+                            }]))
+                            .unwrap())
+                        }
+                        ["plugin", "marketplace", "update", MARKETPLACE_NAME] => {}
+                        ["plugin", "update", PLUGIN_ID, "--scope", "user"] => {
+                            std::fs::write(&manifest_path, &current_manifest).unwrap();
+                            updated = true;
+                        }
+                        ["plugin", "enable", PLUGIN_ID, "--scope", "user"] => plugin_enabled = true,
+                        _ => panic!("unexpected Claude command: {args:?}"),
+                    }
+                    Ok(Vec::new())
+                },
+                contract::validate,
+            )
+            .unwrap();
+
+            assert!(updated);
+            assert!(plugin_enabled);
+            assert_eq!(std::fs::read(&manifest_path).unwrap(), current_manifest);
+        }
+    }
+
+    #[test]
     fn already_enabled_and_valid_does_not_repeat_installation() {
         let mut calls = Vec::new();
         install_user_with(

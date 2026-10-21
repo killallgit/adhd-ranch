@@ -10,6 +10,10 @@ use adhd_ranch_domain::agents::claude_code::hooks::SESSION_HOOKS;
 use serde_json::{json, Value};
 
 const HOOK_COMMAND: &str = "${CLAUDE_PLUGIN_ROOT}/scripts/send-hook";
+const MANIFEST: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../plugins/adhd-ranch-hooks/.claude-plugin/plugin.json"
+));
 const WRAPPER: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../plugins/adhd-ranch-hooks/scripts/send-hook"
@@ -33,6 +37,12 @@ pub(super) fn validate(root: &Path) -> io::Result<()> {
         serde_json::from_slice(&read_required(root, ".claude-plugin/plugin.json")?)?;
     if manifest.get("name").and_then(Value::as_str) != Some("adhd-ranch-hooks") {
         return Err(invalid("Ranch plugin manifest has the wrong name"));
+    }
+    let expected: Value = serde_json::from_slice(MANIFEST)?;
+    if manifest.get("version").and_then(Value::as_str)
+        != expected.get("version").and_then(Value::as_str)
+    {
+        return Err(invalid("Ranch plugin version differs from this app"));
     }
 
     let document: Value = serde_json::from_slice(&read_required(root, "hooks/hooks.json")?)?;
@@ -164,6 +174,25 @@ mod tests {
     fn an_existing_complete_install_is_valid() {
         let dir = fixture();
         validate(dir.path()).unwrap();
+    }
+
+    #[test]
+    fn outdated_or_missing_plugin_version_is_rejected() {
+        for version in [Some("0.1.0"), None] {
+            let dir = fixture();
+            let file = dir.path().join(".claude-plugin/plugin.json");
+            let mut manifest: Value = serde_json::from_slice(&fs::read(&file).unwrap()).unwrap();
+            if let Some(version) = version {
+                manifest["version"] = json!(version);
+            } else {
+                manifest.as_object_mut().unwrap().remove("version");
+            }
+            fs::write(file, serde_json::to_vec(&manifest).unwrap()).unwrap();
+
+            let error = validate(dir.path()).unwrap_err();
+
+            assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+        }
     }
 
     #[test]
