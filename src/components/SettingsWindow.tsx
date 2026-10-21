@@ -1,4 +1,3 @@
-import type React from "react";
 import { useState } from "react";
 import type { NotificationSourceDescriptor } from "../types/generated/NotificationSourceDescriptor";
 import type { MonitorInfo } from "../types/monitor";
@@ -15,7 +14,6 @@ interface SettingsWindowProps {
   readonly onUpdate: (next: Settings) => void;
   readonly onSetDebugOverlay: (enabled: boolean) => void;
   readonly onToggleDevtools: () => void;
-  readonly containerRef: React.RefObject<HTMLDivElement | null>;
 }
 
 interface ToggleRowProps {
@@ -95,10 +93,9 @@ export function SettingsWindow({
   onUpdate,
   onSetDebugOverlay,
   onToggleDevtools,
-  containerRef,
 }: SettingsWindowProps) {
   return (
-    <div ref={containerRef as React.Ref<HTMLDivElement>} className="settings-window">
+    <div className="settings-window settings-window--preferences">
       {settings && (
         <>
           <section className="settings-section">

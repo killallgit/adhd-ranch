@@ -490,6 +490,29 @@ body,
   box-sizing: border-box;
 }
 
+.settings-window--preferences {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.settings-window--preferences .settings-section {
+  flex-shrink: 0;
+}
+
+.settings-window--preferences .settings-row {
+  gap: 12px;
+}
+
+.settings-window--preferences .settings-row-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.settings-window--preferences input {
+  flex-shrink: 0;
+}
+
 .settings-section {
   margin-bottom: 12px;
 }
